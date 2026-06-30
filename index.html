@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Go Unbroken — Registre seus PRs e compita no CrossFit</title>
+    <meta name="description" content="Go Unbroken é o app de CrossFit para registrar PRs, acompanhar progressão, receber treinos prescritos e competir em competições ao vivo." />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://gounbroken.app/" />
+    <meta property="og:title" content="Go Unbroken — CrossFit PRs & Competições" />
+    <meta property="og:description" content="Registre seus PRs, acompanhe sua progressão e compita em competições de CrossFit ao vivo." />
+    <meta property="og:image" content="https://gounbroken.app/icons/icon-512.png" />
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Go Unbroken — CrossFit PRs & Competições" />
+    <meta name="twitter:description" content="Registre seus PRs, acompanhe sua progressão e compita em competições de CrossFit ao vivo." />
+    <meta name="twitter:image" content="https://gounbroken.app/icons/icon-512.png" />
+
+    <!-- Canonical -->
+    <link rel="canonical" href="https://gounbroken.app/" />
+
+    <!-- PWA / iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Go Unbroken" />
+    <meta name="theme-color" content="#0A0A0A" />
+
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" href="/icons/icon-192.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <!--
+      SW recovery — runs inline, before any module bundle.
+      If a JS/CSS asset 404s (stale service-worker serving old chunk names),
+      we unregister every SW and do a hard network reload.
+      This self-heals every deploy without user intervention.
+    -->
+    <script>
+      (function () {
+        // Catch resource-load errors (script, link) in capture phase
+        window.addEventListener('error', function (e) {
+          var t = e.target || e.srcElement
+          if (!t) return
+          var src = t.src || t.href || ''
+          // Only act on our own bundled assets
+          if (src.indexOf('/assets/') === -1) return
+          // Unregister all SWs then hard-reload from network
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function (regs) {
+              var all = regs.map(function (r) { return r.unregister() })
+              Promise.all(all).then(function () {
+                // Clear all caches too
+                if ('caches' in window) {
+                  caches.keys().then(function (keys) {
+                    keys.forEach(function (k) { caches.delete(k) })
+                    window.location.reload()
+                  })
+                } else {
+                  window.location.reload()
+                }
+              })
+            })
+          } else {
+            window.location.reload()
+          }
+        }, true /* capture — catches resource errors before bubbling */)
+      })()
+    </script>
+
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

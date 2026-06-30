@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 160" width="600" height="160">
+  
+  <rect width="600" height="160" fill="#0A0A0A"></rect>
+
+  
+  <g transform="translate(40 26)">
+    <rect x="0" y="0" width="6" height="6" fill="#D4FF3A"></rect>
+    <text x="14" y="6" font-family="JetBrains Mono, monospace" font-size="10" font-weight="800" letter-spacing="2.6" fill="#A8A8A4">STRENGTH·SCORES·SINCE·2026</text>
+  </g>
+
+  
+  <text x="40" y="100" font-family="Space Grotesk, Helvetica Neue, sans-serif" font-size="64" font-weight="700" letter-spacing="-2" fill="#F5F5F0">GO</text>
+
+  
+  <rect x="146" y="76" width="28" height="6" fill="#D4FF3A"></rect>
+
+  <text x="184" y="100" font-family="Space Grotesk, Helvetica Neue, sans-serif" font-size="64" font-weight="700" letter-spacing="-2" fill="#F5F5F0">UNBROKEN</text>
+
+  
+  <g transform="translate(40 122)">
+    <rect x="0" y="0" width="520" height="1" fill="#3D3D3B"></rect>
+    <text x="0" y="16" font-family="JetBrains Mono, monospace" font-size="10" font-weight="700" letter-spacing="2" fill="#6B6B68">001/100</text>
+    <text x="520" y="16" font-family="JetBrains Mono, monospace" font-size="10" font-weight="700" letter-spacing="2" fill="#6B6B68" text-anchor="end">REP·BY·REP</text>
+  </g>
+</svg>

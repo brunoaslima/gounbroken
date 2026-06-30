@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Go Unbroken — Landing Page Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Space Grotesk', sans-serif; background: #0A0A0A; color: #F5F5F5; }
+    a { text-decoration: none; }
+
+    /* --- NAV --- */
+    nav {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 20px 40px; border-bottom: 1px solid #2A2A2A;
+      background: #0A0A0A; position: sticky; top: 0; z-index: 100;
+    }
+    .nav-logo { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 14px; letter-spacing: 0.1em; color: #D4FF3A; }
+    .nav-actions { display: flex; gap: 16px; align-items: center; }
+    .btn-outline {
+      font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 10px;
+      letter-spacing: 0.14em; text-transform: uppercase; color: #D4FF3A;
+      border: 1px solid #D4FF3A; padding: 9px 18px; cursor: pointer;
+      background: transparent; transition: background 0.15s;
+    }
+    .btn-outline:hover { background: rgba(212,255,58,0.08); }
+
+    /* --- HERO --- */
+    .hero {
+      display: grid; grid-template-columns: 1fr 1fr;
+      border-bottom: 1px solid #2A2A2A; min-height: 480px;
+    }
+    .hero-left {
+      padding: 64px 40px; border-right: 1px solid #2A2A2A;
+      display: flex; flex-direction: column; justify-content: center; gap: 32px;
+    }
+    .hero-eyebrow { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: #D4FF3A; }
+    .hero-headline {
+      font-size: clamp(60px, 8vw, 108px); font-weight: 700;
+      line-height: 0.9; letter-spacing: -0.03em;
+    }
+    .hero-headline .lime { color: #D4FF3A; }
+    .hero-sub { font-size: 15px; color: #888; line-height: 1.7; max-width: 400px; }
+    .hero-actions { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+    .btn-primary {
+      font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 11px;
+      letter-spacing: 0.14em; text-transform: uppercase; background: #D4FF3A;
+      color: #0A0A0A; padding: 15px 28px; border: none; cursor: pointer;
+      transition: opacity 0.15s; display: inline-block;
+    }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-ghost {
+      font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 11px;
+      letter-spacing: 0.14em; text-transform: uppercase; color: #888;
+      background: transparent; border: none; border-bottom: 1px solid #444;
+      padding-bottom: 3px; cursor: pointer; display: inline-block;
+    }
+    .btn-ghost:hover { color: #F5F5F5; border-color: #888; }
+
+    /* PR CARDS */
+    .hero-right {
+      background: #111111; padding: 48px 40px;
+      display: flex; flex-direction: column; gap: 14px; justify-content: center;
+    }
+    .pr-card { background: #0A0A0A; border: 1px solid #2A2A2A; padding: 24px; }
+    .pr-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+    .label { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; }
+    .pr-badge { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; background: #D4FF3A; color: #0A0A0A; padding: 3px 8px; }
+    .pr-value { font-family: 'JetBrains Mono', monospace; font-size: 64px; font-weight: 700; line-height: 1; }
+    .pr-unit { font-size: 16px; color: #666; margin-left: 4px; }
+    .pr-delta { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #D4FF3A; margin-top: 8px; }
+    .pr-date { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #444; margin-top: 4px; }
+    .pr-card-2 { background: #0A0A0A; border: 1px solid #2A2A2A; padding: 18px 24px; display: flex; justify-content: space-between; align-items: center; }
+    .pr-card-2-value { font-family: 'JetBrains Mono', monospace; font-size: 34px; font-weight: 700; margin-top: 4px; }
+    .pr-mini-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .pr-mini { background: #0A0A0A; border: 1px solid #2A2A2A; padding: 14px; text-align: center; }
+    .pr-mini-value { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; margin-top: 6px; }
+    .pr-mini-unit { font-size: 11px; color: #666; }
+
+    /* --- STATS --- */
+    .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; border-bottom: 1px solid #2A2A2A; }
+    .stat { padding: 48px 40px; border-right: 1px solid #2A2A2A; }
+    .stat:last-child { border-right: none; }
+    .stat-num { font-family: 'JetBrains Mono', monospace; font-size: 56px; font-weight: 700; line-height: 1; margin-bottom: 10px; }
+    .stat-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #555; }
+
+    /* --- FEATURES --- */
+    .features { display: grid; grid-template-columns: 1fr 1fr 1fr; border-bottom: 1px solid #2A2A2A; }
+    .feature { padding: 48px 40px; border-right: 1px solid #2A2A2A; border-top: 2px solid #D4FF3A; }
+    .feature:last-child { border-right: none; }
+    .feature-num { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: #D4FF3A; letter-spacing: 0.14em; margin-bottom: 24px; }
+    .feature-title { font-size: 22px; font-weight: 700; margin-bottom: 14px; line-height: 1.2; }
+    .feature-desc { font-size: 14px; color: #666; line-height: 1.7; }
+
+    /* --- LEADERBOARD --- */
+    .leaderboard-section { background: #111111; border-bottom: 1px solid #2A2A2A; padding: 64px 40px; }
+    .section-header { display: flex; gap: 12px; align-items: center; margin-bottom: 36px; }
+    .live-dot { width: 6px; height: 6px; background: #D4FF3A; border-radius: 50%; animation: blink 1.8s ease-in-out infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+    table { width: 100%; border-collapse: collapse; }
+    th { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #444; padding: 10px 14px; border-bottom: 1px solid #2A2A2A; text-align: left; }
+    th.center { text-align: center; }
+    th.right { text-align: right; }
+    .lb-row td { padding: 14px 14px; border-bottom: 1px solid #181818; font-size: 14px; }
+    .lb-row.first { background: #D4FF3A; }
+    .lb-row.first td { color: #0A0A0A; font-weight: 700; border-bottom-color: transparent; }
+    .lb-row.second td:first-child { border-left: 2px solid #D4FF3A; }
+    .lb-row.third td:first-child { border-left: 2px solid #888; }
+    .lb-rank { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 13px; }
+    .lb-team { font-weight: 700; }
+    .lb-wod { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #888; text-align: center; }
+    .lb-row.first .lb-wod { color: rgba(0,0,0,0.45); }
+    .lb-pts { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 16px; color: #D4FF3A; text-align: right; }
+    .lb-row.first .lb-pts { color: #0A0A0A; }
+    .lb-link { margin-top: 24px; text-align: center; }
+    .lb-link-btn { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #D4FF3A; background: transparent; border: none; border-bottom: 1px solid #D4FF3A; padding-bottom: 2px; cursor: pointer; }
+
+    /* --- CTA FINAL --- */
+    .cta-final { background: #D4FF3A; padding: 96px 40px; text-align: center; }
+    .cta-headline { font-size: clamp(44px, 6vw, 72px); font-weight: 700; color: #0A0A0A; line-height: 0.95; margin-bottom: 16px; letter-spacing: -0.02em; }
+    .cta-sub { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(0,0,0,0.45); margin-bottom: 40px; }
+    .btn-dark { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; background: #0A0A0A; color: #D4FF3A; padding: 18px 44px; border: none; cursor: pointer; display: inline-block; transition: opacity 0.15s; }
+    .btn-dark:hover { opacity: 0.85; }
+
+    /* --- FOOTER --- */
+    footer { padding: 24px 40px; border-top: 1px solid #2A2A2A; display: flex; justify-content: space-between; align-items: center; }
+    .footer-logo { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 12px; letter-spacing: 0.1em; color: #444; }
+    .footer-copy { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #333; letter-spacing: 0.08em; text-transform: uppercase; }
+
+    /* --- RESPONSIVE --- */
+    @media (max-width: 768px) {
+      nav { padding: 16px 20px; }
+      .hero { grid-template-columns: 1fr; }
+      .hero-left { padding: 48px 24px; }
+      .hero-right { display: none; }
+      .stats { grid-template-columns: 1fr; }
+      .stat { border-right: none; border-bottom: 1px solid #2A2A2A; padding: 32px 24px; }
+      .features { grid-template-columns: 1fr; }
+      .feature { border-right: none; }
+      .leaderboard-section { padding: 48px 20px; }
+      .cta-final { padding: 64px 24px; }
+      footer { padding: 20px 24px; flex-direction: column; gap: 8px; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-logo">GO · UNBROKEN</div>
+    <div class="nav-actions">
+      <button class="btn-outline">ENTRAR →</button>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-left">
+      <div class="hero-eyebrow">CrossFit Tracking &amp; Competition</div>
+      <h1 class="hero-headline">Rep<br>por<br><span class="lime">rep.</span></h1>
+      <p class="hero-sub">Registre cada PR. Compita ao vivo. Evolua sem parar. O único app que conecta seu treino à competição.</p>
+      <div class="hero-actions">
+        <button class="btn-primary">COMEÇAR AGORA →</button>
+        <button class="btn-ghost">JÁ TENHO CONTA</button>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="pr-card">
+        <div class="pr-card-header">
+          <span class="label" style="color:#555">SNATCH</span>
+          <span class="pr-badge">PR</span>
+        </div>
+        <div>
+          <span class="pr-value">100</span><span class="pr-unit">kg</span>
+        </div>
+        <div class="pr-delta">+5kg vs anterior</div>
+        <div class="pr-date">28 JUN 2026</div>
+      </div>
+      <div class="pr-card-2">
+        <div>
+          <div class="label" style="color:#555">FRAN</div>
+          <div class="pr-card-2-value">3:42</div>
+        </div>
+        <div style="text-align:right">
+          <span class="pr-badge">PR</span>
+          <div class="pr-delta">-18s</div>
+        </div>
+      </div>
+      <div class="pr-mini-grid">
+        <div class="pr-mini">
+          <div class="label" style="color:#444">BACK SQUAT</div>
+          <div class="pr-mini-value">140<span class="pr-mini-unit">kg</span></div>
+        </div>
+        <div class="pr-mini">
+          <div class="label" style="color:#444">DEADLIFT</div>
+          <div class="pr-mini-value">185<span class="pr-mini-unit">kg</span></div>
+        </div>
+        <div class="pr-mini">
+          <div class="label" style="color:#444">CLEAN &amp; J</div>
+          <div class="pr-mini-value">110<span class="pr-mini-unit">kg</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section class="stats">
+    <div class="stat">
+      <div class="stat-num">12.847</div>
+      <div class="stat-label">PRs Registrados</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">1.203</div>
+      <div class="stat-label">Atletas Ativos</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">47</div>
+      <div class="stat-label">Competições Realizadas</div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features">
+    <div class="feature">
+      <div class="feature-num">[01]</div>
+      <h2 class="feature-title">PRs &amp; Progressão</h2>
+      <p class="feature-desc">Registre lifts, WODs e benchmarks. Visualize sua evolução em gráficos precisos. Saiba exatamente o quanto você cresceu.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-num">[02]</div>
+      <h2 class="feature-title">Treino Personalizado</h2>
+      <p class="feature-desc">Seu coach prescreve direto no app. Você executa, registra e evolui. Histórico completo de cada atleta na palma da mão.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-num">[03]</div>
+      <h2 class="feature-title">Competições ao Vivo</h2>
+      <p class="feature-desc">Crie competições em equipes, juize em tempo real e acompanhe o leaderboard ao vivo. Tudo em um único lugar.</p>
+    </div>
+  </section>
+
+  <!-- LEADERBOARD SHOWCASE -->
+  <section class="leaderboard-section">
+    <div class="section-header">
+      <div class="live-dot"></div>
+      <span class="label" style="color:#D4FF3A">LEADERBOARD AO VIVO</span>
+      <span class="label" style="color:#333">OPEN BOX CHAMPIONSHIP 2025</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>EQUIPE</th>
+          <th class="center">W01</th>
+          <th class="center">W02</th>
+          <th class="center">W03</th>
+          <th class="right">PTS</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="lb-row first">
+          <td><span class="lb-rank">01</span></td>
+          <td><span class="lb-team">ALPHA WOLVES</span></td>
+          <td class="lb-wod">1</td>
+          <td class="lb-wod">2</td>
+          <td class="lb-wod">1</td>
+          <td class="lb-pts">4</td>
+        </tr>
+        <tr class="lb-row second">
+          <td><span class="lb-rank">02</span></td>
+          <td><span class="lb-team">IRON FORGE</span></td>
+          <td class="lb-wod">2</td>
+          <td class="lb-wod">1</td>
+          <td class="lb-wod">3</td>
+          <td class="lb-pts">6</td>
+        </tr>
+        <tr class="lb-row third">
+          <td><span class="lb-rank">03</span></td>
+          <td><span class="lb-team">STEEL MIND</span></td>
+          <td class="lb-wod">3</td>
+          <td class="lb-wod">4</td>
+          <td class="lb-wod">2</td>
+          <td class="lb-pts">9</td>
+        </tr>
+        <tr class="lb-row">
+          <td><span class="lb-rank">04</span></td>
+          <td><span class="lb-team">BRUTAL CREW</span></td>
+          <td class="lb-wod">4</td>
+          <td class="lb-wod">3</td>
+          <td class="lb-wod">5</td>
+          <td class="lb-pts">12</td>
+        </tr>
+        <tr class="lb-row">
+          <td><span class="lb-rank">05</span></td>
+          <td><span class="lb-team">RAW POWER</span></td>
+          <td class="lb-wod">5</td>
+          <td class="lb-wod">5</td>
+          <td class="lb-wod">4</td>
+          <td class="lb-pts">14</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="lb-link">
+      <button class="lb-link-btn">VER LEADERBOARD COMPLETO →</button>
+    </div>
+  </section>
+
+  <!-- CTA FINAL -->
+  <section class="cta-final">
+    <h2 class="cta-headline">Pronto para<br>ir além?</h2>
+    <p class="cta-sub">Grátis para começar · Sem cartão de crédito</p>
+    <button class="btn-dark">CRIAR CONTA GRÁTIS →</button>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-logo">GO · UNBROKEN</div>
+    <div class="footer-copy">© 2026 · Todos os direitos reservados</div>
+  </footer>
+
+</body>
+</html>
