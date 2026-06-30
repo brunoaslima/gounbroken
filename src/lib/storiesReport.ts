@@ -110,6 +110,12 @@ export function buildStoriesData(
   }
 }
 
+const HEX_COLOR_RE = /^#[0-9A-Fa-f]{3,6}$/
+
+function safeColor(color: string, fallback = '#6B6B68'): string {
+  return HEX_COLOR_RE.test(color) ? color : fallback
+}
+
 // Returns just the inner poster div — used with html-to-image for native sharing
 export function buildStoriesContent(d: StoriesData): string {
   const hasChart = d.progression.length >= 2
@@ -193,7 +199,7 @@ export function buildStoriesContent(d: StoriesData): string {
 
   const tierBadge = d.tierLabel && d.percentile !== null ? `
     <div style="margin-top:32px;display:flex;align-items:center;gap:18px;">
-      <span style="font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;padding:12px 22px;border:2px solid ${d.tierColor};color:${d.tierColor};">${esc(d.tierLabel.toUpperCase())}</span>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;padding:12px 22px;border:2px solid ${safeColor(d.tierColor)};color:${safeColor(d.tierColor)};">${esc(d.tierLabel.toUpperCase())}</span>
       <span style="font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:700;letter-spacing:0.08em;color:#6B6B68;">top ${d.percentile}% global</span>
     </div>` : ''
 
@@ -236,7 +242,7 @@ export function buildStoriesContent(d: StoriesData): string {
   <div style="margin-top:48px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
       <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#6B6B68;">Strength scale · global percentile</span>
-      ${d.tierLabel ? `<span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6B6B68;">you → <span style="color:${d.tierColor};">${esc(d.tierLabel)}</span></span>` : ''}
+      ${d.tierLabel ? `<span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6B6B68;">you → <span style="color:${safeColor(d.tierColor)};">${esc(d.tierLabel)}</span></span>` : ''}
     </div>
     <div style="display:flex;height:12px;gap:3px;">
       <div style="flex:1;background:#6B6B68;"></div><div style="flex:1;background:#A8A8A4;"></div><div style="flex:1;background:#4DA3FF;"></div><div style="flex:1;background:#D4FF3A;"></div><div style="flex:1.4;background:#FF8A00;"></div><div style="flex:1;background:#FF3B30;"></div>
