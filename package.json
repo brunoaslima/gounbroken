@@ -14,7 +14,8 @@
     "test:e2e:ui": "playwright test --ui",
     "test:all": "vitest run && playwright test",
     "deploy:preview": "bash scripts/deploy-preview.sh",
-    "deploy:prod": "vercel --prod --yes"
+    "deploy:prod": "vercel --prod --yes",
+    "prepare": "husky"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
@@ -29,6 +30,8 @@
     "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.2.0",
+    "@commitlint/config-conventional": "^21.2.0",
     "@playwright/test": "^1.59.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -39,6 +42,7 @@
     "@vitejs/plugin-react": "^4.3.2",
     "@vitest/ui": "^2.1.9",
     "autoprefixer": "^10.4.20",
+    "husky": "^9.1.7",
     "jsdom": "^29.1.1",
     "postcss": "^8.4.47",
     "sharp": "^0.34.5",
