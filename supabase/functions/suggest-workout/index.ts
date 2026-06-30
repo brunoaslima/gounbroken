@@ -92,7 +92,7 @@ function buildFeedbackContext(feedback: RecentFeedback[]): string {
       `${f.workout_date} [${focusStr}]: ${statusPt[f.status] ?? f.status}`,
       f.enjoyment ? enjoyPt[f.enjoyment] ?? f.enjoyment : null,
       f.perceived_difficulty ? diffPt[f.perceived_difficulty] ?? f.perceived_difficulty : null,
-      f.student_comment ? `comentário: "${f.student_comment}"` : null,
+      f.student_comment ? `comentário: "${f.student_comment.replace(/[^\p{L}\p{N}\s.,;:!?'"()-]/gu, '').slice(0, 200)}"` : null,
     ].filter(Boolean)
     return `  - ${parts.join(' | ')}`
   }).join('\n')
