@@ -14,3 +14,7 @@ test-results
 **/.DS_Store
 .claude/settings.local.json
 supabase/.temp/
+supabase/migrations/debug_*.sql
+supabase/migrations/_tmp_*.sql
+supabase/migrations/seed_*.sql
+PRODUCT_CONTEXT.md
