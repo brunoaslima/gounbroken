@@ -31,17 +31,8 @@ CREATE POLICY "own weight history" ON weight_history
   WITH CHECK (auth.uid() = user_id);
 
 -- 4. Username → email lookup (used for username login, SECURITY DEFINER bypasses RLS)
-CREATE OR REPLACE FUNCTION get_email_by_username(p_username text)
-RETURNS text
-LANGUAGE sql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT u.email FROM auth.users u
-  JOIN profiles p ON p.user_id = u.id
-  WHERE lower(p.username) = lower(p_username)
-  LIMIT 1;
-$$;
+-- get_email_by_username removed — exposed user emails to any authenticated caller.
+-- Replaced by secure_username_check.sql + login-by-username Edge Function.
 
 -- 5. Future: organizations scaffold
 CREATE TABLE IF NOT EXISTS organizations (
