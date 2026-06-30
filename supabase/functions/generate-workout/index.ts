@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.208.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const cors = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": "https://gounbroken.app",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 }
 
@@ -38,6 +38,20 @@ serve(async (req: Request) => {
       new Set(days).size !== days.length
     ) {
       return new Response(JSON.stringify({ error: "days deve ser um array de 1–7 datas únicas no formato YYYY-MM-DD" }), {
+        status: 400, headers: { ...cors, "Content-Type": "application/json" },
+      })
+    }
+
+    // Whitelist intensity and focus to prevent prompt injection
+    const VALID_INTENSITY = new Set(Object.keys(INTENSITY))
+    const VALID_FOCUS = new Set(["superior","inferior","full_body","core","cardio","mobilidade","forca","tecnica","crossfit"])
+    if (intensity && !VALID_INTENSITY.has(intensity)) {
+      return new Response(JSON.stringify({ error: "intensity inválida" }), {
+        status: 400, headers: { ...cors, "Content-Type": "application/json" },
+      })
+    }
+    if (focus && Array.isArray(focus) && focus.some((f: unknown) => typeof f !== "string" || !VALID_FOCUS.has(f))) {
+      return new Response(JSON.stringify({ error: "focus inválido" }), {
         status: 400, headers: { ...cors, "Content-Type": "application/json" },
       })
     }

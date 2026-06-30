@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.208.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const cors = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": "https://gounbroken.app",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 }
 
@@ -204,6 +204,19 @@ serve(async (req: Request) => {
       .gte("created_at", new Date(new Date().setHours(0, 0, 0, 0)).toISOString())
     if ((todayCount ?? 0) >= 20) {
       return new Response(JSON.stringify({ error: "Rate limit exceeded — máximo 20 sugestões por dia" }), { status: 429, headers: cors })
+    }
+
+    // Ownership check — caller must be the athlete or their trainer
+    if (athlete_id && athlete_id !== user.id) {
+      const { data: relationship } = await adminClient
+        .from("trainer_athletes")
+        .select("id")
+        .eq("trainer_id", user.id)
+        .eq("athlete_id", athlete_id)
+        .single()
+      if (!relationship) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: cors })
+      }
     }
 
     // Fetch athlete PRs
