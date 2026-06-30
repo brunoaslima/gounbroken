@@ -11,4 +11,6 @@ dist
 playwright-report
 test-results
 .DS_Store
+**/.DS_Store
 .claude/settings.local.json
+supabase/.temp/
