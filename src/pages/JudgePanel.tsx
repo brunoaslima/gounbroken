@@ -117,9 +117,7 @@ export default function JudgePanel() {
 
       if (visibleWods.length > 0) {
         const { data: resultsData } = await supabase
-          .from('competition_results')
-          .select('*')
-          .in('wod_id', visibleWods.map(w => w.id))
+          .rpc('get_competition_results', { p_competition_id: id })
         setResults((resultsData ?? []) as CompetitionResult[])
       } else {
         setResults([])
