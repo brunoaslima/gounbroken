@@ -266,7 +266,7 @@ export default function CompetitionDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col" style={{ background: '#0A0A0A' }}>
+      <div className="flex flex-col" style={{ position: 'fixed', inset: 0, zIndex: 10, background: '#0A0A0A' }}>
         {/* topbar skeleton */}
         <header
           className="sticky top-0 z-10 flex items-center justify-between border-b border-[#2A2A2A]"
@@ -300,7 +300,7 @@ export default function CompetitionDetail() {
   const isCaptain = myTeam?.team.captain_user_id === user?.id
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#0A0A0A', color: '#F5F5F0' }}>
+    <div className="flex flex-col" style={{ position: 'fixed', inset: 0, zIndex: 10, background: '#0A0A0A', color: '#F5F5F0' }}>
 
       {/* Topbar */}
       <header

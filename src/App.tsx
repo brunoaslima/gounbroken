@@ -82,9 +82,9 @@ function RequireAuthNoProfile({ children }: { children: React.ReactNode }) {
 // Pages that show the bottom nav (mobile) or sidebar (desktop)
 function TabLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="md:flex md:h-screen md:overflow-hidden">
+    <div className="flex h-dvh overflow-hidden">
       <SideNav />
-      <div className="flex-1 md:overflow-y-auto min-h-screen md:min-h-0">
+      <div className="flex-1 overflow-y-auto min-h-0">
         {children}
         <BottomNav />
       </div>
