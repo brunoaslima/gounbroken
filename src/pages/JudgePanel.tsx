@@ -107,6 +107,8 @@ export default function JudgePanel() {
   const isJudge = myRole?.role === 'head_judge' || myRole?.role === 'judge'
   if (!isAdmin && !isJudge) return <Screen><Mono color='#FF3B30'>ACESSO NEGADO</Mono></Screen>
 
+  const divisionById = Object.fromEntries(divisions.map(d => [d.id, d]))
+
   const activeWod    = wods.find(w => w.id === activeWodId) ?? null
   const activeWodIdx = wods.findIndex(w => w.id === activeWodId)
   const wodResults   = activeWod ? results.filter(r => r.wod_id === activeWod.id) : []
@@ -472,9 +474,9 @@ export default function JudgePanel() {
                 </span>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 15, letterSpacing: '-0.005em' }}>{t.name}</div>
-                  {t.box && (
+                  {t.division_id && divisionById[t.division_id] && (
                     <div style={{ marginTop: 3, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68' }}>
-                      {t.box}
+                      {divLabel(divisionById[t.division_id])}
                     </div>
                   )}
                 </div>
