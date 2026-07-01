@@ -434,17 +434,6 @@ export default function Leaderboard() {
                 >
                   EQUIPE
                 </th>
-                <th
-                  style={{
-                    padding: '8px 10px', textAlign: 'left', width: 110,
-                    fontFamily: 'inherit', fontSize: 10, fontWeight: 800,
-                    letterSpacing: '0.18em', textTransform: 'uppercase', color: '#6B6B68',
-                    whiteSpace: 'nowrap',
-                  }}
-                  className="hidden sm:table-cell"
-                >
-                  BOX
-                </th>
                 {publishedWods.map((w, i) => (
                   <th
                     key={w.id}
@@ -514,23 +503,6 @@ export default function Leaderboard() {
                       }}
                     >
                       {row.team_name}
-                    </td>
-                    {/* BOX */}
-                    <td
-                      className="hidden sm:table-cell"
-                      style={{
-                        padding: '0 10px',
-                        fontSize: 11,
-                        color: '#6B6B68',
-                        letterSpacing: '0.04em',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        maxWidth: 110,
-                        borderBottom: '1px solid #1A1A1A',
-                      }}
-                    >
-                      {row.box ?? '—'}
                     </td>
                     {/* WOD CELLS */}
                     {publishedWods.map(w => {
