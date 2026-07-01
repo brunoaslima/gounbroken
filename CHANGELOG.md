@@ -6,6 +6,31 @@ Formato de versão: `## [versão] — AAAA-MM-DD`
 
 ---
 
+## [1.2.0] — 2026-07-01
+
+### Competition → Live Leaderboard
+
+- Competition → Leaderboard: rank movement arrows beside team name — lime up / red down, visible for 30s with fade-out on the last 8s
+- Competition → Leaderboard: movement baseline persists in sessionStorage (10 min), so arrows appear even when navigating to the leaderboard after submitting a score
+- Competition → Leaderboard: rows slide smoothly to their new position on reorder (FLIP animation)
+- Competition → Leaderboard: WOD cells show raw result (time/reps/kg) as primary value with podium-colored points tag beside it
+- Competition → Leaderboard: TB (tiebreak) tag moved from rank column to beside team name — rank column no longer stretches
+- Competition → Leaderboard: crown redesigned as stroke outline icon
+- Competition → Leaderboard: auto-refresh interval 60s → 30s
+- Competition → Leaderboard: RPC errors shown in the UI instead of a generic empty state
+
+### Platform → Layout (z-index stacking fix)
+
+- Platform → Layout: full-screen pages (JudgePanel, Leaderboard, CompetitionManage, CompetitionDetail) raised above BottomNav — judge CONFIRMAR bar and leaderboard ticker no longer hidden on mobile
+- Platform → Layout: fixed bottom CTAs in CompetitionCreate and PersonalWorkout gained explicit z-index
+- Platform → Layout: standardized scale — content < BottomNav (30) < full-screen pages/CTAs (50) < modals (90) < timer (100) < toast (300)
+
+### Tools → Timer
+
+- Tools → Timer: done screen shows centered BACK + NEW TIMER buttons side by side
+
+---
+
 ## [1.1.0] — 2026-07-01
 
 ### Tools → CrossFit Timer

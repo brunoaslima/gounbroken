@@ -526,8 +526,9 @@ export default function JudgePanel() {
 
 // ─── Shared primitives ────────────────────────────────────────────────────────
 
+// z-50: full-screen pages must stack above BottomNav (z-30), below modals (z-90+)
 const pageStyle: React.CSSProperties = {
-  position: 'fixed', inset: 0, zIndex: 10,
+  position: 'fixed', inset: 0, zIndex: 50,
   background: '#0A0A0A', color: '#F5F5F0',
   fontFamily: 'Space Grotesk, sans-serif', display: 'flex', flexDirection: 'column',
   overflow: 'hidden',

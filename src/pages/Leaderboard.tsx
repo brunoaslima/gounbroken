@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import type { CompetitionDivision, DivisionFormat } from '@/types'
@@ -42,7 +42,7 @@ function divisionShortLabel(d: CompetitionDivision): string {
   return `${FORMAT_SHORT[d.format]} · ${d.composition.toUpperCase()} · ${d.category.toUpperCase()}`
 }
 
-const REFRESH_INTERVAL = 60
+const REFRESH_INTERVAL = 30
 
 const ScoreTypeLabel: Record<string, string> = {
   time: 'FOR TIME',
@@ -73,11 +73,40 @@ function BackIcon() {
 function CrownIcon() {
   return (
     <svg
-      width="12" height="10" viewBox="0 0 12 10"
-      fill="#D4FF3A" aria-hidden="true"
-      style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 5, flexShrink: 0 }}
+      width="13" height="13" viewBox="0 0 24 24"
+      fill="none" stroke="#D4FF3A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0 }}
     >
-      <path d="M0 10 L0 4 L3 1 L5 5 L6 0 L7 5 L9 1 L12 4 L12 10Z" />
+      <path d="M12 6l4 6l5 -4l-2 10h-14l-2 -10l5 4z" />
+    </svg>
+  )
+}
+
+interface RankMove {
+  delta: number
+  at: number
+}
+
+const ARROW_TTL = 30_000
+const ARROW_FADE = 8_000
+// baseline survives navigation/reload so arrows show up when returning to the page
+const BASELINE_TTL = 10 * 60_000
+
+function MoveArrow({ move, prefersReducedMotion }: { move?: RankMove; prefersReducedMotion: boolean }) {
+  if (!move || move.delta === 0) return null
+  const age = Date.now() - move.at
+  if (age >= ARROW_TTL) return null
+  const opacity = age <= ARROW_TTL - ARROW_FADE ? 1 : (ARROW_TTL - age) / ARROW_FADE
+  const up = move.delta > 0
+  return (
+    <svg
+      width="11" height="11" viewBox="0 0 24 24"
+      fill="none" stroke={up ? '#D4FF3A' : '#FF3B30'} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+      aria-label={up ? `Subiu ${move.delta}` : `Desceu ${-move.delta}`}
+      style={{ flexShrink: 0, opacity, transition: prefersReducedMotion ? 'none' : 'opacity 1s linear' }}
+    >
+      {up ? <path d="M12 19V5M5 12l7-7 7 7" /> : <path d="M12 5v14M19 12l-7 7-7-7" />}
     </svg>
   )
 }
@@ -116,11 +145,41 @@ function DivisionTable({
   rows,
   publishedWods,
   wods,
+  movements,
+  prefersReducedMotion,
 }: {
   rows: LeaderboardRow[]
   publishedWods: WodInfo[]
   wods: WodInfo[]
+  movements: Map<string, RankMove>
+  prefersReducedMotion: boolean
 }) {
+  const rowRefs = useRef(new Map<string, HTMLTableRowElement>())
+  const prevTopsRef = useRef(new Map<string, number>())
+
+  // FLIP: rows slide smoothly from their previous position to the new one
+  useLayoutEffect(() => {
+    if (prefersReducedMotion) return
+    const newTops = new Map<string, number>()
+    rowRefs.current.forEach((el, teamId) => {
+      if (el?.isConnected) newTops.set(teamId, el.offsetTop)
+    })
+    newTops.forEach((top, teamId) => {
+      const prev = prevTopsRef.current.get(teamId)
+      const el = rowRefs.current.get(teamId)
+      if (prev === undefined || !el) return
+      const delta = prev - top
+      if (delta === 0) return
+      el.style.transition = 'none'
+      el.style.transform = `translateY(${delta}px)`
+      // force reflow so the browser commits the offset before transitioning back
+      void el.offsetHeight
+      el.style.transition = 'transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)'
+      el.style.transform = ''
+    })
+    prevTopsRef.current = newTops
+  }, [rows, prefersReducedMotion])
+
   function rowBg(rank: number, idx: number) {
     if (rank === 1) return 'rgba(212,255,58,0.12)'
     if (rank <= 3) return 'rgba(212,255,58,0.06)'
@@ -197,7 +256,14 @@ function DivisionTable({
             const bg = rowBg(rank, idx)
 
             return (
-              <tr key={row.team_id} style={{ background: bg, height: 34 }}>
+              <tr
+                key={row.team_id}
+                ref={el => {
+                  if (el) rowRefs.current.set(row.team_id, el)
+                  else rowRefs.current.delete(row.team_id)
+                }}
+                style={{ background: bg, height: 34 }}
+              >
                 <td
                   style={{
                     padding: '0 8px', textAlign: 'right',
@@ -208,14 +274,7 @@ function DivisionTable({
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
-                    <MedalRank rank={rank} />
-                    {isTiebreak(row) && (
-                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, fontWeight: 800, letterSpacing: '0.12em', color: '#6B6B68', lineHeight: 1 }}>
-                        TB
-                      </span>
-                    )}
-                  </div>
+                  <MedalRank rank={rank} />
                 </td>
                 <td
                   style={{
@@ -236,9 +295,15 @@ function DivisionTable({
                     borderRight: '1px solid #2A2A2A',
                   }}
                 >
-                  <span style={{ display: 'inline-flex', alignItems: 'center', maxWidth: '100%' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, maxWidth: '100%' }}>
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.team_name}</span>
                     {isFirst && <CrownIcon />}
+                    {isTiebreak(row) && (
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, fontWeight: 800, letterSpacing: '0.12em', color: '#6B6B68', lineHeight: 1, flexShrink: 0 }}>
+                        TB
+                      </span>
+                    )}
+                    <MoveArrow move={movements.get(row.team_id)} prefersReducedMotion={prefersReducedMotion} />
                   </span>
                 </td>
                 {publishedWods.map(w => {
@@ -271,20 +336,30 @@ function DivisionTable({
                     <td
                       key={w.id}
                       style={{
-                        textAlign: 'center', padding: '0 6px',
+                        textAlign: 'center', padding: '0 8px',
                         borderBottom: '1px solid #1A1A1A',
+                        whiteSpace: 'nowrap',
                       }}
                     >
-                      <span style={{
-                        display: 'inline-block',
-                        background: cellBg, color: cellColor,
-                        fontFamily: 'JetBrains Mono, monospace',
-                        fontSize: 12, fontWeight: 800,
-                        letterSpacing: '0.04em',
-                        padding: '3px 7px',
-                        fontVariantNumeric: 'tabular-nums',
-                      }}>
-                        {cell.points}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{
+                          fontFamily: 'JetBrains Mono, monospace',
+                          fontSize: 11, fontWeight: 700,
+                          color: '#F5F5F0',
+                          fontVariantNumeric: 'tabular-nums',
+                        }}>
+                          {cell.raw_result}
+                        </span>
+                        <span style={{
+                          background: cellBg, color: cellColor,
+                          fontFamily: 'JetBrains Mono, monospace',
+                          fontSize: 9, fontWeight: 800,
+                          letterSpacing: '0.04em',
+                          padding: '2px 5px',
+                          fontVariantNumeric: 'tabular-nums',
+                        }}>
+                          {cell.points}
+                        </span>
                       </span>
                     </td>
                   )
@@ -323,6 +398,23 @@ export default function Leaderboard() {
   const [compName, setCompName] = useState('')
   const [loading, setLoading] = useState(true)
   const [lbError, setLbError] = useState<string | null>(null)
+  const [movements, setMovements] = useState<Map<string, RankMove>>(new Map())
+  const prevRanksRef = useRef(new Map<string, number>())
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  useEffect(() => {
+    if (!id) return
+    const storageKey = `lb-ranks-${id}-${selectedDivisionId ?? 'all'}`
+    try {
+      const raw = sessionStorage.getItem(storageKey)
+      if (raw) {
+        const saved = JSON.parse(raw) as { at: number; ranks: Record<string, number> }
+        if (Date.now() - saved.at < BASELINE_TTL) {
+          prevRanksRef.current = new Map(Object.entries(saved.ranks))
+        }
+      }
+    } catch { /* corrupted storage — start fresh */ }
+  }, [id, selectedDivisionId])
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL)
   const [refreshKey, setRefreshKey] = useState(0)
   const countdownRef = useRef(REFRESH_INTERVAL)
@@ -374,6 +466,8 @@ export default function Leaderboard() {
     // suppress click when the mouse was dragged
     if (dragRef.current.moved) { dragRef.current.moved = false; return }
     setSelectedDivisionId(id)
+    prevRanksRef.current.clear()
+    setMovements(new Map())
   }, [])
 
   const load = useCallback(async () => {
@@ -399,7 +493,37 @@ export default function Leaderboard() {
       } else {
         setLbError(null)
       }
-      if (lb.data) setRows(lb.data as LeaderboardRow[])
+      if (lb.data) {
+        const newRows = lb.data as LeaderboardRow[]
+        const now = Date.now()
+        // compute moves synchronously BEFORE the baseline merge below —
+        // React runs setState updaters lazily at render time, after prevRanksRef
+        // is already overwritten, so the diff must not live inside the updater
+        const moved: Array<[string, RankMove]> = []
+        newRows.forEach(r => {
+          const prevRank = prevRanksRef.current.get(r.team_id)
+          if (prevRank !== undefined && prevRank !== r.overall_rank) {
+            moved.push([r.team_id, { delta: prevRank - r.overall_rank, at: now }])
+          }
+        })
+        // arrows persist ARROW_TTL ms independent of the refresh cycle;
+        // a new move resets the clock with the new direction
+        setMovements(prev => {
+          const next = new Map(prev)
+          next.forEach((m, teamId) => { if (now - m.at >= ARROW_TTL) next.delete(teamId) })
+          moved.forEach(([teamId, m]) => next.set(teamId, m))
+          return next
+        })
+        newRows.forEach(r => prevRanksRef.current.set(r.team_id, r.overall_rank))
+        const storageKey = `lb-ranks-${id}-${selectedDivisionId ?? 'all'}`
+        try {
+          sessionStorage.setItem(storageKey, JSON.stringify({
+            at: now,
+            ranks: Object.fromEntries(prevRanksRef.current),
+          }))
+        } catch { /* storage full/unavailable — arrows just won't survive navigation */ }
+        setRows(newRows)
+      }
       if (comp.data) setCompName(comp.data.name)
       if (wodList.data) setWods(wodList.data as WodInfo[])
       if (divList.data) setDivisions(divList.data as CompetitionDivision[])
@@ -439,7 +563,7 @@ export default function Leaderboard() {
     : []
 
   return (
-    <div className="bg-[#0A0A0A] flex flex-col" style={{ position: 'fixed', inset: 0, zIndex: 10, overflow: 'hidden' }}>
+    <div className="bg-[#0A0A0A] flex flex-col" style={{ position: 'fixed', inset: 0, zIndex: 50, overflow: 'hidden' }}>
       {/* TOP BAR */}
       <div
         className="flex items-center justify-between gap-3 px-4 border-b border-[#2A2A2A]"
@@ -649,7 +773,7 @@ export default function Leaderboard() {
                       {divRows.length} EQ.
                     </span>
                   </div>
-                  <DivisionTable rows={divRows} publishedWods={publishedWods} wods={wods} />
+                  <DivisionTable rows={divRows} publishedWods={publishedWods} wods={wods} movements={movements} prefersReducedMotion={prefersReducedMotion} />
                 </div>
               )
             })}
@@ -657,7 +781,7 @@ export default function Leaderboard() {
         </div>
       ) : (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <DivisionTable rows={rows} publishedWods={publishedWods} wods={wods} />
+          <DivisionTable rows={rows} publishedWods={publishedWods} wods={wods} movements={movements} prefersReducedMotion={prefersReducedMotion} />
         </div>
       )}
 

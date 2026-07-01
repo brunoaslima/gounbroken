@@ -228,7 +228,7 @@ function SuggestSheet({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-end" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60" />
       <div
         className="relative w-full bg-graphite border-t border-white/10 rounded-t-3xl flex flex-col"
@@ -800,7 +800,7 @@ function AddExerciseSheet({ sectionType, focuses, prs, onAdd, onClose }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-end" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60" />
       <div
         className="relative w-full bg-graphite border-t border-white/10 rounded-t-3xl flex flex-col"
@@ -1609,7 +1609,7 @@ export default function PersonalWorkout() {
 
       {/* Confirm replace suggestion */}
       {pendingSuggestion && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-6" onClick={() => setPendingSuggestion(null)}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-6" onClick={() => setPendingSuggestion(null)}>
           <div className="absolute inset-0 bg-black/70" />
           <div
             className="relative bg-graphite border border-white/10 rounded-2xl p-6 w-full max-w-sm space-y-4"
@@ -1651,7 +1651,7 @@ export default function PersonalWorkout() {
 
       {/* Add section sheet */}
       {addSectionOpen && (
-        <div className="fixed inset-0 z-50 flex items-end" onClick={() => setAddSectionOpen(false)}>
+        <div className="fixed inset-0 z-[60] flex items-end" onClick={() => setAddSectionOpen(false)}>
           <div className="absolute inset-0 bg-black/60" />
           <div
             className="relative w-full bg-graphite border-t border-white/10 rounded-t-3xl p-5 pb-10 space-y-2"
@@ -1982,7 +1982,7 @@ export default function PersonalWorkout() {
       )}
 
       {/* Save button */}
-      <div className="fixed bottom-0 left-0 right-0 px-4 pb-8 pt-3 bg-gradient-to-t from-graphite via-graphite/95 to-transparent">
+      <div className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-8 pt-3 bg-gradient-to-t from-graphite via-graphite/95 to-transparent">
         <button
           onClick={handleSave}
           disabled={saving || sections.length === 0}
