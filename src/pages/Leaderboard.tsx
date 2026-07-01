@@ -83,15 +83,26 @@ function CrownIcon() {
   )
 }
 
-function MoveArrow({ delta }: { delta: number }) {
-  if (delta === 0) return null
-  const up = delta > 0
+interface RankMove {
+  delta: number
+  at: number
+}
+
+const ARROW_TTL = 30_000
+const ARROW_FADE = 8_000
+
+function MoveArrow({ move }: { move?: RankMove }) {
+  if (!move || move.delta === 0) return null
+  const age = Date.now() - move.at
+  if (age >= ARROW_TTL) return null
+  const opacity = age <= ARROW_TTL - ARROW_FADE ? 1 : (ARROW_TTL - age) / ARROW_FADE
+  const up = move.delta > 0
   return (
     <svg
       width="11" height="11" viewBox="0 0 24 24"
       fill="none" stroke={up ? '#D4FF3A' : '#FF3B30'} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
-      aria-label={up ? `Subiu ${delta}` : `Desceu ${-delta}`}
-      style={{ flexShrink: 0 }}
+      aria-label={up ? `Subiu ${move.delta}` : `Desceu ${-move.delta}`}
+      style={{ flexShrink: 0, opacity, transition: 'opacity 1s linear' }}
     >
       {up ? <path d="M12 19V5M5 12l7-7 7 7" /> : <path d="M12 5v14M19 12l-7 7-7-7" />}
     </svg>
@@ -137,7 +148,7 @@ function DivisionTable({
   rows: LeaderboardRow[]
   publishedWods: WodInfo[]
   wods: WodInfo[]
-  movements: Map<string, number>
+  movements: Map<string, RankMove>
 }) {
   const rowRefs = useRef(new Map<string, HTMLTableRowElement>())
   const prevTopsRef = useRef(new Map<string, number>())
@@ -259,7 +270,7 @@ function DivisionTable({
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
-                    <MoveArrow delta={movements.get(row.team_id) ?? 0} />
+                    <MoveArrow move={movements.get(row.team_id)} />
                     <MedalRank rank={rank} />
                     {isTiebreak(row) && (
                       <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, fontWeight: 800, letterSpacing: '0.12em', color: '#6B6B68', lineHeight: 1 }}>
@@ -374,7 +385,7 @@ export default function Leaderboard() {
   const [compName, setCompName] = useState('')
   const [loading, setLoading] = useState(true)
   const [lbError, setLbError] = useState<string | null>(null)
-  const [movements, setMovements] = useState<Map<string, number>>(new Map())
+  const [movements, setMovements] = useState<Map<string, RankMove>>(new Map())
   const prevRanksRef = useRef(new Map<string, number>())
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -454,14 +465,20 @@ export default function Leaderboard() {
       }
       if (lb.data) {
         const newRows = lb.data as LeaderboardRow[]
-        const moves = new Map<string, number>()
-        newRows.forEach(r => {
-          const prev = prevRanksRef.current.get(r.team_id)
-          if (prev !== undefined && prev !== r.overall_rank) {
-            moves.set(r.team_id, prev - r.overall_rank)
-          }
+        const now = Date.now()
+        // arrows persist ARROW_TTL ms independent of the refresh cycle;
+        // a new move resets the clock with the new direction
+        setMovements(prev => {
+          const next = new Map(prev)
+          next.forEach((m, teamId) => { if (now - m.at >= ARROW_TTL) next.delete(teamId) })
+          newRows.forEach(r => {
+            const prevRank = prevRanksRef.current.get(r.team_id)
+            if (prevRank !== undefined && prevRank !== r.overall_rank) {
+              next.set(r.team_id, { delta: prevRank - r.overall_rank, at: now })
+            }
+          })
+          return next
         })
-        setMovements(moves)
         prevRanksRef.current = new Map(newRows.map(r => [r.team_id, r.overall_rank]))
         setRows(newRows)
       }
