@@ -317,7 +317,11 @@ export default function Leaderboard() {
           <div
             ref={divFilterRef}
             className="flex items-center border-b border-[#2A2A2A] overflow-x-auto"
-            style={{ gap: 1, background: '#2A2A2A', scrollbarWidth: 'none' }}
+            style={{
+              gap: 1, background: '#2A2A2A', scrollbarWidth: 'none',
+              WebkitOverflowScrolling: 'touch',
+              touchAction: 'pan-x',
+            }}
           >
             {[{ id: null, label: 'ALL' }, ...divisions.map(d => ({ id: d.id, label: divisionShortLabel(d) }))].map(item => {
               const active = item.id === selectedDivisionId
