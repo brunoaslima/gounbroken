@@ -75,7 +75,44 @@ export function decodeScore(type: WodScoreType, score_numeric: number): string {
   }
 }
 
-export function validateScoreFields(fields: ScoreFields): string | null {
+// Parse cap string like "8 MIN", "15min", "1:30" → seconds. Returns null if unparseable.
+export function parseDisplayScore(type: WodScoreType, display: string): number | null {
+  const s = display.trim()
+  switch (type) {
+    case 'time': {
+      const m = s.match(/^(\d+):(\d{2})$/)
+      if (!m) return null
+      const total = parseInt(m[1]) * 60 + parseInt(m[2])
+      return total > 0 && total <= 3600 ? total : null
+    }
+    case 'reps': {
+      const n = parseInt(s)
+      return n > 0 ? n : null
+    }
+    case 'weight': {
+      const n = parseFloat(s)
+      return n > 0 ? n : null
+    }
+    case 'rounds_plus_reps': {
+      const full = s.match(/^(\d+)\s+rounds?\s*\+\s*(\d+)\s+reps?$/)
+      if (full) return parseInt(full[1]) * ROUNDS_MULTIPLIER + parseInt(full[2])
+      const rounds = s.match(/^(\d+)\s+rounds?$/)
+      if (rounds) return parseInt(rounds[1]) * ROUNDS_MULTIPLIER
+      return null
+    }
+  }
+}
+
+export function parseCapSeconds(cap: string | null | undefined): number | null {
+  if (!cap) return null
+  const mmss = cap.trim().match(/^(\d+):(\d+)$/)
+  if (mmss) return parseInt(mmss[1]) * 60 + parseInt(mmss[2])
+  const mins = cap.trim().match(/^(\d+)/)
+  if (mins) return parseInt(mins[1]) * 60
+  return null
+}
+
+export function validateScoreFields(fields: ScoreFields, capSeconds?: number | null): string | null {
   switch (fields.type) {
     case 'time': {
       const ss = fields.seconds ?? 0
@@ -83,6 +120,11 @@ export function validateScoreFields(fields: ScoreFields): string | null {
       const total = (fields.minutes ?? 0) * 60 + ss
       if (total <= 0) return 'Tempo deve ser maior que zero'
       if (total > 3600) return 'Tempo máximo: 60:00'
+      if (capSeconds != null && total > capSeconds) {
+        const capMM = Math.floor(capSeconds / 60)
+        const capSS = capSeconds % 60
+        return `Tempo excede o limite da prova (${String(capMM).padStart(2, '0')}:${String(capSS).padStart(2, '0')})`
+      }
       return null
     }
     case 'reps':
