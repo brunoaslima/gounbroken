@@ -93,7 +93,7 @@ const ARROW_FADE = 8_000
 // baseline survives navigation/reload so arrows show up when returning to the page
 const BASELINE_TTL = 10 * 60_000
 
-function MoveArrow({ move }: { move?: RankMove }) {
+function MoveArrow({ move, prefersReducedMotion }: { move?: RankMove; prefersReducedMotion: boolean }) {
   if (!move || move.delta === 0) return null
   const age = Date.now() - move.at
   if (age >= ARROW_TTL) return null
@@ -104,7 +104,7 @@ function MoveArrow({ move }: { move?: RankMove }) {
       width="11" height="11" viewBox="0 0 24 24"
       fill="none" stroke={up ? '#D4FF3A' : '#FF3B30'} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
       aria-label={up ? `Subiu ${move.delta}` : `Desceu ${-move.delta}`}
-      style={{ flexShrink: 0, opacity, transition: 'opacity 1s linear' }}
+      style={{ flexShrink: 0, opacity, transition: prefersReducedMotion ? 'none' : 'opacity 1s linear' }}
     >
       {up ? <path d="M12 19V5M5 12l7-7 7 7" /> : <path d="M12 5v14M19 12l-7 7-7-7" />}
     </svg>
@@ -146,17 +146,20 @@ function DivisionTable({
   publishedWods,
   wods,
   movements,
+  prefersReducedMotion,
 }: {
   rows: LeaderboardRow[]
   publishedWods: WodInfo[]
   wods: WodInfo[]
   movements: Map<string, RankMove>
+  prefersReducedMotion: boolean
 }) {
   const rowRefs = useRef(new Map<string, HTMLTableRowElement>())
   const prevTopsRef = useRef(new Map<string, number>())
 
   // FLIP: rows slide smoothly from their previous position to the new one
   useLayoutEffect(() => {
+    if (prefersReducedMotion) return
     const newTops = new Map<string, number>()
     rowRefs.current.forEach((el, teamId) => {
       if (el?.isConnected) newTops.set(teamId, el.offsetTop)
@@ -175,7 +178,7 @@ function DivisionTable({
       el.style.transform = ''
     })
     prevTopsRef.current = newTops
-  }, [rows])
+  }, [rows, prefersReducedMotion])
 
   function rowBg(rank: number, idx: number) {
     if (rank === 1) return 'rgba(212,255,58,0.12)'
@@ -300,7 +303,7 @@ function DivisionTable({
                         TB
                       </span>
                     )}
-                    <MoveArrow move={movements.get(row.team_id)} />
+                    <MoveArrow move={movements.get(row.team_id)} prefersReducedMotion={prefersReducedMotion} />
                   </span>
                 </td>
                 {publishedWods.map(w => {
@@ -397,11 +400,13 @@ export default function Leaderboard() {
   const [lbError, setLbError] = useState<string | null>(null)
   const [movements, setMovements] = useState<Map<string, RankMove>>(new Map())
   const prevRanksRef = useRef(new Map<string, number>())
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   useEffect(() => {
     if (!id) return
+    const storageKey = `lb-ranks-${id}-${selectedDivisionId ?? 'all'}`
     try {
-      const raw = sessionStorage.getItem(`lb-ranks-${id}`)
+      const raw = sessionStorage.getItem(storageKey)
       if (raw) {
         const saved = JSON.parse(raw) as { at: number; ranks: Record<string, number> }
         if (Date.now() - saved.at < BASELINE_TTL) {
@@ -409,7 +414,7 @@ export default function Leaderboard() {
         }
       }
     } catch { /* corrupted storage — start fresh */ }
-  }, [id])
+  }, [id, selectedDivisionId])
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL)
   const [refreshKey, setRefreshKey] = useState(0)
   const countdownRef = useRef(REFRESH_INTERVAL)
@@ -461,6 +466,8 @@ export default function Leaderboard() {
     // suppress click when the mouse was dragged
     if (dragRef.current.moved) { dragRef.current.moved = false; return }
     setSelectedDivisionId(id)
+    prevRanksRef.current.clear()
+    setMovements(new Map())
   }, [])
 
   const load = useCallback(async () => {
@@ -507,10 +514,10 @@ export default function Leaderboard() {
           moved.forEach(([teamId, m]) => next.set(teamId, m))
           return next
         })
-        // merge (not replace) so filtering by division keeps other divisions' baseline
         newRows.forEach(r => prevRanksRef.current.set(r.team_id, r.overall_rank))
+        const storageKey = `lb-ranks-${id}-${selectedDivisionId ?? 'all'}`
         try {
-          sessionStorage.setItem(`lb-ranks-${id}`, JSON.stringify({
+          sessionStorage.setItem(storageKey, JSON.stringify({
             at: now,
             ranks: Object.fromEntries(prevRanksRef.current),
           }))
@@ -766,7 +773,7 @@ export default function Leaderboard() {
                       {divRows.length} EQ.
                     </span>
                   </div>
-                  <DivisionTable rows={divRows} publishedWods={publishedWods} wods={wods} movements={movements} />
+                  <DivisionTable rows={divRows} publishedWods={publishedWods} wods={wods} movements={movements} prefersReducedMotion={prefersReducedMotion} />
                 </div>
               )
             })}
@@ -774,7 +781,7 @@ export default function Leaderboard() {
         </div>
       ) : (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <DivisionTable rows={rows} publishedWods={publishedWods} wods={wods} movements={movements} />
+          <DivisionTable rows={rows} publishedWods={publishedWods} wods={wods} movements={movements} prefersReducedMotion={prefersReducedMotion} />
         </div>
       )}
 
