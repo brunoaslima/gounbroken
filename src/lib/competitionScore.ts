@@ -142,3 +142,33 @@ export function validateScoreFields(fields: ScoreFields, capSeconds?: number | n
     }
   }
 }
+
+export function parseScore(type: string, val: string): { raw: string; numeric: number } | null {
+  switch (type) {
+    case 'time': {
+      const m = val.match(/^(\d{1,2}):(\d{2})$/)
+      if (!m) return null
+      const secs = parseInt(m[2], 10)
+      if (secs >= 60) return null
+      const total = parseInt(m[1], 10) * 60 + secs
+      return { raw: val, numeric: total }
+    }
+    case 'reps': {
+      const n = parseInt(val, 10)
+      if (isNaN(n) || n < 0) return null
+      return { raw: val, numeric: n }
+    }
+    case 'weight': {
+      const n = parseFloat(val.replace(',', '.'))
+      if (isNaN(n) || n <= 0) return null
+      return { raw: `${val} kg`, numeric: n }
+    }
+    case 'rounds_plus_reps': {
+      const m = val.match(/^(\d+)\s*\+\s*(\d+)$/)
+      if (!m) return null
+      return { raw: val, numeric: parseInt(m[1], 10) * 1000 + parseInt(m[2], 10) }
+    }
+    default:
+      return null
+  }
+}

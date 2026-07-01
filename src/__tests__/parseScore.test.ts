@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 
 vi.mock('../lib/supabase', () => ({ supabase: {} }))
 
-import { parseScore } from '../pages/JudgePanel'
+import { parseScore } from '../lib/competitionScore'
 
 describe('parseScore', () => {
   describe('time', () => {

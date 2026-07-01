@@ -4,6 +4,8 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { useProfile } from '@/hooks/useProfile'
 import type { CompetitionWod, CompetitionTeam, CompetitionRole, CompetitionResult, CompetitionDivision } from '@/types'
+import { encodeScore, validateScoreFields } from '@/lib/competitionScore'
+import type { ScoreFields, WodScoreType } from '@/lib/competitionScore'
 
 const FORMAT_SHORT: Record<string, string> = { individual: 'IND', pair: 'PAIR', team3: 'T3', team4: 'T4' }
 function divLabel(d: CompetitionDivision) {
@@ -17,38 +19,6 @@ const SCORE_LABEL: Record<string, string> = {
   rounds_plus_reps: 'ROUNDS + REPS',
 }
 
-function parseScore(type: string, val: string): { raw: string; numeric: number } | null {
-  switch (type) {
-    case 'time': {
-      const m = val.match(/^(\d{1,2}):(\d{2})$/)
-      if (!m) return null
-      const secs = parseInt(m[2], 10)
-      if (secs >= 60) return null
-      const total = parseInt(m[1], 10) * 60 + secs
-      return { raw: val, numeric: total }
-    }
-    case 'reps': {
-      const n = parseInt(val, 10)
-      if (isNaN(n) || n < 0) return null
-      return { raw: val, numeric: n }
-    }
-    case 'weight': {
-      const n = parseFloat(val.replace(',', '.'))
-      if (isNaN(n) || n <= 0) return null
-      return { raw: `${val} kg`, numeric: n }
-    }
-    case 'rounds_plus_reps': {
-      const m = val.match(/^(\d+)\s*\+\s*(\d+)$/)
-      if (!m) return null
-      return { raw: val, numeric: parseInt(m[1], 10) * 1000 + parseInt(m[2], 10) }
-    }
-    default:
-      return null
-  }
-}
-
-// Exported for unit tests
-export { parseScore }
 
 export default function JudgePanel() {
   const { id } = useParams<{ id: string }>()
@@ -71,7 +41,7 @@ export default function JudgePanel() {
 
   // Score form
   const [scoringTeamId, setScoringTeamId] = useState<string | null>(null)
-  const [scoreVal, setScoreVal] = useState('')
+  const [scoreFields, setScoreFields] = useState<ScoreFields>({ type: 'time' })
   const [scoreNotes, setScoreNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -156,39 +126,34 @@ export default function JudgePanel() {
 
   function openScoreForm(teamId: string) {
     setScoringTeamId(teamId)
-    setScoreVal('')
+    setScoreFields({ type: (activeWod?.score_type ?? 'time') as WodScoreType })
     setScoreNotes('')
     setSubmitError(null)
   }
 
   function closeScoreForm() {
     setScoringTeamId(null)
-    setScoreVal('')
+    setScoreFields({ type: 'time' })
     setScoreNotes('')
     setSubmitError(null)
   }
 
   async function handleSubmit() {
-    if (!activeWod || !scoringTeamId || !scoreVal.trim() || submitting) return
-    const parsed = parseScore(activeWod.score_type, scoreVal.trim())
-    if (!parsed) {
-      setSubmitError(
-        activeWod.score_type === 'time'             ? 'Use format MM:SS (e.g. 5:42)' :
-        activeWod.score_type === 'rounds_plus_reps' ? 'Use format ROUNDS+REPS (e.g. 5+12)' :
-        'Invalid value'
-      )
-      return
-    }
+    if (!activeWod || !scoringTeamId || submitting) return
+    const validationError = validateScoreFields(scoreFields, parseCapSeconds(activeWod.cap))
+    if (validationError) { setSubmitError(validationError); return }
+    const encoded = encodeScore(scoreFields)
+    if (!encoded) { setSubmitError('Invalid value'); return }
     setSubmitting(true)
     setSubmitError(null)
     try {
       const { error: rpcError } = await supabase.rpc('submit_competition_result', {
-        p_wod_id:       activeWod.id,
-        p_team_id:      scoringTeamId,
-        p_raw_result:   parsed.raw,
-        p_score_type:   activeWod.score_type,
-        p_score_numeric: parsed.numeric,
-        p_notes:        scoreNotes.trim() || null,
+        p_wod_id:        activeWod.id,
+        p_team_id:       scoringTeamId,
+        p_raw_result:    encoded.raw_result,
+        p_score_type:    activeWod.score_type,
+        p_score_numeric: encoded.score_numeric,
+        p_notes:         scoreNotes.trim() || null,
       })
       if (rpcError) throw new Error(rpcError.message)
       closeScoreForm()
@@ -200,17 +165,18 @@ export default function JudgePanel() {
     }
   }
 
+  function parseCapSeconds(cap: string | null | undefined): number | null {
+    if (!cap) return null
+    const m = cap.match(/^(\d+):(\d{2})$/)
+    return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : null
+  }
+
   // ── Score form view ────────────────────────────────────────────────────────
   if (scoringTeamId && activeWod) {
-    const placeholder =
-      activeWod.score_type === 'time'             ? 'MM:SS' :
-      activeWod.score_type === 'reps'             ? '0'     :
-      activeWod.score_type === 'weight'           ? '0.0'   : '0+0'
-    const unit =
-      activeWod.score_type === 'time'             ? 'MIN : SEC · COMPLETION TIME' :
-      activeWod.score_type === 'reps'             ? 'REPS · TOTAL AT CAP'         :
-      activeWod.score_type === 'weight'           ? 'KG · MAX LOAD'               :
-      'ROUNDS + REPS'
+    const scoreType = activeWod.score_type as WodScoreType
+    const capSecs = parseCapSeconds(activeWod.cap)
+    const validationError = validateScoreFields(scoreFields, capSecs)
+    const canSubmit = !validationError && !submitting
 
     return (
       <div style={pageStyle}>
@@ -222,88 +188,131 @@ export default function JudgePanel() {
           </span>
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 560, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+        {/* Scrollable content — minHeight:0 ensures flex child can shrink */}
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 560, margin: '0 auto' }}>
 
-          {/* Context cards */}
-          <ContextCard label='EQUIPE' value={scoringTeam?.name ?? '—'} />
-          <ContextCard
-            label='WOD'
-            value={`${String(activeWodIdx + 1).padStart(2, '0')} · ${activeWod.name} · ${SCORE_LABEL[activeWod.score_type]}${activeWod.cap ? ` · CAP ${activeWod.cap}` : ''}`}
-          />
-
-          <div style={{ fontWeight: 700, fontSize: 22, letterSpacing: '-0.015em', lineHeight: 1.1 }}>
-            Resultado da equipe
-          </div>
-
-          {/* Big score input */}
-          <div>
-            <input
-              autoFocus
-              type='text'
-              value={scoreVal}
-              onChange={e => { setScoreVal(e.target.value); setSubmitError(null) }}
-              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-              placeholder={placeholder}
-              style={{
-                fontFamily: 'JetBrains Mono, monospace',
-                fontSize: 56, fontWeight: 800,
-                letterSpacing: '-0.04em',
-                fontVariantNumeric: 'tabular-nums',
-                color: '#D4FF3A',
-                background: '#111111',
-                border: `1px solid ${submitError ? '#FF3B30' : '#2A2A2A'}`,
-                padding: '22px 18px',
-                outline: 0,
-                textAlign: 'center',
-                width: '100%',
-                boxSizing: 'border-box',
-              }}
+            <ContextCard label='EQUIPE' value={scoringTeam?.name ?? '—'} />
+            <ContextCard
+              label='WOD'
+              value={`${String(activeWodIdx + 1).padStart(2, '0')} · ${activeWod.name} · ${SCORE_LABEL[scoreType]}${activeWod.cap ? ` · CAP ${activeWod.cap}` : ''}`}
             />
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', color: '#6B6B68', textAlign: 'center', textTransform: 'uppercase', marginTop: 6 }}>
-              {unit}
+
+            <div style={{ fontWeight: 700, fontSize: 22, letterSpacing: '-0.015em', lineHeight: 1.1 }}>
+              Resultado da equipe
+            </div>
+
+            {/* Score inputs — same pattern as CompetitionManage Results tab */}
+            <div style={{ background: '#111111', border: `1px solid ${submitError ? '#FF3B30' : '#2A2A2A'}`, padding: '28px 20px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12 }}>
+              {scoreType === 'time' && (
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <span style={fieldLabel}>MIN</span>
+                    <input autoFocus type='number' min={0} max={99}
+                      value={scoreFields.minutes ?? ''}
+                      placeholder='00'
+                      onChange={e => { setScoreFields(f => ({ ...f, minutes: parseInt(e.target.value) || 0 })); setSubmitError(null) }}
+                      style={SCORE_INPUT}
+                    />
+                  </div>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 36, fontWeight: 800, color: '#D4FF3A', marginTop: 16 }}>:</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <span style={fieldLabel}>SEG</span>
+                    <input type='number' min={0} max={59}
+                      value={scoreFields.seconds ?? ''}
+                      placeholder='00'
+                      onChange={e => { setScoreFields(f => ({ ...f, seconds: Math.min(59, parseInt(e.target.value) || 0) })); setSubmitError(null) }}
+                      style={SCORE_INPUT}
+                    />
+                  </div>
+                </>
+              )}
+              {scoreType === 'reps' && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                  <span style={fieldLabel}>REPS</span>
+                  <input autoFocus type='number' min={1}
+                    value={scoreFields.reps ?? ''}
+                    placeholder='0'
+                    onChange={e => { setScoreFields(f => ({ ...f, reps: parseInt(e.target.value) || 0 })); setSubmitError(null) }}
+                    style={{ ...SCORE_INPUT, width: 100 }}
+                  />
+                </div>
+              )}
+              {scoreType === 'weight' && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                  <span style={fieldLabel}>KG</span>
+                  <input autoFocus type='number' min={0} step={0.5}
+                    value={scoreFields.kg ?? ''}
+                    placeholder='0'
+                    onChange={e => { setScoreFields(f => ({ ...f, kg: parseFloat(e.target.value) || 0 })); setSubmitError(null) }}
+                    style={{ ...SCORE_INPUT, width: 100 }}
+                  />
+                </div>
+              )}
+              {scoreType === 'rounds_plus_reps' && (
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <span style={fieldLabel}>ROUNDS</span>
+                    <input autoFocus type='number' min={0}
+                      value={scoreFields.rounds ?? ''}
+                      placeholder='0'
+                      onChange={e => { setScoreFields(f => ({ ...f, rounds: parseInt(e.target.value) || 0 })); setSubmitError(null) }}
+                      style={SCORE_INPUT}
+                    />
+                  </div>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 28, fontWeight: 800, color: '#D4FF3A', marginTop: 16 }}>+</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <span style={fieldLabel}>REPS</span>
+                    <input type='number' min={0}
+                      value={scoreFields.partialReps ?? ''}
+                      placeholder='0'
+                      onChange={e => { setScoreFields(f => ({ ...f, partialReps: parseInt(e.target.value) || 0 })); setSubmitError(null) }}
+                      style={SCORE_INPUT}
+                    />
+                  </div>
+                </>
+              )}
             </div>
             {submitError && (
-              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, color: '#FF3B30', textAlign: 'center', marginTop: 6, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, color: '#FF3B30', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
                 {submitError}
               </div>
             )}
-          </div>
 
-          {/* Notes */}
-          <div>
-            <div style={fieldLabel}>NOTES (OPTIONAL)</div>
-            <textarea
-              value={scoreNotes}
-              onChange={e => setScoreNotes(e.target.value)}
-              rows={3}
-              placeholder='Ex.: 1 no-rep on thruster · split jerk valid'
-              style={{ width: '100%', background: '#111111', border: '1px solid #2A2A2A', color: '#F5F5F0', fontFamily: 'inherit', fontSize: 13, padding: '8px 12px', outline: 'none', resize: 'none', boxSizing: 'border-box' }}
-            />
-          </div>
-
-          {/* Info */}
-          <div style={{ padding: '12px 14px', border: '1px solid #2A2A2A', background: '#111111', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <span style={{ width: 22, height: 22, background: '#FFB800', color: '#0A0A0A', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 800, flexShrink: 0 }}>!</span>
-            <div style={{ flex: 1, fontSize: 12, lineHeight: 1.4, color: '#6B6B68' }}>
-              After submitting, the result appears <strong style={{ color: '#D4FF3A' }}>immediately on the live leaderboard</strong>.
+            <div>
+              <div style={fieldLabel}>NOTES (OPTIONAL)</div>
+              <textarea
+                value={scoreNotes}
+                onChange={e => setScoreNotes(e.target.value)}
+                rows={3}
+                placeholder='Ex.: 1 no-rep on thruster · split jerk valid'
+                style={{ width: '100%', background: '#111111', border: '1px solid #2A2A2A', color: '#F5F5F0', fontFamily: 'inherit', fontSize: 13, padding: '8px 12px', outline: 'none', resize: 'none', boxSizing: 'border-box' }}
+              />
             </div>
-          </div>
 
+            <div style={{ padding: '12px 14px', border: '1px solid #2A2A2A', background: '#111111', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <span style={{ width: 22, height: 22, background: '#FFB800', color: '#0A0A0A', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 800, flexShrink: 0 }}>!</span>
+              <div style={{ flex: 1, fontSize: 12, lineHeight: 1.4, color: '#6B6B68' }}>
+                After submitting, the result appears <strong style={{ color: '#D4FF3A' }}>immediately on the live leaderboard</strong>.
+              </div>
+            </div>
+
+          </div>
         </div>
 
-        {/* Bottom CTA */}
+        {/* Bottom CTA — always visible */}
         <div style={{ background: '#0A0A0A', borderTop: '1px solid #2A2A2A', padding: '14px 20px 24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, flexShrink: 0 }}>
           <button onClick={closeScoreForm} style={ghostBtnStyle}>CANCEL</button>
           <button
             onClick={handleSubmit}
-            disabled={!scoreVal.trim() || submitting}
+            disabled={!canSubmit}
             style={{
-              background: (!scoreVal.trim() || submitting) ? '#1A1A1A' : '#D4FF3A',
+              background: canSubmit ? '#D4FF3A' : '#1A1A1A',
               border: 'none', padding: '14px',
               fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 800,
               letterSpacing: '0.16em', textTransform: 'uppercase',
-              color: (!scoreVal.trim() || submitting) ? '#3D3D3B' : '#0A0A0A',
-              cursor: (!scoreVal.trim() || submitting) ? 'not-allowed' : 'pointer',
+              color: canSubmit ? '#0A0A0A' : '#3D3D3B',
+              cursor: canSubmit ? 'pointer' : 'not-allowed',
             }}
           >
             {submitting ? 'ENVIANDO...' : 'CONFIRMAR'}
@@ -535,6 +544,21 @@ const titleStyle: React.CSSProperties = {
 const fieldLabel: React.CSSProperties = {
   fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700,
   letterSpacing: '0.16em', textTransform: 'uppercase', color: '#6B6B68', marginBottom: 6,
+}
+
+const SCORE_INPUT: React.CSSProperties = {
+  background: '#0A0A0A',
+  border: '1px solid #D4FF3A',
+  color: '#D4FF3A',
+  fontFamily: 'JetBrains Mono, monospace',
+  fontWeight: 800,
+  fontSize: 36,
+  padding: '10px 8px',
+  outline: 'none',
+  width: 80,
+  textAlign: 'center',
+  fontVariantNumeric: 'tabular-nums',
+  letterSpacing: '-0.02em',
 }
 
 const ghostBtnStyle: React.CSSProperties = {
