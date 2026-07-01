@@ -549,34 +549,52 @@ export default function Leaderboard() {
                           </td>
                         )
                       }
-                      const isPos1 = cell.position === 1
+                      const pos = cell.position
+                      const podium = pos <= 3
+                      const podiumBg =
+                        pos === 1 ? '#C9A227' :
+                        pos === 2 ? '#8C9094' :
+                                   '#8B4A2D'
+                      const podiumColor = pos === 3 ? '#F5F5F0' : '#0A0A0A'
                       return (
                         <td
                           key={w.id}
                           style={{
-                            textAlign: 'center', padding: '0 8px',
+                            textAlign: 'center', padding: '0 6px',
                             borderBottom: '1px solid #1A1A1A',
                             whiteSpace: 'nowrap',
                           }}
                         >
-                          <span
-                            style={{
-                              fontSize: isPos1 ? 15 : 13,
-                              fontWeight: 800,
-                              color: isPos1 ? '#D4FF3A' : '#F5F5F0',
-                              letterSpacing: 0,
-                            }}
-                          >
-                            {cell.position}
-                          </span>
-                          <span
-                            style={{
-                              fontSize: 9, color: '#6B6B68',
-                              marginLeft: 4, fontWeight: 700,
-                            }}
-                          >
-                            {cell.points}p
-                          </span>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '4px 0' }}>
+                            {/* points — primary */}
+                            <span style={{
+                              fontSize: 14, fontWeight: 800,
+                              color: '#F5F5F0', letterSpacing: '-0.01em',
+                              fontVariantNumeric: 'tabular-nums',
+                            }}>
+                              {cell.points}
+                            </span>
+                            {/* position — secondary, badge if top 3 */}
+                            {podium ? (
+                              <span style={{
+                                display: 'inline-block',
+                                background: podiumBg, color: podiumColor,
+                                fontFamily: 'JetBrains Mono, monospace',
+                                fontSize: 8, fontWeight: 900,
+                                letterSpacing: '0.06em',
+                                padding: '1px 4px',
+                              }}>
+                                {pos}°
+                              </span>
+                            ) : (
+                              <span style={{
+                                fontSize: 9, color: '#444', fontWeight: 700,
+                                fontVariantNumeric: 'tabular-nums',
+                              }}>
+                                {pos}°
+                              </span>
+                            )}
+                          </div>
                         </td>
                       )
                     })}
