@@ -37,14 +37,14 @@ function TimeStepper({ label, value, onChange, min = 15, max = 7200 }: TimeStepp
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
 
-  const quickAdd = [15, 30, 60, 300] // 15s, 30s, 1m, 5m
+  const quickAdd = [15, 30, 60, 300]
   const quickAddLabels = ['+15s', '+30s', '+1m', '+5m']
+
+  function startEdit() { setDraft(toMMSS(value)); setEditing(true) }
 
   function commit(raw: string) {
     const parsed = parseMMSS(raw)
-    if (parsed !== null) {
-      onChange(Math.max(min, Math.min(max, parsed)))
-    }
+    if (parsed !== null) onChange(Math.max(min, Math.min(max, parsed)))
     setEditing(false)
   }
 
@@ -58,15 +58,17 @@ function TimeStepper({ label, value, onChange, min = 15, max = 7200 }: TimeStepp
       <div className="flex items-stretch" style={{ border: '1px solid #2A2A2A' }}>
         <button
           type="button"
+          disabled={editing}
           onClick={() => onChange(Math.max(min, value - 15))}
-          style={{ width: 44, background: '#111111', border: 'none', borderRight: '1px solid #2A2A2A', color: '#F5F5F0', fontSize: 20, cursor: 'pointer', flexShrink: 0 }}
+          style={{ width: 44, background: '#111111', border: 'none', borderRight: '1px solid #2A2A2A', color: editing ? '#2A2A2A' : '#F5F5F0', fontSize: 20, cursor: editing ? 'not-allowed' : 'pointer', flexShrink: 0 }}
         >−</button>
 
         {editing ? (
           <input
             autoFocus
             type="text"
-            defaultValue={toMMSS(value)}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
             className="flex-1 text-center font-mono font-bold text-[#D4FF3A] bg-[#111111] outline-none"
             style={{ fontSize: 18, letterSpacing: '0.04em', border: 'none' }}
             onBlur={e => commit(e.target.value)}
@@ -78,7 +80,7 @@ function TimeStepper({ label, value, onChange, min = 15, max = 7200 }: TimeStepp
         ) : (
           <button
             type="button"
-            onClick={() => { setDraft(toMMSS(value)); setEditing(true) }}
+            onClick={startEdit}
             className="flex-1 text-center font-mono font-bold text-[#F5F5F0] bg-[#111111]"
             style={{ fontSize: 18, letterSpacing: '0.04em', border: 'none', cursor: 'text' }}
           >
@@ -88,8 +90,9 @@ function TimeStepper({ label, value, onChange, min = 15, max = 7200 }: TimeStepp
 
         <button
           type="button"
+          disabled={editing}
           onClick={() => onChange(Math.min(max, value + 15))}
-          style={{ width: 44, background: '#111111', border: 'none', borderLeft: '1px solid #2A2A2A', color: '#F5F5F0', fontSize: 20, cursor: 'pointer', flexShrink: 0 }}
+          style={{ width: 44, background: '#111111', border: 'none', borderLeft: '1px solid #2A2A2A', color: editing ? '#2A2A2A' : '#F5F5F0', fontSize: 20, cursor: editing ? 'not-allowed' : 'pointer', flexShrink: 0 }}
         >+</button>
       </div>
 
@@ -99,13 +102,14 @@ function TimeStepper({ label, value, onChange, min = 15, max = 7200 }: TimeStepp
           <button
             key={s}
             type="button"
+            disabled={editing}
             onClick={() => onChange(Math.min(max, value + s))}
             style={{
               flex: 1, height: 28, background: 'transparent',
-              border: '1px solid #2A2A2A', color: '#6B6B68',
+              border: '1px solid #2A2A2A', color: editing ? '#2A2A2A' : '#6B6B68',
               fontFamily: "'JetBrains Mono', monospace",
               fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
-              cursor: 'pointer',
+              cursor: editing ? 'not-allowed' : 'pointer',
             }}
           >
             {quickAddLabels[i]}
@@ -128,6 +132,9 @@ interface IntStepperProps {
 
 function IntStepper({ label, value, onChange, min = 1, max = 99 }: IntStepperProps) {
   const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+
+  function startEdit() { setDraft(String(value)); setEditing(true) }
 
   function commit(raw: string) {
     const n = parseInt(raw)
@@ -144,15 +151,17 @@ function IntStepper({ label, value, onChange, min = 1, max = 99 }: IntStepperPro
       <div className="flex items-stretch" style={{ border: '1px solid #2A2A2A' }}>
         <button
           type="button"
+          disabled={editing}
           onClick={() => onChange(Math.max(min, value - 1))}
-          style={{ width: 44, background: '#111111', border: 'none', borderRight: '1px solid #2A2A2A', color: '#F5F5F0', fontSize: 20, cursor: 'pointer', flexShrink: 0 }}
+          style={{ width: 44, background: '#111111', border: 'none', borderRight: '1px solid #2A2A2A', color: editing ? '#2A2A2A' : '#F5F5F0', fontSize: 20, cursor: editing ? 'not-allowed' : 'pointer', flexShrink: 0 }}
         >−</button>
 
         {editing ? (
           <input
             autoFocus
             type="number"
-            defaultValue={value}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
             className="flex-1 text-center font-mono font-bold text-[#D4FF3A] bg-[#111111] outline-none"
             style={{ fontSize: 18, letterSpacing: '0.04em', border: 'none' }}
             onBlur={e => commit(e.target.value)}
@@ -164,7 +173,7 @@ function IntStepper({ label, value, onChange, min = 1, max = 99 }: IntStepperPro
         ) : (
           <button
             type="button"
-            onClick={() => setEditing(true)}
+            onClick={startEdit}
             className="flex-1 text-center font-mono font-bold text-[#F5F5F0] bg-[#111111]"
             style={{ fontSize: 18, letterSpacing: '0.04em', border: 'none', cursor: 'text' }}
           >
@@ -174,8 +183,9 @@ function IntStepper({ label, value, onChange, min = 1, max = 99 }: IntStepperPro
 
         <button
           type="button"
+          disabled={editing}
           onClick={() => onChange(Math.min(max, value + 1))}
-          style={{ width: 44, background: '#111111', border: 'none', borderLeft: '1px solid #2A2A2A', color: '#F5F5F0', fontSize: 20, cursor: 'pointer', flexShrink: 0 }}
+          style={{ width: 44, background: '#111111', border: 'none', borderLeft: '1px solid #2A2A2A', color: editing ? '#2A2A2A' : '#F5F5F0', fontSize: 20, cursor: editing ? 'not-allowed' : 'pointer', flexShrink: 0 }}
         >+</button>
       </div>
 
@@ -185,13 +195,14 @@ function IntStepper({ label, value, onChange, min = 1, max = 99 }: IntStepperPro
           <button
             key={n}
             type="button"
+            disabled={editing}
             onClick={() => onChange(Math.min(max, value + n))}
             style={{
               flex: 1, height: 28, background: 'transparent',
-              border: '1px solid #2A2A2A', color: '#6B6B68',
+              border: '1px solid #2A2A2A', color: editing ? '#2A2A2A' : '#6B6B68',
               fontFamily: "'JetBrains Mono', monospace",
               fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
-              cursor: 'pointer',
+              cursor: editing ? 'not-allowed' : 'pointer',
             }}
           >
             +{n}
@@ -244,5 +255,9 @@ export function TimerConfig({ config, onChange }: Props) {
           <span className="font-mono text-[11px] text-[#6B6B68]">No configuration needed. Press start.</span>
         </div>
       )
+    default: {
+      const _exhausted: never = config.mode
+      return null
+    }
   }
 }

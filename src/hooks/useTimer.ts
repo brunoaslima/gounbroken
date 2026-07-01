@@ -34,14 +34,16 @@ export function useTimer() {
   const timerStartRef = useRef(0)   // wall-clock ms when timer started (adjusted for pauses)
   const phaseStartRef = useRef(0)   // wall-clock ms when current phase started (adjusted)
   const pausedAtRef   = useRef(0)
-  const intervalRef   = useRef<ReturnType<typeof setInterval>>()
-  const wakeLockRef   = useRef<WakeLockSentinel | null>(null)
+  const intervalRef    = useRef<ReturnType<typeof setInterval>>()
+  const countdownRef   = useRef<ReturnType<typeof setInterval>>()
+  const wakeLockRef    = useRef<WakeLockSentinel | null>(null)
   const lastTickSecRef = useRef(-1) // last second at which tick beep played
   const prevRoundRef   = useRef(0)  // for EMOM: detect minute change
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      clearInterval(countdownRef.current)
       clearInterval(intervalRef.current)
       wakeLockRef.current?.release().catch(() => {})
       closeAudio()
@@ -182,10 +184,10 @@ export function useTimer() {
 
     let count = 3
     beepCountdown()
-    const cdInterval = setInterval(() => {
+    countdownRef.current = setInterval(() => {
       count--
       if (count <= 0) {
-        clearInterval(cdInterval)
+        clearInterval(countdownRef.current)
         beepGo()
         const now = Date.now()
         timerStartRef.current = now
@@ -230,6 +232,7 @@ export function useTimer() {
   }
 
   function reset() {
+    clearInterval(countdownRef.current)
     clearInterval(intervalRef.current)
     wakeLockRef.current?.release().catch(() => {})
     wakeLockRef.current = null
@@ -260,8 +263,9 @@ export function useTimer() {
     advancePhase(configRef.current, roundRef.current, phaseRef.current)
   }
 
-  // For Time / AMRAP: add 1 minute to cap
+  // For Time only: add 1 minute to cap
   function addMinute() {
+    if (configRef.current.mode !== 'for_time') return
     const updated = { ...configRef.current, capSeconds: configRef.current.capSeconds + 60 }
     syncConfig(updated)
   }

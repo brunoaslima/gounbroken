@@ -123,13 +123,14 @@ function Stat({ label, value, color }: { label: string; value: string; color?: s
 }
 
 function ControlBtn({
-  onClick, disabled, color = '#2A2A2A', textColor = '#F5F5F0', filled = false, children,
+  onClick, disabled, color = '#2A2A2A', textColor = '#F5F5F0', filled = false, neutral = false, children,
 }: {
   onClick: () => void
   disabled?: boolean
   color?: string
   textColor?: string
   filled?: boolean
+  neutral?: boolean
   children: React.ReactNode
 }) {
   return (
@@ -141,10 +142,10 @@ function ControlBtn({
         flex: 1, height: 52,
         background: filled ? color : 'transparent',
         border: `1px solid ${color}`,
-        color: filled ? textColor : color === '#2A2A2A' ? '#F5F5F0' : color,
+        color: filled ? textColor : neutral ? '#F5F5F0' : color,
         fontFamily: "'JetBrains Mono', monospace",
         fontSize: 10, fontWeight: 700, letterSpacing: '0.14em',
-        textTransform: 'uppercase', cursor: 'pointer',
+        textTransform: 'uppercase', cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.3 : 1,
       }}
     >
@@ -315,17 +316,17 @@ export function TimerDisplay({
 
             {/* Secondary: contextual */}
             {isPhased && (
-              <ControlBtn onClick={onSkipPhase} disabled={!isRunning} color="#2A2A2A">
+              <ControlBtn onClick={onSkipPhase} disabled={!isRunning} color="#2A2A2A" neutral>
                 SKIP
               </ControlBtn>
             )}
             {isForTime && (
-              <ControlBtn onClick={onFinishEarly} disabled={!isRunning} color="#2A2A2A">
+              <ControlBtn onClick={onFinishEarly} disabled={!isRunning} color="#2A2A2A" neutral>
                 DONE
               </ControlBtn>
             )}
             {isForTime && (
-              <ControlBtn onClick={onAddMinute} color="#2A2A2A">
+              <ControlBtn onClick={onAddMinute} color="#2A2A2A" neutral>
                 +1 MIN
               </ControlBtn>
             )}

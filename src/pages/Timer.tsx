@@ -23,6 +23,8 @@ export default function Timer() {
         style={{ height: 52 }}
       >
         <button
+          type="button"
+          aria-label="Go back"
           onClick={() => navigate(-1)}
           className="flex items-center justify-center text-[#F5F5F0] active:opacity-60"
           style={{ width: 36, height: 36 }}

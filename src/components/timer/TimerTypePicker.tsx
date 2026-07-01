@@ -17,6 +17,7 @@ export function TimerTypePicker({ value, onChange }: Props) {
           <button
             key={mode}
             type="button"
+            aria-pressed={active}
             onClick={() => onChange(mode)}
             style={{
               background: active ? '#D4FF3A' : '#111111',
