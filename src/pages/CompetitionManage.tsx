@@ -31,8 +31,6 @@ function divisionLabel(d: CompetitionDivision) {
   return `${FORMAT_LABEL[d.format]} · ${d.composition.toUpperCase()} · ${d.category.toUpperCase()}`
 }
 
-// ─── CF Games points scale ────────────────────────────────────────────────────
-const CF_POINTS = [100,95,92,89,86,83,80,78,76,74,72,70,68,66,64,62,60,58,56,54,52,50,48,46,44,42,40,38,36,34,32,30,28,26,24,22,20,18,16,14,12,10,8,6,4,2,1,0]
 
 // ─── StatusPill ───────────────────────────────────────────────────────────────
 const STATUS_CFG: Record<string, { dot: string; text: string; label: string }> = {
@@ -1718,7 +1716,7 @@ export default function CompetitionManage() {
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid #2A2A2A' }}>
-                        {['#','EQUIPE','RESULTADO','POSICAO','PONTOS CF','ACOES'].map(h => (
+                        {['#','EQUIPE','RESULTADO','POSICAO','PONTOS','ACOES'].map(h => (
                           <th key={h} style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68', padding: '8px 12px', textAlign: 'left', background: '#0D0D0D' }}>
                             {h}
                           </th>
@@ -1728,7 +1726,7 @@ export default function CompetitionManage() {
                     <tbody>
                       {sortedWodResults.map((res, pos) => {
                         const team = teams.find(t => t.id === res.team_id)
-                        const points = CF_POINTS[pos] ?? 0
+                        const points = sortedWodResults.length - pos
                         const isEditing = overrideResultId === res.id
                         const displayVal = res.score_numeric != null
                           ? decodeScore(selectedWod.score_type as WodScoreType, res.score_numeric)
