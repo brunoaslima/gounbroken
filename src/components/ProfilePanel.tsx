@@ -232,8 +232,8 @@ export default function ProfilePanel({ open, onClose }: Props) {
                           style={{
                             fontSize: 10, letterSpacing: '0.14em',
                             padding: '6px 14px',
-                            background: editGender === g ? '#F5F5F0' : '#0A0A0A',
-                            color: editGender === g ? '#0A0A0A' : '#6B6B68',
+                            background: editGender === g ? '#F5F5F0' : '#1A1A1A',
+                            color: editGender === g ? '#0A0A0A' : '#A8A8A4',
                             border: 'none', cursor: 'pointer',
                           }}
                         >
