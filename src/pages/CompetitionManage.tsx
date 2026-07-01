@@ -1626,7 +1626,7 @@ export default function CompetitionManage() {
           <div style={{ padding: 16, maxWidth: 1000, margin: '0 auto' }}>
 
             {/* WOD chips */}
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
               {wods.map((wod, idx) => (
                 <button
                   key={wod.id}
@@ -1649,6 +1649,41 @@ export default function CompetitionManage() {
               ))}
             </div>
 
+            {/* Division filter chips */}
+            {divisions.length > 0 && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+                {[{ id: 'all', label: 'TODAS' }, ...divisions.map(d => ({ id: d.id, label: divisionLabel(d) }))].map(opt => (
+                  <button
+                    key={opt.id}
+                    onClick={() => { setResultDivisionFilter(opt.id); setEnterTeamId(null) }}
+                    style={{
+                      background: resultDivisionFilter === opt.id ? '#1A1A1A' : 'none',
+                      border: `1px solid ${resultDivisionFilter === opt.id ? '#D4FF3A' : '#2A2A2A'}`,
+                      color: resultDivisionFilter === opt.id ? '#D4FF3A' : '#6B6B68',
+                      fontFamily: 'JetBrains Mono, monospace',
+                      fontWeight: 700,
+                      fontSize: 9,
+                      letterSpacing: '0.14em',
+                      textTransform: 'uppercase',
+                      padding: '4px 10px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Success banner */}
+            {savedMsg && (
+              <div style={{ background: '#D4FF3A18', border: '1px solid #D4FF3A44', padding: '10px 14px', marginBottom: 12 }}>
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, color: '#D4FF3A', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                  {savedMsg}
+                </span>
+              </div>
+            )}
+
             {!selectedWod ? (
               <div style={{ padding: 32, textAlign: 'center', color: '#3D3D3B', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
                 SELECIONE UM WOD
@@ -1658,7 +1693,7 @@ export default function CompetitionManage() {
                 {/* Summary row */}
                 <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
                   <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#6B6B68', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                    {wodResults.length} reviewed / {approvedTeams.length} total · {teamsWithoutResult.length} without result
+                    {sortedWodResults.length} com resultado / {resultFilteredApproved.length} total · {teamsWithoutResult.length} sem resultado
                   </span>
                   {selectedWod.status !== 'published' && (
                     <Btn color='#D4FF3A' disabled={mutating} onClick={() => publishWod(selectedWod.id)}>
@@ -1759,13 +1794,14 @@ export default function CompetitionManage() {
                               <ScoreInput
                                 type={selectedWod.score_type as WodScoreType}
                                 fields={enterFields}
+                                capSeconds={parseCapSeconds(selectedWod.cap)}
                                 onChange={f => { setEnterFields(f); setEnterError(null) }}
                                 error={enterError}
                               />
                             </td>
                             <td style={{ padding: '8px 12px' }}>
                               <div style={{ display: 'flex', gap: 4 }}>
-                                <Btn color='#D4FF3A' disabled={mutating} onClick={() => handleSubmitResult(team.id, team.name)}>
+                                <Btn color='#D4FF3A' disabled={mutating || !!validateScoreFields(enterFields, parseCapSeconds(selectedWod.cap))} onClick={() => handleSubmitResult(team.id, team.name)}>
                                   SALVAR
                                 </Btn>
                                 <Btn color='#6B6B68' onClick={() => { setEnterTeamId(null); setEnterError(null) }}>
@@ -1873,15 +1909,22 @@ const LABEL_SCORE: React.CSSProperties = {
 function ScoreInput({
   type,
   fields,
+  capSeconds,
   onChange,
   error,
 }: {
   type: WodScoreType
   fields: ScoreFields
+  capSeconds?: number | null
   onChange: (f: ScoreFields) => void
   error: string | null
 }) {
   const base = { ...fields, type }
+  // Real-time cap error shown inline (before user tries to save)
+  const capError = type === 'time' && capSeconds != null
+    ? validateScoreFields(fields, capSeconds)
+    : null
+  const displayError = error ?? capError
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -1981,9 +2024,9 @@ function ScoreInput({
           </>
         )}
       </div>
-      {error && (
+      {displayError && (
         <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#FF3B30' }}>
-          {error}
+          {displayError}
         </span>
       )}
     </div>
