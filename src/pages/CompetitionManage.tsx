@@ -1724,9 +1724,16 @@ export default function CompetitionManage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {sortedWodResults.map((res, pos) => {
+                      {sortedWodResults.map((res, _pos) => {
                         const team = teams.find(t => t.id === res.team_id)
-                        const points = sortedWodResults.length - pos
+                        const divId = team?.division_id ?? null
+                        const nDiv = approvedTeams.filter(t => t.division_id === divId).length || approvedTeams.length
+                        const sameDivResults = sortedWodResults.filter(r => {
+                          const t = teams.find(t2 => t2.id === r.team_id)
+                          return t?.division_id === divId
+                        })
+                        const divRank = sameDivResults.indexOf(res) + 1
+                        const points = Math.max(nDiv - divRank + 1, 0)
                         const isEditing = overrideResultId === res.id
                         const displayVal = res.score_numeric != null
                           ? decodeScore(selectedWod.score_type as WodScoreType, res.score_numeric)
@@ -1734,7 +1741,7 @@ export default function CompetitionManage() {
                         return (
                           <tr key={res.id} style={{ borderBottom: '1px solid #1A1A1A' }}>
                             <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 11, color: '#3D3D3B' }}>
-                              {String(pos + 1).padStart(2, '0')}
+                              {String(divRank).padStart(2, '0')}
                             </td>
                             <td style={{ padding: '12px', fontWeight: 700, fontSize: 13 }}>
                               {team?.name ?? res.team_id}
@@ -1743,7 +1750,7 @@ export default function CompetitionManage() {
                               {displayVal}
                             </td>
                             <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#6B6B68' }}>
-                              {pos + 1}°
+                              {divRank}°
                             </td>
                             <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 700, color: '#D4FF3A' }}>
                               {points}
