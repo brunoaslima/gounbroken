@@ -276,9 +276,9 @@ export default function CompetitionManage() {
       }
 
       // Results for all wods — uses SECURITY DEFINER RPC to bypass RLS
-      const { data: resultsData } = await supabase
+      const { data: resultsData, error: resultsError } = await supabase
         .rpc('get_competition_results', { p_competition_id: id })
-      setResults((resultsData ?? []) as CompetitionResult[])
+      if (!resultsError) setResults((resultsData ?? []) as CompetitionResult[])
 
       // Batch profile lookup — inclui membros de equipes para exibição
       const userIds = new Set<string>()
@@ -569,10 +569,10 @@ export default function CompetitionManage() {
   // Sort results by score_numeric respecting score_order
   const sortedWodResults = selectedWod
     ? [...wodResults]
-        .filter(r => resultFilteredApproved.some(t => t.id === r.team_id))
+        .filter(r => resultFilteredApproved.some(t => t.id === r.team_id) && r.score_numeric != null)
         .sort((a, b) => {
-          const av = a.score_numeric ?? 0
-          const bv = b.score_numeric ?? 0
+          const av = a.score_numeric!
+          const bv = b.score_numeric!
           return selectedWod.score_order === 'asc' ? av - bv : bv - av
         })
     : []
@@ -1783,7 +1783,7 @@ export default function CompetitionManage() {
                                   </div>
                                 </div>
                               ) : (
-                                <Btn color='#6B6B68' onClick={() => { setOverrideResultId(res.id); setOverrideDisplay(displayVal !== '—' ? displayVal : '') }}>
+                                <Btn color='#6B6B68' onClick={() => { setOverrideResultId(res.id); setOverrideDisplay(res.raw_result ?? (displayVal !== '—' ? displayVal : '')) }}>
                                   CORRIGIR
                                 </Btn>
                               )}
@@ -1837,7 +1837,7 @@ export default function CompetitionManage() {
                           </tr>
                         )
                       })}
-                      {approvedTeams.length === 0 && (
+                      {resultFilteredApproved.length === 0 && (
                         <tr>
                           <td colSpan={6} style={{ padding: '24px 12px', textAlign: 'center', color: '#3D3D3B', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
                             NENHUMA EQUIPE APROVADA
@@ -1953,7 +1953,7 @@ function ScoreInput({
                 max={99}
                 value={fields.minutes ?? ''}
                 placeholder='00'
-                onChange={e => onChange({ ...base, minutes: parseInt(e.target.value) || 0 })}
+                onChange={e => onChange({ ...base, minutes: e.target.value === '' ? undefined : parseInt(e.target.value) })}
                 style={INPUT_SCORE}
               />
             </div>
@@ -1966,7 +1966,7 @@ function ScoreInput({
                 max={59}
                 value={fields.seconds ?? ''}
                 placeholder='00'
-                onChange={e => onChange({ ...base, seconds: Math.min(59, parseInt(e.target.value) || 0) })}
+                onChange={e => onChange({ ...base, seconds: e.target.value === '' ? undefined : Math.min(59, parseInt(e.target.value)) })}
                 style={INPUT_SCORE}
               />
             </div>
@@ -1982,7 +1982,7 @@ function ScoreInput({
               min={1}
               value={fields.reps ?? ''}
               placeholder='0'
-              onChange={e => onChange({ ...base, reps: parseInt(e.target.value) || 0 })}
+              onChange={e => onChange({ ...base, reps: e.target.value === '' ? undefined : parseInt(e.target.value) })}
               style={{ ...INPUT_SCORE, width: 96 }}
             />
           </div>
@@ -1999,7 +1999,7 @@ function ScoreInput({
                 step={0.5}
                 value={fields.kg ?? ''}
                 placeholder='0'
-                onChange={e => onChange({ ...base, kg: parseFloat(e.target.value) || 0 })}
+                onChange={e => onChange({ ...base, kg: e.target.value === '' ? undefined : parseFloat(e.target.value) })}
                 style={{ ...INPUT_SCORE, width: 96 }}
               />
             </div>
@@ -2017,7 +2017,7 @@ function ScoreInput({
                 min={0}
                 value={fields.rounds ?? ''}
                 placeholder='0'
-                onChange={e => onChange({ ...base, rounds: parseInt(e.target.value) || 0 })}
+                onChange={e => onChange({ ...base, rounds: e.target.value === '' ? undefined : parseInt(e.target.value) })}
                 style={INPUT_SCORE}
               />
             </div>
@@ -2030,7 +2030,7 @@ function ScoreInput({
                 max={9999}
                 value={fields.partialReps ?? ''}
                 placeholder='0'
-                onChange={e => onChange({ ...base, partialReps: parseInt(e.target.value) || 0 })}
+                onChange={e => onChange({ ...base, partialReps: e.target.value === '' ? undefined : parseInt(e.target.value) })}
                 style={INPUT_SCORE}
               />
             </div>

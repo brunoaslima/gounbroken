@@ -90,7 +90,7 @@ export function parseDisplayScore(type: WodScoreType, display: string): number |
       return n > 0 ? n : null
     }
     case 'weight': {
-      const n = parseFloat(s)
+      const n = parseFloat(s.replace(',', '.'))
       return n > 0 ? n : null
     }
     case 'rounds_plus_reps': {
@@ -136,6 +136,8 @@ export function validateScoreFields(fields: ScoreFields, capSeconds?: number | n
     case 'rounds_plus_reps': {
       const rounds = fields.rounds ?? 0
       const reps = fields.partialReps ?? 0
+      if (rounds < 0) return 'Rounds não pode ser negativo'
+      if (reps < 0) return 'Reps não pode ser negativo'
       if (rounds === 0 && reps === 0) return 'Resultado deve ser maior que zero'
       if (reps >= ROUNDS_MULTIPLIER) return 'Reps parciais deve ser menor que 10000'
       return null

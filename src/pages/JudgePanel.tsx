@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { useProfile } from '@/hooks/useProfile'
 import type { CompetitionWod, CompetitionTeam, CompetitionRole, CompetitionResult, CompetitionDivision } from '@/types'
-import { encodeScore, validateScoreFields } from '@/lib/competitionScore'
+import { encodeScore, validateScoreFields, parseCapSeconds } from '@/lib/competitionScore'
 import type { ScoreFields, WodScoreType } from '@/lib/competitionScore'
 
 const FORMAT_SHORT: Record<string, string> = { individual: 'IND', pair: 'PAIR', team3: 'T3', team4: 'T4' }
@@ -165,12 +165,6 @@ export default function JudgePanel() {
     } finally {
       setSubmitting(false)
     }
-  }
-
-  function parseCapSeconds(cap: string | null | undefined): number | null {
-    if (!cap) return null
-    const m = cap.match(/^(\d+):(\d{2})$/)
-    return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : null
   }
 
   // ── Score form view ────────────────────────────────────────────────────────
