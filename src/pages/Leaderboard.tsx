@@ -114,6 +114,7 @@ export default function Leaderboard() {
   const countdownRef = useRef(REFRESH_INTERVAL)
   const divFilterRef = useRef<HTMLDivElement>(null)
   const [filterHasMore, setFilterHasMore] = useState(false)
+  const dragRef = useRef({ active: false, startX: 0, scrollLeft: 0, moved: false })
 
   const checkFilterOverflow = useCallback(() => {
     const el = divFilterRef.current
@@ -132,6 +133,34 @@ export default function Leaderboard() {
       window.removeEventListener('resize', checkFilterOverflow)
     }
   }, [checkFilterOverflow, divisions])
+
+  const onFilterMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = divFilterRef.current
+    if (!el) return
+    dragRef.current = { active: true, startX: e.pageX - el.offsetLeft, scrollLeft: el.scrollLeft, moved: false }
+    el.style.cursor = 'grabbing'
+  }, [])
+
+  const onFilterMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = divFilterRef.current
+    if (!el || !dragRef.current.active) return
+    const x = e.pageX - el.offsetLeft
+    const delta = x - dragRef.current.startX
+    if (Math.abs(delta) > 3) dragRef.current.moved = true
+    el.scrollLeft = dragRef.current.scrollLeft - delta
+  }, [])
+
+  const onFilterMouseUp = useCallback(() => {
+    const el = divFilterRef.current
+    dragRef.current.active = false
+    if (el) el.style.cursor = 'grab'
+  }, [])
+
+  const onFilterClick = useCallback((id: string | null) => {
+    // suppress click when the mouse was dragged
+    if (dragRef.current.moved) { dragRef.current.moved = false; return }
+    setSelectedDivisionId(id)
+  }, [])
 
   const load = useCallback(async () => {
     if (!id) return
@@ -322,21 +351,27 @@ export default function Leaderboard() {
               overflowX: 'scroll', scrollbarWidth: 'none', msOverflowStyle: 'none',
               WebkitOverflowScrolling: 'touch',
               touchAction: 'pan-x',
+              cursor: 'grab',
+              userSelect: 'none',
             }}
+            onMouseDown={onFilterMouseDown}
+            onMouseMove={onFilterMouseMove}
+            onMouseUp={onFilterMouseUp}
+            onMouseLeave={onFilterMouseUp}
           >
             {[{ id: null, label: 'ALL' }, ...divisions.map(d => ({ id: d.id, label: divisionShortLabel(d) }))].map(item => {
               const active = item.id === selectedDivisionId
               return (
                 <button
                   key={item.id ?? 'all'}
-                  onClick={() => setSelectedDivisionId(item.id)}
+                  onClick={() => onFilterClick(item.id)}
                   className="font-mono font-black uppercase shrink-0"
                   style={{
                     fontSize: 9, letterSpacing: '0.18em',
                     padding: '8px 12px',
                     background: active ? '#D4FF3A' : '#0A0A0A',
                     color: active ? '#0A0A0A' : '#6B6B68',
-                    border: 'none', cursor: 'pointer',
+                    border: 'none', cursor: 'inherit',
                     whiteSpace: 'nowrap',
                     touchAction: 'pan-x',
                     WebkitTapHighlightColor: 'transparent',
