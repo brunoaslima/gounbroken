@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import type { CompetitionDivision, DivisionFormat } from '@/types'
+
+const FORMAT_LABELS: Record<DivisionFormat, string> = {
+  individual: 'IND',
+  pair: 'PAIR',
+  team3: 'TEAM 3',
+  team4: 'TEAM 4',
+}
 
 export default function TeamCreate() {
   const { id: competitionId } = useParams<{ id: string }>()
@@ -8,41 +16,47 @@ export default function TeamCreate() {
 
   const [competitionName, setCompetitionName] = useState('')
   const [teamMaxSize, setTeamMaxSize] = useState(4)
+  const [divisions, setDivisions] = useState<CompetitionDivision[]>([])
+  const [selectedDivisionId, setSelectedDivisionId] = useState<string | null>(null)
   const [teamName, setTeamName] = useState('')
   const [box, setBox] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!competitionId) return
-    supabase
-      .from('competitions')
-      .select('name, team_max_size')
-      .eq('id', competitionId)
-      .single()
-      .then(({ data }) => {
-        if (data) {
-          setCompetitionName(data.name)
-          setTeamMaxSize(data.team_max_size ?? 4)
-        }
-      })
+    Promise.all([
+      supabase.from('competitions').select('name, team_max_size').eq('id', competitionId).single(),
+      supabase.from('competition_divisions').select('*').eq('competition_id', competitionId).order('created_at'),
+    ]).then(([compRes, divRes]) => {
+      if (compRes.data) {
+        setCompetitionName(compRes.data.name)
+        setTeamMaxSize(compRes.data.team_max_size ?? 4)
+      }
+      setDivisions((divRes.data ?? []) as CompetitionDivision[])
+    })
   }, [competitionId])
 
   async function handleSubmit() {
     if (!teamName.trim() || !competitionId || submitting) return
     setSubmitting(true)
-    const { data, error } = await supabase.rpc('create_competition_team', {
+    setError(null)
+    const { data, error: rpcErr } = await supabase.rpc('create_competition_team', {
       p_competition_id: competitionId,
       p_name: teamName.trim(),
       p_box: box.trim() || null,
+      p_division_id: selectedDivisionId ?? null,
     })
     setSubmitting(false)
-    if (error) {
+    if (rpcErr) {
+      setError(rpcErr.message)
       return
     }
-    // RPC returns the new team UUID as a string or object
     const teamId = typeof data === 'string' ? data : (data as { id: string } | null)?.id ?? String(data)
     navigate(`/athlete/competitions/${competitionId}/team/${teamId}`)
   }
+
+  const hasDivisions = divisions.length > 0
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex flex-col" style={{ maxWidth: 480, margin: '0 auto' }}>
@@ -67,7 +81,7 @@ export default function TeamCreate() {
         <span style={{ width: 36 }} />
       </header>
 
-      {/* Progress bar — 2 segments, no gap */}
+      {/* Progress bar */}
       <div className="flex flex-shrink-0" style={{ height: 3 }}>
         <div style={{ flex: 1, background: '#D4FF3A' }} />
         <div style={{ flex: 1, background: '#2A2A2A' }} />
@@ -120,6 +134,53 @@ export default function TeamCreate() {
           />
         </div>
 
+        {/* Division selector */}
+        {hasDivisions && (
+          <div className="flex flex-col gap-2">
+            <label className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#6B6B68]">
+              Division
+            </label>
+            {divisions.map(div => {
+              const selected = selectedDivisionId === div.id
+              return (
+                <button
+                  key={div.id}
+                  type="button"
+                  onClick={() => setSelectedDivisionId(div.id)}
+                  className="flex items-center justify-between text-left"
+                  style={{
+                    border: selected ? '1px solid #D4FF3A' : '1px solid #2A2A2A',
+                    background: selected ? '#111111' : 'transparent',
+                    padding: '12px 14px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span
+                    className="font-mono font-bold uppercase"
+                    style={{ fontSize: 11, letterSpacing: '0.12em', color: selected ? '#D4FF3A' : '#F5F5F0' }}
+                  >
+                    {FORMAT_LABELS[div.format]} · {div.composition.toUpperCase()} · {div.category.toUpperCase()}
+                  </span>
+                  <div
+                    style={{
+                      width: 16, height: 16, flexShrink: 0,
+                      border: selected ? '1px solid #D4FF3A' : '1px solid #3D3D3B',
+                      background: selected ? '#D4FF3A' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    {selected && (
+                      <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 6l3.5 3.5L10 3" stroke="#0A0A0A" strokeWidth="1.8" strokeLinecap="square" />
+                      </svg>
+                    )}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
+
         {/* Info box */}
         <div className="flex gap-3 border border-[#2A2A2A] bg-[#111111] p-3.5" style={{ alignItems: 'flex-start' }}>
           <span
@@ -134,6 +195,15 @@ export default function TeamCreate() {
             to compete officially.
           </p>
         </div>
+
+        {error && (
+          <div
+            className="font-mono font-bold uppercase text-[10px] text-[#FF3B30]"
+            style={{ letterSpacing: '0.14em', border: '1px solid #FF3B30', padding: '10px 12px' }}
+          >
+            {error}
+          </div>
+        )}
       </div>
 
       {/* Sticky bottom CTA */}

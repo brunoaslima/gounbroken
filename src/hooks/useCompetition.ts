@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import type { Competition, CompetitionWod, CompetitionTeam, CompetitionTeamMember } from '@/types'
+import type { Competition, CompetitionDivision, CompetitionWod, CompetitionTeam, CompetitionTeamMember } from '@/types'
 
 export interface MyTeamData {
   team: CompetitionTeam
@@ -16,6 +16,7 @@ export interface PendingTeamInvite { id: string; team_id: string; team_name: str
 export function useCompetition(competitionId: string | undefined, userId: string | undefined) {
   const [competition, setCompetition] = useState<Competition | null>(null)
   const [wods, setWods] = useState<CompetitionWod[]>([])
+  const [divisions, setDivisions] = useState<CompetitionDivision[]>([])
   const [myTeam, setMyTeam] = useState<MyTeamData | null>(null)
   const [myRole, setMyRole] = useState<'head_judge' | 'judge' | 'athlete' | null>(null)
   const [teamCounts, setTeamCounts] = useState<TeamCounts>({ total: 0, approved: 0 })
@@ -27,9 +28,10 @@ export function useCompetition(competitionId: string | undefined, userId: string
     if (!competitionId) { setLoading(false); return }
     setLoading(true)
 
-    const [compRes, wodsRes, rolesRes, teamsRes, inviteRes] = await Promise.all([
+    const [compRes, wodsRes, divisionsRes, rolesRes, teamsRes, inviteRes] = await Promise.all([
       supabase.from('competitions').select('*').eq('id', competitionId).single(),
       supabase.from('competition_wods').select('*').eq('competition_id', competitionId).order('order_index'),
+      supabase.from('competition_divisions').select('*').eq('competition_id', competitionId).order('created_at'),
       userId ? supabase.from('competition_roles').select('role').eq('competition_id', competitionId).eq('user_id', userId) : Promise.resolve({ data: [] }),
       supabase.from('competition_teams').select('id, status').eq('competition_id', competitionId),
       userId
@@ -45,6 +47,7 @@ export function useCompetition(competitionId: string | undefined, userId: string
 
     setCompetition(compRes.data ?? null)
     setWods(wodsRes.data ?? [])
+    setDivisions((divisionsRes.data ?? []) as CompetitionDivision[])
 
     const teamsData = teamsRes.data ?? []
     setTeamCounts({
@@ -104,5 +107,5 @@ export function useCompetition(competitionId: string | undefined, userId: string
 
   useEffect(() => { load() }, [load])
 
-  return { competition, wods, myTeam, myRole, teamCounts, pendingJudgeInvite, pendingTeamInvite, loading, reload: load }
+  return { competition, wods, divisions, myTeam, myRole, teamCounts, pendingJudgeInvite, pendingTeamInvite, loading, reload: load }
 }

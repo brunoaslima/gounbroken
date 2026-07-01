@@ -31,6 +31,7 @@ export default function ProfilePanel({ open, onClose }: Props) {
   const [editUsername, setEditUsername] = useState('')
   const [editWeight, setEditWeight] = useState('')
   const [editHeight, setEditHeight] = useState('')
+  const [editGender, setEditGender] = useState<'male' | 'female' | null>(null)
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
@@ -41,6 +42,8 @@ export default function ProfilePanel({ open, onClose }: Props) {
     setEditUsername(profile.username ?? '')
     setEditWeight(String(profile.body_weight_kg))
     setEditHeight(String(profile.height_cm))
+    const g = profile.gender
+    setEditGender(g === 'male' || g === 'female' ? g : null)
     setEditing(true)
     setSaveError('')
   }
@@ -59,6 +62,7 @@ export default function ProfilePanel({ open, onClose }: Props) {
         username: editUsername || undefined,
         body_weight_kg: editWeight ? Number(editWeight) : undefined,
         height_cm: editHeight ? Number(editHeight) : undefined,
+        gender: editGender ?? undefined,
       })
       setEditing(false)
     } catch (err: unknown) {
@@ -215,6 +219,39 @@ export default function ProfilePanel({ open, onClose }: Props) {
                     <span className="text-soft-white text-sm">{profile?.height_cm}cm</span>
                   )}
                 </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-gray text-sm">Gender</span>
+                  {editing ? (
+                    <div className="flex" style={{ gap: 1, background: '#2A2A2A' }}>
+                      {(['male', 'female'] as const).map(g => (
+                        <button
+                          key={g}
+                          type="button"
+                          onClick={() => setEditGender(editGender === g ? null : g)}
+                          className="font-mono font-black uppercase"
+                          style={{
+                            fontSize: 10, letterSpacing: '0.14em',
+                            padding: '6px 14px',
+                            background: editGender === g ? '#F5F5F0' : '#1A1A1A',
+                            color: editGender === g ? '#0A0A0A' : '#A8A8A4',
+                            border: 'none', cursor: 'pointer',
+                          }}
+                        >
+                          {g === 'male' ? 'MALE' : 'FEMALE'}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-soft-white text-sm capitalize">
+                      {profile?.gender === 'male' || profile?.gender === 'female' ? profile.gender : '—'}
+                    </span>
+                  )}
+                </div>
+                {editing && (
+                  <p className="font-mono text-[9px] text-[#6B6B68]" style={{ letterSpacing: '0.12em' }}>
+                    Used to validate Mixed division composition.
+                  </p>
+                )}
                 <div className="flex items-center justify-between">
                   <span className="text-muted-gray text-sm">IMC</span>
                   {bmi && bmiInfo ? (

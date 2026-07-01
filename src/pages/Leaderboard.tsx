@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import type { CompetitionDivision, DivisionFormat } from '@/types'
 
 interface WodInfo {
   id: string
@@ -23,9 +24,21 @@ interface LeaderboardRow {
   team_id: string
   team_name: string
   box: string | null
+  division_id: string | null
   total_points: number
   overall_rank: number
   per_wod: Record<string, WodCell>
+}
+
+const FORMAT_SHORT: Record<DivisionFormat, string> = {
+  individual: 'IND',
+  pair: 'PAIR',
+  team3: 'T3',
+  team4: 'T4',
+}
+
+function divisionShortLabel(d: CompetitionDivision): string {
+  return `${FORMAT_SHORT[d.format]} · ${d.composition.toUpperCase()} · ${d.category.toUpperCase()}`
 }
 
 const REFRESH_INTERVAL = 60
@@ -92,6 +105,8 @@ export default function Leaderboard() {
 
   const [rows, setRows] = useState<LeaderboardRow[]>([])
   const [wods, setWods] = useState<WodInfo[]>([])
+  const [divisions, setDivisions] = useState<CompetitionDivision[]>([])
+  const [selectedDivisionId, setSelectedDivisionId] = useState<string | null>(null)
   const [compName, setCompName] = useState('')
   const [loading, setLoading] = useState(true)
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL)
@@ -102,22 +117,27 @@ export default function Leaderboard() {
     if (!id) return
     setLoading(true)
     try {
-      const [lb, comp, wodList] = await Promise.all([
-        supabase.rpc('get_competition_leaderboard', { p_competition_id: id }),
+      const lbParams: Record<string, unknown> = { p_competition_id: id }
+      if (selectedDivisionId) lbParams.p_division_id = selectedDivisionId
+
+      const [lb, comp, wodList, divList] = await Promise.all([
+        supabase.rpc('get_competition_leaderboard', lbParams),
         supabase.from('competitions').select('name').eq('id', id).single(),
         supabase
           .from('competition_wods')
           .select('id, name, score_type, score_order, cap, status, order_index')
           .eq('competition_id', id)
           .order('order_index'),
+        supabase.from('competition_divisions').select('*').eq('competition_id', id).order('created_at'),
       ])
       if (lb.data) setRows(lb.data as LeaderboardRow[])
       if (comp.data) setCompName(comp.data.name)
       if (wodList.data) setWods(wodList.data as WodInfo[])
+      if (divList.data) setDivisions(divList.data as CompetitionDivision[])
     } finally {
       setLoading(false)
     }
-  }, [id, refreshKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [id, refreshKey, selectedDivisionId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load() }, [load])
 
@@ -270,6 +290,35 @@ export default function Leaderboard() {
 
       {/* Pulse animation */}
       <style>{`@keyframes lb-pulse { 0%,100%{opacity:1} 50%{opacity:0.2} }`}</style>
+
+      {/* Division filter — only visible when 2+ divisions exist */}
+      {divisions.length >= 2 && (
+        <div
+          className="flex items-center border-b border-[#2A2A2A] overflow-x-auto"
+          style={{ gap: 1, background: '#2A2A2A', scrollbarWidth: 'none', flexShrink: 0 }}
+        >
+          {[{ id: null, label: 'ALL' }, ...divisions.map(d => ({ id: d.id, label: divisionShortLabel(d) }))].map(item => {
+            const active = item.id === selectedDivisionId
+            return (
+              <button
+                key={item.id ?? 'all'}
+                onClick={() => setSelectedDivisionId(item.id)}
+                className="font-mono font-black uppercase shrink-0"
+                style={{
+                  fontSize: 9, letterSpacing: '0.18em',
+                  padding: '8px 12px',
+                  background: active ? '#D4FF3A' : '#0A0A0A',
+                  color: active ? '#0A0A0A' : '#6B6B68',
+                  border: 'none', cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {item.label}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* TABLE */}
       {loading && rows.length === 0 ? (
