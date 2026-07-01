@@ -545,7 +545,7 @@ export default function Leaderboard() {
                               borderBottom: '1px solid #1A1A1A',
                             }}
                           >
-                            DNS
+                            —
                           </td>
                         )
                       }
