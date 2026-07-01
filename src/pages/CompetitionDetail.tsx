@@ -158,7 +158,7 @@ export default function CompetitionDetail() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { profile } = useProfile(user?.id)
-  const { competition, wods, myTeam, myRole, teamCounts, pendingJudgeInvite, pendingTeamInvite, loading, reload } = useCompetition(id, user?.id)
+  const { competition, wods, divisions, myTeam, myRole, teamCounts, pendingJudgeInvite, pendingTeamInvite, loading, reload } = useCompetition(id, user?.id)
   const [copied, setCopied] = useState(false)
   const [inviteLoading, setInviteLoading] = useState(false)
 
@@ -358,7 +358,7 @@ export default function CompetitionDetail() {
             <StatusPill status={competition.status} />
             {myTeam && <StatusPill status={myTeam.team.status} />}
             <NeutralPill>
-              {competition.team_min_size}–{competition.team_max_size} ATLETAS · {wods.length} WODs
+              {divisions.length} {divisions.length === 1 ? 'DIVISÃO' : 'DIVISÕES'} · {wods.length} WODs
             </NeutralPill>
           </div>
         </div>
@@ -492,10 +492,21 @@ export default function CompetitionDetail() {
               </span>
             </div>
           </StatCell>
-          <StatCell label="DIVISION">
-            <span className="font-mono font-black" style={{ fontSize: 13, letterSpacing: '0.02em', color: '#F5F5F0' }}>
-              RX · TEAM {competition.team_min_size}V{competition.team_min_size}
-            </span>
+          <StatCell label="DIVISIONS">
+            {divisions.length === 0 ? (
+              <span className="font-mono" style={{ fontSize: 12, color: '#3D3D3B' }}>—</span>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {divisions.map(d => (
+                  <span key={d.id} className="font-mono font-bold uppercase" style={{ fontSize: 10, letterSpacing: '0.12em', color: '#D4FF3A' }}>
+                    {['individual','pair','team3','team4'].indexOf(d.format) >= 0
+                      ? { individual:'IND', pair:'PAIR', team3:'TEAM 3', team4:'TEAM 4' }[d.format as 'individual'|'pair'|'team3'|'team4']
+                      : d.format.toUpperCase()
+                    } · {d.composition.toUpperCase()} · {d.category.toUpperCase()}
+                  </span>
+                ))}
+              </div>
+            )}
           </StatCell>
         </div>
 
@@ -723,7 +734,7 @@ export default function CompetitionDetail() {
                   className="font-mono font-semibold uppercase"
                   style={{ fontSize: 10, letterSpacing: '0.14em', color: '#6B6B68', marginTop: 4 }}
                 >
-                  {memberCount}/{competition.team_max_size} ATHLETES · {isCaptain ? 'CAPTAIN' : 'MEMBER'}
+                  {memberCount} ATHLETES · {isCaptain ? 'CAPTAIN' : 'MEMBER'}
                 </div>
               </div>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B6B68" strokeWidth="2">
