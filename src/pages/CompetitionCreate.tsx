@@ -165,8 +165,6 @@ export default function CompetitionCreate() {
   const [venue, setVenue] = useState('')
   const [startDate, setStartDate] = useState(todayPlus(30))
   const [deadline, setDeadline] = useState(todayPlus(20))
-  const [minSize, setMinSize] = useState(2)
-  const [maxSize, setMaxSize] = useState(4)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -207,8 +205,6 @@ export default function CompetitionCreate() {
       p_venue: venue.trim(),
       p_start_date: startDate,
       p_registration_deadline: new Date(deadline + 'T23:59:59').toISOString(),
-      p_team_min_size: minSize,
-      p_team_max_size: maxSize,
     })
 
     if (rpcErr) {
@@ -338,50 +334,12 @@ export default function CompetitionCreate() {
           </span>
         </FieldBlock>
 
-        {/* Section: Equipes */}
-        <div
-          className="font-mono font-bold uppercase border-b border-[#2A2A2A]"
-          style={{ fontSize: 9, letterSpacing: '0.18em', color: '#D4FF3A', padding: '10px 20px', background: '#0D0D0D', marginTop: 8 }}
-        >
-          03 · TEAMS
-        </div>
-
-        <div className="border-b border-[#2A2A2A]" style={{ padding: '16px 20px' }}>
-          <div className="flex items-center justify-between">
-            <div>
-              <span
-                className="font-mono font-bold uppercase block"
-                style={{ fontSize: 9, letterSpacing: '0.18em', color: '#6B6B68', marginBottom: 4 }}
-              >
-                Minimum size
-              </span>
-              <span className="font-mono text-[11px]" style={{ color: '#3D3D3B' }}>Athletes per team (min.)</span>
-            </div>
-            <Stepper value={minSize} min={1} max={maxSize} onChange={v => setMinSize(v)} />
-          </div>
-        </div>
-
-        <div className="border-b border-[#2A2A2A]" style={{ padding: '16px 20px' }}>
-          <div className="flex items-center justify-between">
-            <div>
-              <span
-                className="font-mono font-bold uppercase block"
-                style={{ fontSize: 9, letterSpacing: '0.18em', color: '#6B6B68', marginBottom: 4 }}
-              >
-                Maximum size
-              </span>
-              <span className="font-mono text-[11px]" style={{ color: '#3D3D3B' }}>Athletes per team (max.)</span>
-            </div>
-            <Stepper value={maxSize} min={minSize} max={10} onChange={v => setMaxSize(v)} />
-          </div>
-        </div>
-
         {/* Section: Divisions */}
         <div
           className="font-mono font-bold uppercase border-b border-[#2A2A2A]"
           style={{ fontSize: 9, letterSpacing: '0.18em', color: '#D4FF3A', padding: '10px 20px', background: '#0D0D0D', marginTop: 8 }}
         >
-          04 · DIVISIONS
+          03 · DIVISIONS
         </div>
 
         {/* Added divisions list */}
