@@ -316,9 +316,10 @@ export default function Leaderboard() {
         <div style={{ position: 'relative', flexShrink: 0 }}>
           <div
             ref={divFilterRef}
-            className="flex items-center border-b border-[#2A2A2A] overflow-x-auto"
+            className="flex items-center border-b border-[#2A2A2A]"
             style={{
-              gap: 1, background: '#2A2A2A', scrollbarWidth: 'none',
+              gap: 1, background: '#2A2A2A',
+              overflowX: 'scroll', scrollbarWidth: 'none', msOverflowStyle: 'none',
               WebkitOverflowScrolling: 'touch',
               touchAction: 'pan-x',
             }}
@@ -337,6 +338,8 @@ export default function Leaderboard() {
                     color: active ? '#0A0A0A' : '#6B6B68',
                     border: 'none', cursor: 'pointer',
                     whiteSpace: 'nowrap',
+                    touchAction: 'pan-x',
+                    WebkitTapHighlightColor: 'transparent',
                   }}
                 >
                   {item.label}
