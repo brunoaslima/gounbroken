@@ -1982,7 +1982,7 @@ export default function PersonalWorkout() {
       )}
 
       {/* Save button */}
-      <div className="fixed bottom-0 left-0 right-0 px-4 pb-8 pt-3 bg-gradient-to-t from-graphite via-graphite/95 to-transparent">
+      <div className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-8 pt-3 bg-gradient-to-t from-graphite via-graphite/95 to-transparent">
         <button
           onClick={handleSave}
           disabled={saving || sections.length === 0}

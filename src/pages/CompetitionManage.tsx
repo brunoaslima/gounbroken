@@ -615,7 +615,7 @@ export default function CompetitionManage() {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 10, background: '#0A0A0A', color: '#F5F5F0', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: '#0A0A0A', color: '#F5F5F0', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', flexDirection: 'column' }}>
 
       {/* ── Topbar ──────────────────────────────────────────────────────────────── */}
       <div style={{ background: '#111111', borderBottom: '1px solid #2A2A2A', padding: '0 16px', height: 52, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
