@@ -101,6 +101,7 @@ export function useProfile(userId: string | undefined) {
     username?: string
     body_weight_kg?: number
     height_cm?: number
+    gender?: 'male' | 'female'
   }) {
     if (updates.body_weight_kg && profile && updates.body_weight_kg !== profile.body_weight_kg) {
       await supabase.from('weight_history').insert({

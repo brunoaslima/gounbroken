@@ -6,6 +6,21 @@ Formato de versão: `## [versão] — AAAA-MM-DD`
 
 ---
 
+## [0.9.9] — 2026-07-01
+
+### Competition → Divisions
+
+- Competition → Divisions: new `competition_divisions` table (format × composition × category) with RLS — organizer can create/delete, everyone can read
+- Competition → Divisions: `competition_teams` gains `division_id` FK — teams register into a specific division
+- Competition → Create: organizer can add divisions (format/composition/category toggles + custom category field) during competition creation
+- Competition → Register: `TeamCreate` shows division picker cards when competition has divisions
+- Competition → Mixed: `respond_team_invite` validates Mixed division gender composition on accept — only `male`/`female` allowed, generic error to prevent gender inference
+- Competition → Leaderboard: division filter pills added (visible when 2+ divisions); ranking is relative to the selected division via updated `get_competition_leaderboard(p_competition_id, p_division_id?)`
+- Competition → TeamManage: division badge displayed in team hero section
+- Profile → Gender: Male/Female toggle added to ProfilePanel edit mode, saved to `profiles.gender`
+
+---
+
 ## [0.9.8] — 2026-06-30
 
 ### Platform → Full English localization

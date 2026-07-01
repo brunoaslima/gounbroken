@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import type { DivisionFormat, DivisionComposition, CompetitionDivision } from '@/types'
+import { DatePicker } from '@/components/DatePicker'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -124,6 +126,34 @@ function Stepper({ value, min, max, onChange }: { value: number; min: number; ma
   )
 }
 
+// ─── division helpers ────────────────────────────────────────────────────────
+
+const FORMAT_OPTIONS: { value: DivisionFormat; label: string }[] = [
+  { value: 'individual', label: 'IND' },
+  { value: 'pair',       label: 'PAIR' },
+  { value: 'team3',      label: 'TEAM 3' },
+  { value: 'team4',      label: 'TEAM 4' },
+]
+
+const COMPOSITION_OPTIONS: { value: DivisionComposition; label: string }[] = [
+  { value: 'male',   label: 'MALE' },
+  { value: 'female', label: 'FEMALE' },
+  { value: 'mixed',  label: 'MIXED' },
+]
+
+const CATEGORY_PRESETS = ['SCALED', 'INTERMEDIATE', 'RX', 'ELITE']
+
+type PendingDivision = { format: DivisionFormat; composition: DivisionComposition; category: string }
+
+function divisionKey(d: PendingDivision): string {
+  return `${d.format}|${d.composition}|${d.category.toLowerCase()}`
+}
+
+function formatDivisionLabel(d: PendingDivision): string {
+  const fmtMap: Record<DivisionFormat, string> = { individual: 'IND', pair: 'PAIR', team3: 'TEAM 3', team4: 'TEAM 4' }
+  return `${fmtMap[d.format]} · ${d.composition.toUpperCase()} · ${d.category.toUpperCase()}`
+}
+
 // ─── page ─────────────────────────────────────────────────────────────────────
 
 export default function CompetitionCreate() {
@@ -139,7 +169,31 @@ export default function CompetitionCreate() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const canSubmit = name.trim().length > 0 && startDate && deadline && !saving
+  // Divisions
+  const [divisions, setDivisions] = useState<PendingDivision[]>([])
+  const [divFormat, setDivFormat] = useState<DivisionFormat>('team4')
+  const [divComposition, setDivComposition] = useState<DivisionComposition>('mixed')
+  const [divCategory, setDivCategory] = useState<string>('RX')
+  const [divCustomCategory, setDivCustomCategory] = useState('')
+
+  const mixedBlocked = divFormat === 'individual' || divFormat === 'team3'
+
+  function addDivision() {
+    const cat = (divCustomCategory.trim() || divCategory).toLowerCase()
+    if (!cat) return
+    const comp: DivisionComposition = (mixedBlocked && divComposition === 'mixed') ? 'male' : divComposition
+    const pending: PendingDivision = { format: divFormat, composition: comp, category: cat }
+    if (divisions.some(d => divisionKey(d) === divisionKey(pending))) return
+    setDivisions(prev => [...prev, pending])
+    setDivCustomCategory('')
+  }
+
+  function removeDivision(key: string) {
+    setDivisions(prev => prev.filter(d => divisionKey(d) !== key))
+  }
+
+  const deadlineValid = !!(deadline && startDate && deadline < startDate)
+  const canSubmit = name.trim().length > 0 && startDate && deadline && deadlineValid && !saving
 
   async function handleSubmit() {
     if (!canSubmit) return
@@ -162,7 +216,20 @@ export default function CompetitionCreate() {
       return
     }
 
-    navigate(`/athlete/competitions/${data}`)
+    const competitionId = data as string
+
+    if (divisions.length > 0) {
+      await supabase.from('competition_divisions').insert(
+        divisions.map(d => ({
+          competition_id: competitionId,
+          format: d.format,
+          composition: d.composition,
+          category: d.category,
+        }))
+      )
+    }
+
+    navigate(`/athlete/competitions/${competitionId}`)
   }
 
   return (
@@ -247,27 +314,24 @@ export default function CompetitionCreate() {
         </div>
 
         <FieldBlock label="Event date" required>
-          <FocusInput
-            type="date"
+          <DatePicker
             value={startDate}
             min={today()}
-            onChange={e => setStartDate(e.target.value)}
-            style={{ ...INPUT_STYLE, colorScheme: 'dark' }}
+            onChange={setStartDate}
           />
         </FieldBlock>
 
         <FieldBlock label="Registration deadline" required>
-          <FocusInput
-            type="date"
+          <DatePicker
             value={deadline}
             min={today()}
-            max={startDate}
-            onChange={e => setDeadline(e.target.value)}
-            style={{ ...INPUT_STYLE, colorScheme: 'dark' }}
+            max={startDate || undefined}
+            invalid={!!(deadline && startDate && !deadlineValid)}
+            onChange={setDeadline}
           />
           <span
             className="font-mono block mt-1.5"
-            style={{ fontSize: 9, letterSpacing: '0.12em', color: '#3D3D3B' }}
+            style={{ fontSize: 9, letterSpacing: '0.12em', color: deadline && startDate && !deadlineValid ? '#FF3B30' : '#3D3D3B' }}
           >
             Must be before the event date
           </span>
@@ -309,6 +373,161 @@ export default function CompetitionCreate() {
             </div>
             <Stepper value={maxSize} min={minSize} max={10} onChange={v => setMaxSize(v)} />
           </div>
+        </div>
+
+        {/* Section: Divisions */}
+        <div
+          className="font-mono font-bold uppercase border-b border-[#2A2A2A]"
+          style={{ fontSize: 9, letterSpacing: '0.18em', color: '#D4FF3A', padding: '10px 20px', background: '#0D0D0D', marginTop: 8 }}
+        >
+          04 · DIVISIONS
+        </div>
+
+        {/* Added divisions list */}
+        {divisions.length > 0 && (
+          <div className="border-b border-[#2A2A2A]" style={{ padding: '12px 20px' }}>
+            <div className="flex flex-col" style={{ gap: 8 }}>
+              {divisions.map(d => (
+                <div
+                  key={divisionKey(d)}
+                  className="flex items-center justify-between"
+                  style={{ border: '1px solid #2A2A2A', padding: '10px 12px' }}
+                >
+                  <span className="font-mono font-bold uppercase" style={{ fontSize: 10, letterSpacing: '0.14em', color: '#D4FF3A' }}>
+                    {formatDivisionLabel(d)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeDivision(divisionKey(d))}
+                    style={{ background: 'transparent', border: 'none', color: '#6B6B68', cursor: 'pointer', padding: '2px 6px' }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square">
+                      <path d="M1 1l10 10M11 1L1 11" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Add division form */}
+        <div className="border-b border-[#2A2A2A]" style={{ padding: '16px 20px' }}>
+          <span className="font-mono font-bold uppercase block" style={{ fontSize: 9, letterSpacing: '0.18em', color: '#6B6B68', marginBottom: 10 }}>
+            Format
+          </span>
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: '#2A2A2A', marginBottom: 12 }}>
+            {FORMAT_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  setDivFormat(opt.value)
+                  if ((opt.value === 'individual' || opt.value === 'team3') && divComposition === 'mixed') {
+                    setDivComposition('male')
+                  }
+                }}
+                className="font-mono font-black uppercase"
+                style={{
+                  fontSize: 10, letterSpacing: '0.14em',
+                  padding: '9px 4px',
+                  background: divFormat === opt.value ? '#F5F5F0' : '#0A0A0A',
+                  color: divFormat === opt.value ? '#0A0A0A' : '#6B6B68',
+                  border: 'none', cursor: 'pointer',
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          <span className="font-mono font-bold uppercase block" style={{ fontSize: 9, letterSpacing: '0.18em', color: '#6B6B68', marginBottom: 10 }}>
+            Composition
+          </span>
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: '#2A2A2A', marginBottom: 12 }}>
+            {COMPOSITION_OPTIONS.map(opt => {
+              const disabled = opt.value === 'mixed' && mixedBlocked
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => !disabled && setDivComposition(opt.value)}
+                  className="font-mono font-black uppercase"
+                  style={{
+                    fontSize: 10, letterSpacing: '0.14em',
+                    padding: '9px 4px',
+                    background: divComposition === opt.value && !disabled ? '#F5F5F0' : '#0A0A0A',
+                    color: disabled ? '#2A2A2A' : divComposition === opt.value ? '#0A0A0A' : '#6B6B68',
+                    border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {opt.label}
+                </button>
+              )
+            })}
+          </div>
+
+          <span className="font-mono font-bold uppercase block" style={{ fontSize: 9, letterSpacing: '0.18em', color: '#6B6B68', marginBottom: 10 }}>
+            Category
+          </span>
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: '#2A2A2A', marginBottom: 10 }}>
+            {CATEGORY_PRESETS.map(cat => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => { setDivCategory(cat); setDivCustomCategory('') }}
+                className="font-mono font-black uppercase"
+                style={{
+                  fontSize: 10, letterSpacing: '0.14em',
+                  padding: '9px 4px',
+                  background: divCategory === cat && !divCustomCategory ? '#F5F5F0' : '#0A0A0A',
+                  color: divCategory === cat && !divCustomCategory ? '#0A0A0A' : '#6B6B68',
+                  border: 'none', cursor: 'pointer',
+                }}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          <FocusInput
+            type="text"
+            placeholder="Custom category (e.g. ATHX Pro)"
+            value={divCustomCategory}
+            onChange={e => setDivCustomCategory(e.target.value)}
+            maxLength={50}
+            style={{ marginBottom: 10, fontSize: 13, padding: '9px 12px', background: '#111111', border: '1px solid #2A2A2A', color: '#F5F5F0', width: '100%', outline: 'none', fontFamily: 'inherit' }}
+          />
+
+          {/* Preview label */}
+          {(divCustomCategory.trim() || divCategory) && (
+            <div className="font-mono font-bold" style={{ fontSize: 10, letterSpacing: '0.14em', color: '#D4FF3A', marginBottom: 10 }}>
+              {formatDivisionLabel({
+                format: divFormat,
+                composition: (mixedBlocked && divComposition === 'mixed') ? 'male' : divComposition,
+                category: divCustomCategory.trim() || divCategory,
+              })}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={addDivision}
+            className="w-full font-mono font-black uppercase flex items-center justify-center gap-2"
+            style={{
+              fontSize: 11, letterSpacing: '0.14em',
+              background: 'transparent',
+              border: '1px solid #D4FF3A',
+              color: '#D4FF3A',
+              padding: '10px 16px',
+              cursor: 'pointer',
+            }}
+          >
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+              <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square" />
+            </svg>
+            ADD DIVISION
+          </button>
         </div>
 
         {/* Error */}

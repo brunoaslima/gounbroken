@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
-import type { Competition, CompetitionTeam, CompetitionTeamMember, TeamStatus } from '@/types'
+import type { Competition, CompetitionDivision, CompetitionTeam, CompetitionTeamMember, DivisionFormat, TeamStatus } from '@/types'
+import DivisionBadge from '@/components/DivisionBadge'
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
 
@@ -354,6 +355,7 @@ export default function TeamManage() {
   const [team, setTeam] = useState<CompetitionTeam | null>(null)
   const [members, setMembers] = useState<CompetitionTeamMember[]>([])
   const [competition, setCompetition] = useState<Competition | null>(null)
+  const [division, setDivision] = useState<CompetitionDivision | null>(null)
   const [loading, setLoading] = useState(true)
   const [inviteOpen, setInviteOpen] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -376,12 +378,15 @@ export default function TeamManage() {
     setMembers(membersData)
 
     if (teamData) {
-      const { data: comp } = await supabase
-        .from('competitions')
-        .select('*')
-        .eq('id', teamData.competition_id)
-        .single()
-      setCompetition(comp ?? null)
+      const [compRes, divRes] = await Promise.all([
+        supabase.from('competitions').select('*').eq('id', teamData.competition_id).single(),
+        teamData.division_id
+          ? supabase.from('competition_divisions').select('*').eq('id', teamData.division_id).maybeSingle()
+          : Promise.resolve({ data: null }),
+      ])
+      const comp = compRes.data ?? null
+      setCompetition(comp)
+      setDivision((divRes.data as CompetitionDivision | null) ?? null)
 
       // Usa RPC SECURITY DEFINER para bypassar RLS da tabela profiles
       const userIds = [
@@ -533,9 +538,17 @@ export default function TeamManage() {
 
         {/* Hero */}
         <div className="px-5 pt-3 pb-5 border-b border-[#2A2A2A]">
-          <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#D4FF3A] block mb-1">
-            {competition?.name}
-          </span>
+          <div className="flex items-baseline gap-2 flex-wrap mb-1">
+            <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#D4FF3A]">
+              {competition?.name}
+            </span>
+            {division && (
+              <>
+                <span className="font-mono text-[10px] text-[#2A2A2A]">·</span>
+                <DivisionBadge format={division.format as DivisionFormat} composition={division.composition as 'male' | 'female' | 'mixed'} category={division.category} />
+              </>
+            )}
+          </div>
           <h1
             className="font-sans font-bold text-[#F5F5F0]"
             style={{ fontSize: 26, letterSpacing: '-0.02em', lineHeight: 1.05, margin: '0 0 10px' }}

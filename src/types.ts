@@ -123,6 +123,19 @@ export interface WeightEntry {
 
 // ─── COMPETITIONS ────────────────────────────────────────────────────────────
 
+export type DivisionFormat = 'individual' | 'pair' | 'team3' | 'team4'
+export type DivisionComposition = 'male' | 'female' | 'mixed'
+export type DivisionCategory = 'scaled' | 'intermediate' | 'rx' | 'elite' | string
+
+export interface CompetitionDivision {
+  id: string
+  competition_id: string
+  format: DivisionFormat
+  composition: DivisionComposition
+  category: string
+  created_at: string
+}
+
 export type CompetitionStatus = 'draft' | 'open' | 'closed' | 'in_progress' | 'finished' | 'cancelled'
 export type ScoreType = 'time' | 'reps' | 'weight' | 'rounds_plus_reps'
 export type ScoreOrder = 'asc' | 'desc'
@@ -164,6 +177,7 @@ export interface CompetitionTeam {
   name: string
   captain_user_id: string
   box: string | null
+  division_id: string | null
   status: TeamStatus
   payment_status: PaymentStatus
   checked_in: boolean
