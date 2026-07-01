@@ -510,7 +510,8 @@ export default function JudgePanel() {
                       <div>
                         <div style={{ fontWeight: 600, fontSize: 14, textDecoration: 'line-through', textDecorationColor: '#3D3D3B' }}>{t.name}</div>
                         <div style={{ marginTop: 3, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#6B6B68' }}>
-                          {result?.raw_result ?? '—'}
+                          {t.division_id && divisionById[t.division_id] ? divLabel(divisionById[t.division_id]) : '—'}
+                          {result?.raw_result && <span style={{ color: '#D4FF3A', marginLeft: 8 }}>{result.raw_result}</span>}
                         </div>
                       </div>
                       <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 900, color: '#D4FF3A', padding: '4px 7px', border: '1px solid #D4FF3A33', letterSpacing: '0.14em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
