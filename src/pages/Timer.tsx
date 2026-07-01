@@ -79,12 +79,14 @@ export default function Timer() {
           countdownValue={timer.countdownValue}
           finalDisplay={timer.finalDisplay}
           cappedOut={timer.cappedOut}
+          amrapRounds={timer.amrapRounds}
           onPause={timer.pause}
           onResume={timer.resume}
           onReset={timer.reset}
           onFinishEarly={timer.finishEarly}
           onSkipPhase={timer.skipPhase}
           onAddMinute={timer.addMinute}
+          onAddAmrapRound={timer.addAmrapRound}
         />
       )}
     </div>

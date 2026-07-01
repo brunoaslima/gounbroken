@@ -13,12 +13,14 @@ interface Props {
   countdownValue: number
   finalDisplay: string
   cappedOut: boolean
+  amrapRounds: number
   onPause: () => void
   onResume: () => void
   onReset: () => void
   onFinishEarly: () => void
   onSkipPhase: () => void
   onAddMinute: () => void
+  onAddAmrapRound: () => void
 }
 
 function getBg(status: TimerStatus, config: TimerConfig, displaySeconds: number, phase: TimerPhase) {
@@ -153,13 +155,14 @@ function ControlBtn({
 
 export function TimerDisplay({
   status, config, displayFormatted, displaySeconds, currentRound, totalRounds,
-  phase, countdownValue, finalDisplay, cappedOut,
-  onPause, onResume, onReset, onFinishEarly, onSkipPhase, onAddMinute,
+  phase, countdownValue, finalDisplay, cappedOut, amrapRounds,
+  onPause, onResume, onReset, onFinishEarly, onSkipPhase, onAddMinute, onAddAmrapRound,
 }: Props) {
   const bg = getBg(status, config, displaySeconds, phase)
   const numColor = getNumberColor(status, config, displaySeconds, phase)
   const isPhased = config.mode === 'tabata' || config.mode === 'interval'
   const isForTime = config.mode === 'for_time'
+  const isAmrap = config.mode === 'amrap'
   const isRunning = status === 'running'
   const isPaused = status === 'paused'
 
@@ -251,6 +254,41 @@ export function TimerDisplay({
           </div>
         )}
 
+        {/* AMRAP round counter */}
+        {isAmrap && (isRunning || isPaused) && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 8 }}>
+            <div style={{ textAlign: 'center' }}>
+              <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#3D3D3B] block">ROUNDS</span>
+              <span className="font-mono font-black" style={{ fontSize: 36, color: '#D4FF3A', lineHeight: 1 }}>
+                {amrapRounds}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={onAddAmrapRound}
+              disabled={!isRunning}
+              style={{
+                height: 48, padding: '0 20px',
+                background: 'transparent', border: '1px solid #D4FF3A',
+                color: '#D4FF3A',
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 10, fontWeight: 700, letterSpacing: '0.14em',
+                textTransform: 'uppercase', cursor: 'pointer',
+                opacity: isRunning ? 1 : 0.3,
+              }}
+            >
+              + ROUND
+            </button>
+          </div>
+        )}
+
+        {/* AMRAP done: show rounds */}
+        {isAmrap && status === 'done' && amrapRounds > 0 && (
+          <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px]" style={{ color: '#6B6B68' }}>
+            {amrapRounds} ROUND{amrapRounds !== 1 ? 'S' : ''} COMPLETED
+          </span>
+        )}
+
         {/* Secondary info */}
         <SecondaryInfo status={status} config={config} currentRound={currentRound} totalRounds={totalRounds} phase={phase} />
       </div>
@@ -286,7 +324,7 @@ export function TimerDisplay({
                 DONE
               </ControlBtn>
             )}
-            {(config.mode === 'amrap' || config.mode === 'for_time') && (
+            {isForTime && (
               <ControlBtn onClick={onAddMinute} color="#2A2A2A">
                 +1 MIN
               </ControlBtn>

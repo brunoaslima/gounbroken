@@ -24,6 +24,7 @@ export function useTimer() {
   const [countdownValue, setCountdownValue] = useState(3)
   const [finalDisplay, setFinalDisplay] = useState('')
   const [cappedOut, setCappedOut] = useState(false)
+  const [amrapRounds, setAmrapRounds] = useState(0)
 
   // ── Refs (read inside setInterval without stale closures) ─────────────────
   const configRef    = useRef<TimerConfig>(DEFAULT_CONFIG)
@@ -195,6 +196,7 @@ export function useTimer() {
         setPhase('work')
         setCappedOut(false)
         setFinalDisplay('')
+        setAmrapRounds(0)
         statusRef.current = 'running'
         setStatus('running')
         acquireWakeLock()
@@ -239,6 +241,7 @@ export function useTimer() {
     setFinalDisplay('')
     setCappedOut(false)
     setCountdownValue(3)
+    setAmrapRounds(0)
     lastTickSecRef.current = -1
     prevRoundRef.current = 0
   }
@@ -277,6 +280,7 @@ export function useTimer() {
     countdownValue,
     finalDisplay,
     cappedOut,
+    amrapRounds,
     // Actions
     start,
     pause,
@@ -285,6 +289,7 @@ export function useTimer() {
     finishEarly,
     skipPhase,
     addMinute,
+    addAmrapRound: () => setAmrapRounds(r => r + 1),
     setConfig: syncConfig,
   }
 }
