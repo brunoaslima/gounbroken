@@ -414,10 +414,14 @@ export default function CompetitionCreate() {
 
         {/* Add division form */}
         <div className="border-b border-[#2A2A2A]" style={{ padding: '16px 20px' }}>
-          <span className="font-mono font-bold uppercase block" style={{ fontSize: 9, letterSpacing: '0.18em', color: '#6B6B68', marginBottom: 10 }}>
-            Format
-          </span>
-          <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: '#2A2A2A', marginBottom: 12 }}>
+
+          <div className="flex items-center" style={{ gap: 6, marginBottom: 8 }}>
+            <span style={{ width: 3, height: 10, background: '#D4FF3A', display: 'inline-block', flexShrink: 0 }} />
+            <span className="font-mono font-bold uppercase" style={{ fontSize: 10, letterSpacing: '0.18em', color: '#F5F5F0' }}>
+              Format
+            </span>
+          </div>
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: '#2A2A2A', marginBottom: 16 }}>
             {FORMAT_OPTIONS.map(opt => (
               <button
                 key={opt.value}
@@ -431,7 +435,7 @@ export default function CompetitionCreate() {
                 className="font-mono font-black uppercase"
                 style={{
                   fontSize: 10, letterSpacing: '0.14em',
-                  padding: '9px 4px',
+                  padding: '10px 4px',
                   background: divFormat === opt.value ? '#F5F5F0' : '#1A1A1A',
                   color: divFormat === opt.value ? '#0A0A0A' : '#A8A8A4',
                   border: 'none', cursor: 'pointer',
@@ -442,10 +446,13 @@ export default function CompetitionCreate() {
             ))}
           </div>
 
-          <span className="font-mono font-bold uppercase block" style={{ fontSize: 9, letterSpacing: '0.18em', color: '#6B6B68', marginBottom: 10 }}>
-            Composition
-          </span>
-          <div className="grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: '#2A2A2A', marginBottom: 12 }}>
+          <div className="flex items-center" style={{ gap: 6, marginBottom: 8 }}>
+            <span style={{ width: 3, height: 10, background: '#D4FF3A', display: 'inline-block', flexShrink: 0 }} />
+            <span className="font-mono font-bold uppercase" style={{ fontSize: 10, letterSpacing: '0.18em', color: '#F5F5F0' }}>
+              Composition
+            </span>
+          </div>
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: '#2A2A2A', marginBottom: 16 }}>
             {COMPOSITION_OPTIONS.map(opt => {
               const disabled = opt.value === 'mixed' && mixedBlocked
               return (
@@ -456,7 +463,7 @@ export default function CompetitionCreate() {
                   className="font-mono font-black uppercase"
                   style={{
                     fontSize: 10, letterSpacing: '0.14em',
-                    padding: '9px 4px',
+                    padding: '10px 4px',
                     background: divComposition === opt.value && !disabled ? '#F5F5F0' : '#1A1A1A',
                     color: disabled ? '#333333' : divComposition === opt.value ? '#0A0A0A' : '#A8A8A4',
                     border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
@@ -468,36 +475,61 @@ export default function CompetitionCreate() {
             })}
           </div>
 
-          <span className="font-mono font-bold uppercase block" style={{ fontSize: 9, letterSpacing: '0.18em', color: '#6B6B68', marginBottom: 10 }}>
-            Category
-          </span>
-          <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: '#2A2A2A', marginBottom: 10 }}>
-            {CATEGORY_PRESETS.map(cat => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => { setDivCategory(cat); setDivCustomCategory('') }}
-                className="font-mono font-black uppercase"
-                style={{
-                  fontSize: 10, letterSpacing: '0.14em',
-                  padding: '9px 4px',
-                  background: divCategory === cat && !divCustomCategory ? '#F5F5F0' : '#1A1A1A',
-                  color: divCategory === cat && !divCustomCategory ? '#0A0A0A' : '#A8A8A4',
-                  border: 'none', cursor: 'pointer',
-                }}
-              >
-                {cat}
-              </button>
-            ))}
+          <div className="flex items-center" style={{ gap: 6, marginBottom: 8 }}>
+            <span style={{ width: 3, height: 10, background: '#D4FF3A', display: 'inline-block', flexShrink: 0 }} />
+            <span className="font-mono font-bold uppercase" style={{ fontSize: 10, letterSpacing: '0.18em', color: '#F5F5F0' }}>
+              Category
+            </span>
           </div>
-
-          <FocusInput
-            type="text"
-            placeholder="or type a custom category..."
-            value={divCustomCategory}
-            onChange={e => setDivCustomCategory(e.target.value)}
-            maxLength={50}
-          />
+          <div style={{ background: '#2A2A2A', gap: 1, display: 'flex', flexDirection: 'column', marginBottom: 12 }}>
+            <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 1 }}>
+              {CATEGORY_PRESETS.map(cat => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => { setDivCategory(cat); setDivCustomCategory('') }}
+                  className="font-mono font-black uppercase"
+                  style={{
+                    fontSize: 10, letterSpacing: '0.14em',
+                    padding: '10px 4px',
+                    background: divCategory === cat && !divCustomCategory ? '#F5F5F0' : '#1A1A1A',
+                    color: divCategory === cat && !divCustomCategory ? '#0A0A0A' : '#A8A8A4',
+                    border: 'none', cursor: 'pointer',
+                  }}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center" style={{ background: divCustomCategory ? '#F5F5F0' : '#1A1A1A' }}>
+              <span
+                className="font-mono font-black uppercase"
+                style={{ fontSize: 9, letterSpacing: '0.18em', color: divCustomCategory ? '#0A0A0A' : '#444442', padding: '10px 10px', whiteSpace: 'nowrap', flexShrink: 0 }}
+              >
+                CUSTOM
+              </span>
+              <input
+                type="text"
+                placeholder="e.g. ATHX PRO"
+                value={divCustomCategory}
+                maxLength={50}
+                onChange={e => setDivCustomCategory(e.target.value)}
+                style={{
+                  flex: 1,
+                  background: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  color: divCustomCategory ? '#0A0A0A' : '#A8A8A4',
+                  fontFamily: 'inherit',
+                  fontSize: 10,
+                  letterSpacing: '0.14em',
+                  fontWeight: 900,
+                  textTransform: 'uppercase',
+                  padding: '10px 8px 10px 0',
+                }}
+              />
+            </div>
+          </div>
 
           {/* Preview label */}
           {(divCustomCategory.trim() || divCategory) && (
