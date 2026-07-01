@@ -481,8 +481,8 @@ export default function CompetitionCreate() {
               Category
             </span>
           </div>
-          <div style={{ background: '#2A2A2A', gap: 1, display: 'flex', flexDirection: 'column', marginBottom: 12 }}>
-            <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 1 }}>
+          <div style={{ marginBottom: 12 }}>
+            <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: '#2A2A2A' }}>
               {CATEGORY_PRESETS.map(cat => (
                 <button
                   key={cat}
@@ -500,6 +500,11 @@ export default function CompetitionCreate() {
                   {cat}
                 </button>
               ))}
+            </div>
+            <div className="flex items-center" style={{ gap: 8, margin: '6px 0' }}>
+              <div style={{ flex: 1, height: 1, background: '#2A2A2A' }} />
+              <span className="font-mono font-bold uppercase" style={{ fontSize: 9, letterSpacing: '0.18em', color: '#444442' }}>or</span>
+              <div style={{ flex: 1, height: 1, background: '#2A2A2A' }} />
             </div>
             <div className="flex items-center" style={{ background: divCustomCategory ? '#F5F5F0' : '#1A1A1A' }}>
               <span
