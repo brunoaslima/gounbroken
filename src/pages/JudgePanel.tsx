@@ -533,7 +533,8 @@ export default function JudgePanel() {
 // ─── Shared primitives ────────────────────────────────────────────────────────
 
 const pageStyle: React.CSSProperties = {
-  height: '100dvh', background: '#0A0A0A', color: '#F5F5F0',
+  position: 'fixed', inset: 0, zIndex: 10,
+  background: '#0A0A0A', color: '#F5F5F0',
   fontFamily: 'Space Grotesk, sans-serif', display: 'flex', flexDirection: 'column',
   overflow: 'hidden',
 }

@@ -220,7 +220,7 @@ export default function Leaderboard() {
   }
 
   return (
-    <div className="bg-[#0A0A0A] flex flex-col" style={{ height: '100dvh', overflow: 'hidden' }}>
+    <div className="bg-[#0A0A0A] flex flex-col" style={{ position: 'fixed', inset: 0, zIndex: 10, overflow: 'hidden' }}>
       {/* TOP BAR */}
       <div
         className="flex items-center justify-between gap-3 px-4 border-b border-[#2A2A2A]"
