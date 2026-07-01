@@ -99,6 +99,186 @@ function MedalRank({ rank }: { rank: number }) {
   )
 }
 
+function DivisionTable({
+  rows,
+  publishedWods,
+  wods,
+}: {
+  rows: LeaderboardRow[]
+  publishedWods: WodInfo[]
+  wods: WodInfo[]
+}) {
+  function rowBg(rank: number, idx: number) {
+    if (rank === 1) return 'rgba(212,255,58,0.12)'
+    if (rank <= 3) return 'rgba(212,255,58,0.06)'
+    if (idx % 2 === 1) return 'rgba(255,255,255,0.025)'
+    return 'transparent'
+  }
+
+  return (
+    <div style={{ flex: 1, overflowX: 'auto', overflowY: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', minHeight: 0 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto', fontFamily: 'var(--font-mono, monospace)', fontVariantNumeric: 'tabular-nums' }}>
+        <thead>
+          <tr style={{ background: '#0A0A0A', borderBottom: '2px solid #F5F5F0' }}>
+            <th
+              style={{
+                padding: '8px 10px', textAlign: 'right', width: 48,
+                fontFamily: 'inherit', fontSize: 10, fontWeight: 800,
+                letterSpacing: '0.18em', textTransform: 'uppercase', color: '#6B6B68',
+                position: 'sticky', left: 0, background: '#0A0A0A', zIndex: 2,
+              }}
+            >
+              #
+            </th>
+            <th
+              style={{
+                padding: '8px 10px', textAlign: 'left', minWidth: 120,
+                fontFamily: 'inherit', fontSize: 10, fontWeight: 800,
+                letterSpacing: '0.18em', textTransform: 'uppercase', color: '#6B6B68',
+                position: 'sticky', left: 48, background: '#0A0A0A', zIndex: 2,
+                borderRight: '1px solid #2A2A2A',
+              }}
+            >
+              EQUIPE
+            </th>
+            {publishedWods.map((w) => (
+              <th
+                key={w.id}
+                style={{
+                  padding: '8px 8px', textAlign: 'center', width: 58,
+                  fontFamily: 'inherit', fontSize: 10, fontWeight: 800,
+                  letterSpacing: '0.18em', textTransform: 'uppercase', color: '#6B6B68',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                W{String(wods.findIndex(x => x.id === w.id) + 1).padStart(2, '0')}
+              </th>
+            ))}
+            <th
+              style={{
+                padding: '8px 10px', textAlign: 'right', width: 68,
+                fontFamily: 'inherit', fontSize: 10, fontWeight: 800,
+                letterSpacing: '0.18em', textTransform: 'uppercase', color: '#6B6B68',
+                borderLeft: '1px solid #2A2A2A',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              PTS
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, idx) => {
+            const rank = row.overall_rank
+            const isFirst = rank === 1
+            const bg = rowBg(rank, idx)
+
+            return (
+              <tr key={row.team_id} style={{ background: bg, height: 34 }}>
+                <td
+                  style={{
+                    padding: '0 8px', textAlign: 'right',
+                    position: 'sticky', left: 0,
+                    background: bg === 'transparent' ? '#0A0A0A' : bg,
+                    zIndex: 1,
+                    borderBottom: '1px solid #1A1A1A',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <MedalRank rank={rank} />
+                </td>
+                <td
+                  style={{
+                    padding: '0 10px',
+                    fontFamily: 'Space Grotesk, sans-serif',
+                    fontWeight: 700,
+                    fontSize: isFirst ? 15 : 14,
+                    letterSpacing: '-0.01em',
+                    color: isFirst ? '#D4FF3A' : '#F5F5F0',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: 160,
+                    position: 'sticky', left: 48,
+                    background: bg === 'transparent' ? '#0A0A0A' : bg,
+                    zIndex: 1,
+                    borderBottom: '1px solid #1A1A1A',
+                    borderRight: '1px solid #2A2A2A',
+                  }}
+                >
+                  {row.team_name}
+                </td>
+                {publishedWods.map(w => {
+                  const cell = row.per_wod?.[w.id]
+                  if (!cell) {
+                    return (
+                      <td
+                        key={w.id}
+                        style={{
+                          textAlign: 'center', padding: '0 8px',
+                          fontSize: 10, color: '#444', fontWeight: 700,
+                          borderBottom: '1px solid #1A1A1A',
+                        }}
+                      >
+                        —
+                      </td>
+                    )
+                  }
+                  const pos = cell.position
+                  const cellBg =
+                    pos === 1 ? '#C9A227' :
+                    pos === 2 ? '#8C9094' :
+                    pos === 3 ? '#8B4A2D' :
+                               '#1E1E1E'
+                  const cellColor =
+                    pos === 1 ? '#0A0A0A' :
+                    pos === 2 ? '#0A0A0A' :
+                               '#F5F5F0'
+                  return (
+                    <td
+                      key={w.id}
+                      style={{
+                        textAlign: 'center', padding: '0 6px',
+                        borderBottom: '1px solid #1A1A1A',
+                      }}
+                    >
+                      <span style={{
+                        display: 'inline-block',
+                        background: cellBg, color: cellColor,
+                        fontFamily: 'JetBrains Mono, monospace',
+                        fontSize: 12, fontWeight: 800,
+                        letterSpacing: '0.04em',
+                        padding: '3px 7px',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}>
+                        {cell.points}
+                      </span>
+                    </td>
+                  )
+                })}
+                <td
+                  style={{
+                    padding: '0 10px', textAlign: 'right',
+                    fontWeight: 800,
+                    fontSize: isFirst ? 19 : 17,
+                    color: '#D4FF3A',
+                    letterSpacing: '-0.01em',
+                    borderLeft: '1px solid #2A2A2A',
+                    borderBottom: '1px solid #1A1A1A',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {row.total_points}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 export default function Leaderboard() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -211,13 +391,12 @@ export default function Leaderboard() {
 
   const publishedWods = wods.filter(w => w.status === 'published')
   const top1 = rows[0]
-
-  function rowBg(rank: number, idx: number) {
-    if (rank === 1) return 'rgba(212,255,58,0.12)'
-    if (rank <= 3) return 'rgba(212,255,58,0.06)'
-    if (idx % 2 === 1) return 'rgba(255,255,255,0.025)'
-    return 'transparent'
-  }
+  const isColumnsMode = divisions.length >= 2 && selectedDivisionId === null
+  const tickerDivLeaders = isColumnsMode
+    ? divisions
+        .map(d => ({ divLabel: divisionShortLabel(d), leader: rows.find(r => r.division_id === d.id) }))
+        .filter((x): x is { divLabel: string; leader: LeaderboardRow } => x.leader != null)
+    : []
 
   return (
     <div className="bg-[#0A0A0A] flex flex-col" style={{ position: 'fixed', inset: 0, zIndex: 10, overflow: 'hidden' }}>
@@ -408,171 +587,30 @@ export default function Leaderboard() {
             Nenhum resultado publicado
           </span>
         </div>
+      ) : isColumnsMode ? (
+        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', overflowX: 'auto', flex: 1, gap: 1, background: '#2A2A2A', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
+            {divisions.map(d => {
+              const divRows = rows.filter(r => r.division_id === d.id)
+              return (
+                <div key={d.id} style={{ display: 'flex', flexDirection: 'column', minWidth: 280, flex: '0 0 auto', background: '#0A0A0A' }}>
+                  <div style={{ padding: '8px 12px', borderBottom: '1px solid #2A2A2A', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, background: '#111111' }}>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 800, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#D4FF3A' }}>
+                      {divisionShortLabel(d)}
+                    </span>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#6B6B68', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                      {divRows.length} EQ.
+                    </span>
+                  </div>
+                  <DivisionTable rows={divRows} publishedWods={publishedWods} wods={wods} />
+                </div>
+              )
+            })}
+          </div>
+        </div>
       ) : (
-        <div className="flex-1 overflow-auto" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', minHeight: 0 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto', fontFamily: 'var(--font-mono, monospace)', fontVariantNumeric: 'tabular-nums' }}>
-            <thead>
-              <tr style={{ background: '#0A0A0A', borderBottom: '2px solid #F5F5F0' }}>
-                <th
-                  style={{
-                    padding: '8px 10px', textAlign: 'right', width: 48,
-                    fontFamily: 'inherit', fontSize: 10, fontWeight: 800,
-                    letterSpacing: '0.18em', textTransform: 'uppercase', color: '#6B6B68',
-                    position: 'sticky', left: 0, background: '#0A0A0A', zIndex: 2,
-                  }}
-                >
-                  #
-                </th>
-                <th
-                  style={{
-                    padding: '8px 10px', textAlign: 'left', minWidth: 120,
-                    fontFamily: 'inherit', fontSize: 10, fontWeight: 800,
-                    letterSpacing: '0.18em', textTransform: 'uppercase', color: '#6B6B68',
-                    position: 'sticky', left: 48, background: '#0A0A0A', zIndex: 2,
-                    borderRight: '1px solid #2A2A2A',
-                  }}
-                >
-                  EQUIPE
-                </th>
-                {publishedWods.map((w, i) => (
-                  <th
-                    key={w.id}
-                    style={{
-                      padding: '8px 8px', textAlign: 'center', width: 58,
-                      fontFamily: 'inherit', fontSize: 10, fontWeight: 800,
-                      letterSpacing: '0.18em', textTransform: 'uppercase', color: '#6B6B68',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    W{String(wods.findIndex(x => x.id === w.id) + 1).padStart(2, '0')}
-                  </th>
-                ))}
-                <th
-                  style={{
-                    padding: '8px 10px', textAlign: 'right', width: 68,
-                    fontFamily: 'inherit', fontSize: 10, fontWeight: 800,
-                    letterSpacing: '0.18em', textTransform: 'uppercase', color: '#6B6B68',
-                    borderLeft: '1px solid #2A2A2A',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  PTS
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, idx) => {
-                const rank = row.overall_rank
-                const isFirst = rank === 1
-                const isTop3 = rank <= 3
-                const bg = rowBg(rank, idx)
-
-                return (
-                  <tr key={row.team_id} style={{ background: bg, height: 34 }}>
-                    {/* RANK */}
-                    <td
-                      style={{
-                        padding: '0 8px', textAlign: 'right',
-                        position: 'sticky', left: 0,
-                        background: bg === 'transparent' ? '#0A0A0A' : bg,
-                        zIndex: 1,
-                        borderBottom: '1px solid #1A1A1A',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      <MedalRank rank={rank} />
-                    </td>
-                    {/* TEAM NAME */}
-                    <td
-                      style={{
-                        padding: '0 10px',
-                        fontFamily: 'Space Grotesk, sans-serif',
-                        fontWeight: 700,
-                        fontSize: isFirst ? 15 : 14,
-                        letterSpacing: '-0.01em',
-                        color: isFirst ? '#D4FF3A' : '#F5F5F0',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        maxWidth: 160,
-                        position: 'sticky', left: 48,
-                        background: bg === 'transparent' ? '#0A0A0A' : bg,
-                        zIndex: 1,
-                        borderBottom: '1px solid #1A1A1A',
-                        borderRight: '1px solid #2A2A2A',
-                      }}
-                    >
-                      {row.team_name}
-                    </td>
-                    {/* WOD CELLS */}
-                    {publishedWods.map(w => {
-                      const cell = row.per_wod?.[w.id]
-                      if (!cell) {
-                        return (
-                          <td
-                            key={w.id}
-                            style={{
-                              textAlign: 'center', padding: '0 8px',
-                              fontSize: 10, color: '#444', fontWeight: 700,
-                              borderBottom: '1px solid #1A1A1A',
-                            }}
-                          >
-                            —
-                          </td>
-                        )
-                      }
-                      const pos = cell.position
-                      const bg =
-                        pos === 1 ? '#C9A227' :
-                        pos === 2 ? '#8C9094' :
-                        pos === 3 ? '#8B4A2D' :
-                                   '#1E1E1E'
-                      const color =
-                        pos === 1 ? '#0A0A0A' :
-                        pos === 2 ? '#0A0A0A' :
-                                   '#F5F5F0'
-                      return (
-                        <td
-                          key={w.id}
-                          style={{
-                            textAlign: 'center', padding: '0 6px',
-                            borderBottom: '1px solid #1A1A1A',
-                          }}
-                        >
-                          <span style={{
-                            display: 'inline-block',
-                            background: bg, color,
-                            fontFamily: 'JetBrains Mono, monospace',
-                            fontSize: 12, fontWeight: 800,
-                            letterSpacing: '0.04em',
-                            padding: '3px 7px',
-                            fontVariantNumeric: 'tabular-nums',
-                          }}>
-                            {cell.points}
-                          </span>
-                        </td>
-                      )
-                    })}
-                    {/* TOTAL */}
-                    <td
-                      style={{
-                        padding: '0 10px', textAlign: 'right',
-                        fontWeight: 800,
-                        fontSize: isFirst ? 19 : 17,
-                        color: '#D4FF3A',
-                        letterSpacing: '-0.01em',
-                        borderLeft: '1px solid #2A2A2A',
-                        borderBottom: '1px solid #1A1A1A',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {row.total_points}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <DivisionTable rows={rows} publishedWods={publishedWods} wods={wods} />
         </div>
       )}
 
@@ -604,21 +642,38 @@ export default function Leaderboard() {
               }}
             >
               <style>{`@keyframes lb-marquee { from { transform: translateX(0) } to { transform: translateX(-50%) } }`}</style>
-              <span style={{ marginRight: 56 }}>
-                LEADER · <span style={{ color: '#D4FF3A' }}>{top1?.team_name}</span> · {top1?.total_points} PTS
-              </span>
-              {top1 && rows[1] && (
-                <span style={{ marginRight: 56 }}>
-                  GAP 1ST→2ND · <span style={{ color: '#D4FF3A' }}>{top1.total_points - rows[1].total_points} PTS</span>
-                </span>
-              )}
-              <span style={{ marginRight: 56 }}>
-                LEADER · <span style={{ color: '#D4FF3A' }}>{top1?.team_name}</span> · {top1?.total_points} PTS
-              </span>
-              {top1 && rows[1] && (
-                <span style={{ marginRight: 56 }}>
-                  GAP 1ST→2ND · <span style={{ color: '#D4FF3A' }}>{top1.total_points - rows[1].total_points} PTS</span>
-                </span>
+              {isColumnsMode ? (
+                <>
+                  {tickerDivLeaders.map(({ divLabel, leader }) => (
+                    <span key={divLabel} style={{ marginRight: 56 }}>
+                      {divLabel} · <span style={{ color: '#D4FF3A' }}>{leader.team_name}</span> · {leader.total_points} PTS
+                    </span>
+                  ))}
+                  {tickerDivLeaders.map(({ divLabel, leader }) => (
+                    <span key={divLabel + '_2'} style={{ marginRight: 56 }}>
+                      {divLabel} · <span style={{ color: '#D4FF3A' }}>{leader.team_name}</span> · {leader.total_points} PTS
+                    </span>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <span style={{ marginRight: 56 }}>
+                    LEADER · <span style={{ color: '#D4FF3A' }}>{top1?.team_name}</span> · {top1?.total_points} PTS
+                  </span>
+                  {top1 && rows[1] && (
+                    <span style={{ marginRight: 56 }}>
+                      GAP 1ST→2ND · <span style={{ color: '#D4FF3A' }}>{top1.total_points - rows[1].total_points} PTS</span>
+                    </span>
+                  )}
+                  <span style={{ marginRight: 56 }}>
+                    LEADER · <span style={{ color: '#D4FF3A' }}>{top1?.team_name}</span> · {top1?.total_points} PTS
+                  </span>
+                  {top1 && rows[1] && (
+                    <span style={{ marginRight: 56 }}>
+                      GAP 1ST→2ND · <span style={{ color: '#D4FF3A' }}>{top1.total_points - rows[1].total_points} PTS</span>
+                    </span>
+                  )}
+                </>
               )}
             </div>
           </div>
