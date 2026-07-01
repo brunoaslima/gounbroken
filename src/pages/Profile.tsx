@@ -451,6 +451,25 @@ export default function Profile() {
             </svg>
           </button>
           <button
+            onClick={() => navigate('/athlete/timer')}
+            className="w-full flex items-center justify-between px-5 py-4 border-b border-[#2A2A2A] active:bg-[#141414] transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <span style={{ width: 4, height: 32, background: '#FF8A00', display: 'block', flexShrink: 0 }} />
+              <div>
+                <span className="font-sans font-semibold text-[15px] text-soft-white block">
+                  Timer
+                </span>
+                <span className="font-mono text-[10px] uppercase tracking-widest text-[#6B6B68]">
+                  For Time · AMRAP · EMOM · Tabata
+                </span>
+              </div>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B6B68" strokeWidth="2">
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </button>
+          <button
             onClick={handleExportPDF}
             disabled={exporting}
             className="w-full flex items-center justify-between px-5 py-4 border-b border-[#2A2A2A] active:bg-[#141414] transition-colors disabled:opacity-60"
