@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import type { CompetitionDivision, DivisionFormat } from '@/types'
@@ -73,11 +73,27 @@ function BackIcon() {
 function CrownIcon() {
   return (
     <svg
-      width="12" height="10" viewBox="0 0 12 10"
-      fill="#D4FF3A" aria-hidden="true"
+      width="13" height="13" viewBox="0 0 24 24"
+      fill="none" stroke="#D4FF3A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+      aria-hidden="true"
       style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 5, flexShrink: 0 }}
     >
-      <path d="M0 10 L0 4 L3 1 L5 5 L6 0 L7 5 L9 1 L12 4 L12 10Z" />
+      <path d="M12 6l4 6l5 -4l-2 10h-14l-2 -10l5 4z" />
+    </svg>
+  )
+}
+
+function MoveArrow({ delta }: { delta: number }) {
+  if (delta === 0) return null
+  const up = delta > 0
+  return (
+    <svg
+      width="11" height="11" viewBox="0 0 24 24"
+      fill="none" stroke={up ? '#D4FF3A' : '#FF3B30'} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+      aria-label={up ? `Subiu ${delta}` : `Desceu ${-delta}`}
+      style={{ flexShrink: 0 }}
+    >
+      {up ? <path d="M12 19V5M5 12l7-7 7 7" /> : <path d="M12 5v14M19 12l-7 7-7-7" />}
     </svg>
   )
 }
@@ -116,11 +132,38 @@ function DivisionTable({
   rows,
   publishedWods,
   wods,
+  movements,
 }: {
   rows: LeaderboardRow[]
   publishedWods: WodInfo[]
   wods: WodInfo[]
+  movements: Map<string, number>
 }) {
+  const rowRefs = useRef(new Map<string, HTMLTableRowElement>())
+  const prevTopsRef = useRef(new Map<string, number>())
+
+  // FLIP: rows slide smoothly from their previous position to the new one
+  useLayoutEffect(() => {
+    const newTops = new Map<string, number>()
+    rowRefs.current.forEach((el, teamId) => {
+      if (el?.isConnected) newTops.set(teamId, el.offsetTop)
+    })
+    newTops.forEach((top, teamId) => {
+      const prev = prevTopsRef.current.get(teamId)
+      const el = rowRefs.current.get(teamId)
+      if (prev === undefined || !el) return
+      const delta = prev - top
+      if (delta === 0) return
+      el.style.transition = 'none'
+      el.style.transform = `translateY(${delta}px)`
+      requestAnimationFrame(() => {
+        el.style.transition = 'transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)'
+        el.style.transform = ''
+      })
+    })
+    prevTopsRef.current = newTops
+  }, [rows])
+
   function rowBg(rank: number, idx: number) {
     if (rank === 1) return 'rgba(212,255,58,0.12)'
     if (rank <= 3) return 'rgba(212,255,58,0.06)'
@@ -197,7 +240,14 @@ function DivisionTable({
             const bg = rowBg(rank, idx)
 
             return (
-              <tr key={row.team_id} style={{ background: bg, height: 34 }}>
+              <tr
+                key={row.team_id}
+                ref={el => {
+                  if (el) rowRefs.current.set(row.team_id, el)
+                  else rowRefs.current.delete(row.team_id)
+                }}
+                style={{ background: bg, height: 34 }}
+              >
                 <td
                   style={{
                     padding: '0 8px', textAlign: 'right',
@@ -209,6 +259,7 @@ function DivisionTable({
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+                    <MoveArrow delta={movements.get(row.team_id) ?? 0} />
                     <MedalRank rank={rank} />
                     {isTiebreak(row) && (
                       <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, fontWeight: 800, letterSpacing: '0.12em', color: '#6B6B68', lineHeight: 1 }}>
@@ -323,6 +374,8 @@ export default function Leaderboard() {
   const [compName, setCompName] = useState('')
   const [loading, setLoading] = useState(true)
   const [lbError, setLbError] = useState<string | null>(null)
+  const [movements, setMovements] = useState<Map<string, number>>(new Map())
+  const prevRanksRef = useRef(new Map<string, number>())
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL)
   const [refreshKey, setRefreshKey] = useState(0)
   const countdownRef = useRef(REFRESH_INTERVAL)
@@ -399,7 +452,19 @@ export default function Leaderboard() {
       } else {
         setLbError(null)
       }
-      if (lb.data) setRows(lb.data as LeaderboardRow[])
+      if (lb.data) {
+        const newRows = lb.data as LeaderboardRow[]
+        const moves = new Map<string, number>()
+        newRows.forEach(r => {
+          const prev = prevRanksRef.current.get(r.team_id)
+          if (prev !== undefined && prev !== r.overall_rank) {
+            moves.set(r.team_id, prev - r.overall_rank)
+          }
+        })
+        setMovements(moves)
+        prevRanksRef.current = new Map(newRows.map(r => [r.team_id, r.overall_rank]))
+        setRows(newRows)
+      }
       if (comp.data) setCompName(comp.data.name)
       if (wodList.data) setWods(wodList.data as WodInfo[])
       if (divList.data) setDivisions(divList.data as CompetitionDivision[])
@@ -649,7 +714,7 @@ export default function Leaderboard() {
                       {divRows.length} EQ.
                     </span>
                   </div>
-                  <DivisionTable rows={divRows} publishedWods={publishedWods} wods={wods} />
+                  <DivisionTable rows={divRows} publishedWods={publishedWods} wods={wods} movements={movements} />
                 </div>
               )
             })}
@@ -657,7 +722,7 @@ export default function Leaderboard() {
         </div>
       ) : (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <DivisionTable rows={rows} publishedWods={publishedWods} wods={wods} />
+          <DivisionTable rows={rows} publishedWods={publishedWods} wods={wods} movements={movements} />
         </div>
       )}
 
