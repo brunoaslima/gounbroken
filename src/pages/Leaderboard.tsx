@@ -550,51 +550,34 @@ export default function Leaderboard() {
                         )
                       }
                       const pos = cell.position
-                      const podium = pos <= 3
-                      const podiumBg =
+                      const bg =
                         pos === 1 ? '#C9A227' :
                         pos === 2 ? '#8C9094' :
-                                   '#8B4A2D'
-                      const podiumColor = pos === 3 ? '#F5F5F0' : '#0A0A0A'
+                        pos === 3 ? '#8B4A2D' :
+                                   '#1E1E1E'
+                      const color =
+                        pos === 1 ? '#0A0A0A' :
+                        pos === 2 ? '#0A0A0A' :
+                                   '#F5F5F0'
                       return (
                         <td
                           key={w.id}
                           style={{
                             textAlign: 'center', padding: '0 6px',
                             borderBottom: '1px solid #1A1A1A',
-                            whiteSpace: 'nowrap',
                           }}
                         >
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '4px 0' }}>
-                            {/* points — primary */}
-                            <span style={{
-                              fontSize: 14, fontWeight: 800,
-                              color: '#F5F5F0', letterSpacing: '-0.01em',
-                              fontVariantNumeric: 'tabular-nums',
-                            }}>
-                              {cell.points}
-                            </span>
-                            {/* position — secondary, badge if top 3 */}
-                            {podium ? (
-                              <span style={{
-                                display: 'inline-block',
-                                background: podiumBg, color: podiumColor,
-                                fontFamily: 'JetBrains Mono, monospace',
-                                fontSize: 8, fontWeight: 900,
-                                letterSpacing: '0.06em',
-                                padding: '1px 4px',
-                              }}>
-                                {pos}°
-                              </span>
-                            ) : (
-                              <span style={{
-                                fontSize: 9, color: '#444', fontWeight: 700,
-                                fontVariantNumeric: 'tabular-nums',
-                              }}>
-                                {pos}°
-                              </span>
-                            )}
-                          </div>
+                          <span style={{
+                            display: 'inline-block',
+                            background: bg, color,
+                            fontFamily: 'JetBrains Mono, monospace',
+                            fontSize: 12, fontWeight: 800,
+                            letterSpacing: '0.04em',
+                            padding: '3px 7px',
+                            fontVariantNumeric: 'tabular-nums',
+                          }}>
+                            {cell.points}
+                          </span>
                         </td>
                       )
                     })}
