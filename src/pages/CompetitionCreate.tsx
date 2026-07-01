@@ -506,13 +506,7 @@ export default function CompetitionCreate() {
               <span className="font-mono font-bold uppercase" style={{ fontSize: 9, letterSpacing: '0.18em', color: '#444442' }}>or</span>
               <div style={{ flex: 1, height: 1, background: '#2A2A2A' }} />
             </div>
-            <div className="flex items-center" style={{ background: divCustomCategory ? '#F5F5F0' : '#1A1A1A' }}>
-              <span
-                className="font-mono font-black uppercase"
-                style={{ fontSize: 9, letterSpacing: '0.18em', color: divCustomCategory ? '#0A0A0A' : '#444442', padding: '10px 10px', whiteSpace: 'nowrap', flexShrink: 0 }}
-              >
-                CUSTOM
-              </span>
+            <div style={{ background: divCustomCategory ? '#F5F5F0' : '#1A1A1A' }}>
               <input
                 type="text"
                 placeholder="e.g. ATHX PRO"
@@ -520,7 +514,7 @@ export default function CompetitionCreate() {
                 maxLength={50}
                 onChange={e => setDivCustomCategory(e.target.value)}
                 style={{
-                  flex: 1,
+                  width: '100%',
                   background: 'transparent',
                   border: 'none',
                   outline: 'none',
@@ -530,7 +524,8 @@ export default function CompetitionCreate() {
                   letterSpacing: '0.14em',
                   fontWeight: 900,
                   textTransform: 'uppercase',
-                  padding: '10px 8px 10px 0',
+                  padding: '10px 12px',
+                  boxSizing: 'border-box',
                 }}
               />
             </div>
