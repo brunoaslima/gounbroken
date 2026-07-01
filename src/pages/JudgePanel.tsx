@@ -188,9 +188,14 @@ export default function JudgePanel() {
           </span>
         </div>
 
-        {/* Scrollable content — minHeight:0 ensures flex child can shrink */}
+        <style>{`
+          .judge-score-input::-webkit-outer-spin-button,
+          .judge-score-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+          .judge-score-input { -moz-appearance: textfield; }
+        `}</style>
+        {/* Scrollable content — paddingBottom clears the fixed CTA */}
         <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-          <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 560, margin: '0 auto' }}>
+          <div style={{ padding: 20, paddingBottom: 100, display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 560, margin: '0 auto' }}>
 
             <ContextCard label='EQUIPE' value={scoringTeam?.name ?? '—'} />
             <ContextCard
@@ -212,7 +217,7 @@ export default function JudgePanel() {
                       value={scoreFields.minutes ?? ''}
                       placeholder='00'
                       onChange={e => { setScoreFields(f => ({ ...f, minutes: parseInt(e.target.value) || 0 })); setSubmitError(null) }}
-                      style={SCORE_INPUT}
+                      className="judge-score-input" style={SCORE_INPUT}
                     />
                   </div>
                   <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 36, fontWeight: 800, color: '#D4FF3A', marginTop: 16 }}>:</span>
@@ -222,7 +227,7 @@ export default function JudgePanel() {
                       value={scoreFields.seconds ?? ''}
                       placeholder='00'
                       onChange={e => { setScoreFields(f => ({ ...f, seconds: Math.min(59, parseInt(e.target.value) || 0) })); setSubmitError(null) }}
-                      style={SCORE_INPUT}
+                      className="judge-score-input" style={SCORE_INPUT}
                     />
                   </div>
                 </>
@@ -234,7 +239,7 @@ export default function JudgePanel() {
                     value={scoreFields.reps ?? ''}
                     placeholder='0'
                     onChange={e => { setScoreFields(f => ({ ...f, reps: parseInt(e.target.value) || 0 })); setSubmitError(null) }}
-                    style={{ ...SCORE_INPUT, width: 100 }}
+                    className="judge-score-input" style={{ ...SCORE_INPUT, width: 100 }}
                   />
                 </div>
               )}
@@ -245,7 +250,7 @@ export default function JudgePanel() {
                     value={scoreFields.kg ?? ''}
                     placeholder='0'
                     onChange={e => { setScoreFields(f => ({ ...f, kg: parseFloat(e.target.value) || 0 })); setSubmitError(null) }}
-                    style={{ ...SCORE_INPUT, width: 100 }}
+                    className="judge-score-input" style={{ ...SCORE_INPUT, width: 100 }}
                   />
                 </div>
               )}
@@ -257,7 +262,7 @@ export default function JudgePanel() {
                       value={scoreFields.rounds ?? ''}
                       placeholder='0'
                       onChange={e => { setScoreFields(f => ({ ...f, rounds: parseInt(e.target.value) || 0 })); setSubmitError(null) }}
-                      style={SCORE_INPUT}
+                      className="judge-score-input" style={SCORE_INPUT}
                     />
                   </div>
                   <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 28, fontWeight: 800, color: '#D4FF3A', marginTop: 16 }}>+</span>
@@ -267,7 +272,7 @@ export default function JudgePanel() {
                       value={scoreFields.partialReps ?? ''}
                       placeholder='0'
                       onChange={e => { setScoreFields(f => ({ ...f, partialReps: parseInt(e.target.value) || 0 })); setSubmitError(null) }}
-                      style={SCORE_INPUT}
+                      className="judge-score-input" style={SCORE_INPUT}
                     />
                   </div>
                 </>
@@ -300,8 +305,8 @@ export default function JudgePanel() {
           </div>
         </div>
 
-        {/* Bottom CTA — always visible */}
-        <div style={{ background: '#0A0A0A', borderTop: '1px solid #2A2A2A', padding: '14px 20px 24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, flexShrink: 0 }}>
+        {/* Bottom CTA — fixed so it's always visible regardless of keyboard/viewport */}
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#0A0A0A', borderTop: '1px solid #2A2A2A', padding: '14px 20px calc(14px + env(safe-area-inset-bottom, 0px))', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, zIndex: 50 }}>
           <button onClick={closeScoreForm} style={ghostBtnStyle}>CANCEL</button>
           <button
             onClick={handleSubmit}
