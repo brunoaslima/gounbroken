@@ -121,12 +121,13 @@ function Stat({ label, value, color }: { label: string; value: string; color?: s
 }
 
 function ControlBtn({
-  onClick, disabled, color = '#2A2A2A', textColor = '#F5F5F0', children,
+  onClick, disabled, color = '#2A2A2A', textColor = '#F5F5F0', filled = false, children,
 }: {
   onClick: () => void
   disabled?: boolean
   color?: string
   textColor?: string
+  filled?: boolean
   children: React.ReactNode
 }) {
   return (
@@ -135,9 +136,10 @@ function ControlBtn({
       onClick={onClick}
       disabled={disabled}
       style={{
-        flex: 1, height: 52, background: 'transparent',
+        flex: 1, height: 52,
+        background: filled ? color : 'transparent',
         border: `1px solid ${color}`,
-        color: textColor,
+        color: filled ? textColor : color === '#2A2A2A' ? '#F5F5F0' : color,
         fontFamily: "'JetBrains Mono', monospace",
         fontSize: 10, fontWeight: 700, letterSpacing: '0.14em',
         textTransform: 'uppercase', cursor: 'pointer',
@@ -256,7 +258,7 @@ export function TimerDisplay({
       {/* Controls */}
       <div style={{ padding: '0 20px 32px', flexShrink: 0 }}>
         {status === 'done' && (
-          <ControlBtn onClick={onReset} color="#D4FF3A" textColor="#0A0A0A">
+          <ControlBtn onClick={onReset} color="#D4FF3A" textColor="#0A0A0A" filled>
             NEW TIMER
           </ControlBtn>
         )}
@@ -266,8 +268,9 @@ export function TimerDisplay({
             {/* Primary: pause / resume */}
             <ControlBtn
               onClick={isRunning ? onPause : onResume}
-              color={isRunning ? '#D4FF3A' : '#D4FF3A'}
-              textColor={isRunning ? '#0A0A0A' : '#0A0A0A'}
+              color="#D4FF3A"
+              textColor="#0A0A0A"
+              filled
             >
               {isRunning ? 'PAUSE' : 'RESUME'}
             </ControlBtn>
