@@ -277,17 +277,10 @@ export default function CompetitionManage() {
         setMembersByTeam({})
       }
 
-      // Results for all wods
-      if (wodsData.length > 0) {
-        const wodIds = wodsData.map(w => w.id)
-        const { data: resultsData } = await supabase
-          .from('competition_results')
-          .select('*')
-          .in('wod_id', wodIds)
-        setResults((resultsData ?? []) as CompetitionResult[])
-      } else {
-        setResults([])
-      }
+      // Results for all wods — uses SECURITY DEFINER RPC to bypass RLS
+      const { data: resultsData } = await supabase
+        .rpc('get_competition_results', { p_competition_id: id })
+      setResults((resultsData ?? []) as CompetitionResult[])
 
       // Batch profile lookup — inclui membros de equipes para exibição
       const userIds = new Set<string>()
