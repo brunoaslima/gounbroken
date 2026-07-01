@@ -3,6 +3,13 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { useProfile } from '@/hooks/useProfile'
+import {
+  encodeScore,
+  decodeScore,
+  validateScoreFields,
+  type WodScoreType,
+  type ScoreFields,
+} from '@/lib/competitionScore'
 import type {
   Competition,
   CompetitionDivision,
@@ -198,7 +205,8 @@ export default function CompetitionManage() {
   const [overrideDisplay, setOverrideDisplay] = useState('')
   const [overrideReason, setOverrideReason] = useState('')
   const [enterTeamId, setEnterTeamId] = useState<string | null>(null)
-  const [enterDisplay, setEnterDisplay] = useState('')
+  const [enterFields, setEnterFields] = useState<ScoreFields>({ type: 'time' })
+  const [enterError, setEnterError] = useState<string | null>(null)
 
   // ── Status change ──
   const [statusChanging, setStatusChanging] = useState(false)
@@ -396,21 +404,25 @@ export default function CompetitionManage() {
 
   // ─── Submit new result for a team ────────────────────────────────────────────
   async function handleSubmitResult(teamId: string) {
-    if (!selectedWod || !enterDisplay.trim()) return
+    if (!selectedWod) return
+    const validationError = validateScoreFields(enterFields)
+    if (validationError) { setEnterError(validationError); return }
+    const encoded = encodeScore(enterFields)
+    if (!encoded) { setEnterError('Resultado inválido'); return }
     setMutating(true)
     setMutateError(null)
+    setEnterError(null)
     try {
-      const numeric = parseFloat(enterDisplay.replace(',', '.')) || 0
       const { error } = await supabase.rpc('submit_competition_result', {
         p_wod_id: selectedWod.id,
         p_team_id: teamId,
-        p_raw_result: enterDisplay.trim(),
+        p_raw_result: encoded.raw_result,
         p_score_type: selectedWod.score_type,
-        p_score_numeric: numeric,
+        p_score_numeric: encoded.score_numeric,
       })
       if (error) throw new Error(error.message)
       setEnterTeamId(null)
-      setEnterDisplay('')
+      setEnterFields({ type: selectedWod.score_type as WodScoreType })
       await load()
     } catch (e) {
       setMutateError(e instanceof Error ? e.message : 'Erro')
@@ -550,7 +562,9 @@ export default function CompetitionManage() {
     : []
 
   const teamsWithoutResult = selectedWod
-    ? approvedTeams.filter(t => !wodResults.find(r => r.team_id === t.id))
+    ? approvedTeams
+        .filter(t => !wodResults.find(r => r.team_id === t.id))
+        .sort((a, b) => a.name.localeCompare(b.name))
     : []
 
   // ─── Render ───────────────────────────────────────────────────────────────────
@@ -1663,7 +1677,9 @@ export default function CompetitionManage() {
                         const team = teams.find(t => t.id === res.team_id)
                         const points = CF_POINTS[pos] ?? 0
                         const isEditing = overrideResultId === res.id
-                        const displayVal = res.score_numeric != null ? String(res.score_numeric) : '—'
+                        const displayVal = res.score_numeric != null
+                          ? decodeScore(selectedWod.score_type as WodScoreType, res.score_numeric)
+                          : '—'
                         return (
                           <tr key={res.id} style={{ borderBottom: '1px solid #1A1A1A' }}>
                             <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 11, color: '#3D3D3B' }}>
@@ -1719,60 +1735,45 @@ export default function CompetitionManage() {
                       })}
                       {teamsWithoutResult.map(team => {
                         const isEntering = enterTeamId === team.id
-                        return (
+                        return isEntering ? (
                           <tr key={team.id} style={{ borderBottom: '1px solid #1A1A1A', background: '#0D0D0D' }}>
-                            <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 11, color: '#3D3D3B' }}>
-                              —
+                            <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 11, color: '#3D3D3B' }}>—</td>
+                            <td style={{ padding: '8px 12px', fontWeight: 700, fontSize: 13, color: '#F5F5F0' }}>{team.name}</td>
+                            <td colSpan={3} style={{ padding: '8px 12px' }}>
+                              <ScoreInput
+                                type={selectedWod.score_type as WodScoreType}
+                                fields={enterFields}
+                                onChange={f => { setEnterFields(f); setEnterError(null) }}
+                                error={enterError}
+                              />
                             </td>
-                            <td style={{ padding: '12px', fontWeight: 700, fontSize: 13, color: '#6B6B68' }}>
-                              {team.name}
-                            </td>
-                            <td style={{ padding: '12px' }} colSpan={isEntering ? 1 : 2}>
-                              {isEntering ? (
-                                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                                  <input
-                                    autoFocus
-                                    type='text'
-                                    placeholder='Resultado...'
-                                    value={enterDisplay}
-                                    onChange={e => setEnterDisplay(e.target.value)}
-                                    onKeyDown={e => { if (e.key === 'Enter') handleSubmitResult(team.id) }}
-                                    style={{ background: '#111111', border: '1px solid #D4FF3A', color: '#F5F5F0', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, padding: '4px 8px', outline: 'none', width: 140, borderRadius: 0 }}
-                                  />
-                                </div>
-                              ) : (
-                                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#3D3D3B', letterSpacing: '0.12em' }}>
-                                  SEM RESULTADO
-                                </span>
-                              )}
-                            </td>
-                            {!isEntering && (
-                              <>
-                                <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3D3D3B' }}>—</td>
-                                <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3D3D3B' }}>0</td>
-                              </>
-                            )}
-                            {isEntering && (
-                              <>
-                                <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3D3D3B' }}>—</td>
-                                <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3D3D3B' }}>—</td>
-                              </>
-                            )}
-                            <td style={{ padding: '12px' }}>
-                              {isEntering ? (
-                                <div style={{ display: 'flex', gap: 4 }}>
-                                  <Btn color='#D4FF3A' disabled={!enterDisplay.trim() || mutating} onClick={() => handleSubmitResult(team.id)}>
-                                    SALVAR
-                                  </Btn>
-                                  <Btn color='#6B6B68' onClick={() => { setEnterTeamId(null); setEnterDisplay('') }}>
-                                    CANCEL
-                                  </Btn>
-                                </div>
-                              ) : (
-                                <Btn color='#D4FF3A' onClick={() => { setEnterTeamId(team.id); setEnterDisplay(''); setOverrideResultId(null) }}>
-                                  INSERIR
+                            <td style={{ padding: '8px 12px' }}>
+                              <div style={{ display: 'flex', gap: 4 }}>
+                                <Btn color='#D4FF3A' disabled={mutating} onClick={() => handleSubmitResult(team.id)}>
+                                  SALVAR
                                 </Btn>
-                              )}
+                                <Btn color='#6B6B68' onClick={() => { setEnterTeamId(null); setEnterError(null) }}>
+                                  CANCEL
+                                </Btn>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          <tr key={team.id} style={{ borderBottom: '1px solid #1A1A1A', background: '#0D0D0D' }}>
+                            <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 11, color: '#3D3D3B' }}>—</td>
+                            <td style={{ padding: '12px', fontWeight: 700, fontSize: 13, color: '#6B6B68' }}>{team.name}</td>
+                            <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#3D3D3B', letterSpacing: '0.12em' }}>SEM RESULTADO</td>
+                            <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3D3D3B' }}>—</td>
+                            <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3D3D3B' }}>0</td>
+                            <td style={{ padding: '12px' }}>
+                              <Btn color='#D4FF3A' onClick={() => {
+                                setEnterTeamId(team.id)
+                                setEnterFields({ type: selectedWod.score_type as WodScoreType })
+                                setEnterError(null)
+                                setOverrideResultId(null)
+                              }}>
+                                INSERIR
+                              </Btn>
                             </td>
                           </tr>
                         )
@@ -1824,6 +1825,151 @@ export default function CompetitionManage() {
         )}
 
       </div>
+    </div>
+  )
+}
+
+// ─── ScoreInput ───────────────────────────────────────────────────────────────
+
+const INPUT_SCORE: React.CSSProperties = {
+  background: '#111111',
+  border: '1px solid #D4FF3A',
+  color: '#F5F5F0',
+  fontFamily: 'JetBrains Mono, monospace',
+  fontWeight: 700,
+  fontSize: 13,
+  padding: '6px 8px',
+  outline: 'none',
+  borderRadius: 0,
+  width: 64,
+  textAlign: 'center',
+}
+
+const LABEL_SCORE: React.CSSProperties = {
+  fontFamily: 'JetBrains Mono, monospace',
+  fontSize: 9,
+  fontWeight: 700,
+  letterSpacing: '0.14em',
+  textTransform: 'uppercase',
+  color: '#6B6B68',
+}
+
+function ScoreInput({
+  type,
+  fields,
+  onChange,
+  error,
+}: {
+  type: WodScoreType
+  fields: ScoreFields
+  onChange: (f: ScoreFields) => void
+  error: string | null
+}) {
+  const base = { ...fields, type }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {type === 'time' && (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <span style={LABEL_SCORE}>MIN</span>
+              <input
+                autoFocus
+                type='number'
+                min={0}
+                max={99}
+                value={fields.minutes ?? ''}
+                placeholder='00'
+                onChange={e => onChange({ ...base, minutes: parseInt(e.target.value) || 0 })}
+                style={INPUT_SCORE}
+              />
+            </div>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 18, fontWeight: 700, color: '#F5F5F0', marginTop: 14 }}>:</span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <span style={LABEL_SCORE}>SEG</span>
+              <input
+                type='number'
+                min={0}
+                max={59}
+                value={fields.seconds ?? ''}
+                placeholder='00'
+                onChange={e => onChange({ ...base, seconds: Math.min(59, parseInt(e.target.value) || 0) })}
+                style={INPUT_SCORE}
+              />
+            </div>
+          </>
+        )}
+
+        {type === 'reps' && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+            <span style={LABEL_SCORE}>REPS</span>
+            <input
+              autoFocus
+              type='number'
+              min={1}
+              value={fields.reps ?? ''}
+              placeholder='0'
+              onChange={e => onChange({ ...base, reps: parseInt(e.target.value) || 0 })}
+              style={{ ...INPUT_SCORE, width: 96 }}
+            />
+          </div>
+        )}
+
+        {type === 'weight' && (
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <span style={LABEL_SCORE}>KG</span>
+              <input
+                autoFocus
+                type='number'
+                min={0.5}
+                step={0.5}
+                value={fields.kg ?? ''}
+                placeholder='0'
+                onChange={e => onChange({ ...base, kg: parseFloat(e.target.value) || 0 })}
+                style={{ ...INPUT_SCORE, width: 96 }}
+              />
+            </div>
+            <span style={{ ...LABEL_SCORE, marginBottom: 8 }}>KG</span>
+          </div>
+        )}
+
+        {type === 'rounds_plus_reps' && (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <span style={LABEL_SCORE}>ROUNDS</span>
+              <input
+                autoFocus
+                type='number'
+                min={0}
+                value={fields.rounds ?? ''}
+                placeholder='0'
+                onChange={e => onChange({ ...base, rounds: parseInt(e.target.value) || 0 })}
+                style={INPUT_SCORE}
+              />
+            </div>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: 700, color: '#6B6B68', marginTop: 14 }}>+</span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <span style={LABEL_SCORE}>REPS</span>
+              <input
+                type='number'
+                min={0}
+                max={9999}
+                value={fields.partialReps ?? ''}
+                placeholder='0'
+                onChange={e => onChange({ ...base, partialReps: parseInt(e.target.value) || 0 })}
+                style={INPUT_SCORE}
+              />
+            </div>
+          </>
+        )}
+      </div>
+      {error && (
+        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#FF3B30' }}>
+          {error}
+        </span>
+      )}
     </div>
   )
 }
