@@ -1,7 +1,7 @@
 {
   "name": "score-crossfit",
   "private": true,
-  "version": "0.9.8",
+  "version": "0.9.9",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -23,6 +23,7 @@
     "jspdf": "^4.2.1",
     "posthog-js": "^1.372.10",
     "react": "^18.3.1",
+    "react-day-picker": "^10.0.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.27.0",
     "recharts": "^2.13.0",
