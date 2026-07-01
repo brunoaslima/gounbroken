@@ -459,7 +459,7 @@ export default function CompetitionCreate() {
                 </button>
               ))}
             </div>
-            <div className="flex items-center" style={{ gap: 8, margin: '6px 0' }}>
+            <div className="flex items-center" style={{ gap: 8, margin: '10px 0' }}>
               <div style={{ flex: 1, height: 1, background: '#2A2A2A' }} />
               <span className="font-mono font-bold uppercase" style={{ fontSize: 9, letterSpacing: '0.18em', color: '#444442' }}>or</span>
               <div style={{ flex: 1, height: 1, background: '#2A2A2A' }} />
