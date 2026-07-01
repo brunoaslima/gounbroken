@@ -7,6 +7,8 @@ import {
   encodeScore,
   decodeScore,
   validateScoreFields,
+  parseCapSeconds,
+  parseDisplayScore,
   type WodScoreType,
   type ScoreFields,
 } from '@/lib/competitionScore'
@@ -207,6 +209,8 @@ export default function CompetitionManage() {
   const [enterTeamId, setEnterTeamId] = useState<string | null>(null)
   const [enterFields, setEnterFields] = useState<ScoreFields>({ type: 'time' })
   const [enterError, setEnterError] = useState<string | null>(null)
+  const [savedMsg, setSavedMsg] = useState<string | null>(null)
+  const [resultDivisionFilter, setResultDivisionFilter] = useState<string>('all')
 
   // ── Status change ──
   const [statusChanging, setStatusChanging] = useState(false)
@@ -235,6 +239,7 @@ export default function CompetitionManage() {
       if (teamsRes.error) throw new Error(teamsRes.error.message)
       if (rolesRes.error) throw new Error(rolesRes.error.message)
       if (auditRes.error) throw new Error(`audit_log: ${auditRes.error.message}`)
+      if (divsRes.error) throw new Error(`competition_divisions: ${divsRes.error.message}`)
 
       const compData = compRes.data as Competition
       const wodsData = (wodsRes.data ?? []) as CompetitionWod[]
@@ -380,14 +385,16 @@ export default function CompetitionManage() {
 
   // ─── Override result ─────────────────────────────────────────────────────────
   async function handleOverride(resultId: string) {
-    if (!overrideDisplay.trim() || !overrideReason.trim()) return
+    if (!overrideDisplay.trim() || !overrideReason.trim() || !selectedWod) return
+    const scoreNumeric = parseDisplayScore(selectedWod.score_type as WodScoreType, overrideDisplay)
+    if (scoreNumeric === null) { setMutateError('Formato inválido para este tipo de score'); return }
     setMutating(true)
     setMutateError(null)
     try {
       const { error } = await supabase.rpc('override_competition_result', {
         p_result_id: resultId,
         p_raw_result: overrideDisplay.trim(),
-        p_value: parseFloat(overrideDisplay) || 0,
+        p_value: scoreNumeric,
         p_reason: overrideReason.trim(),
       })
       if (error) throw new Error(error.message)
@@ -403,9 +410,10 @@ export default function CompetitionManage() {
   }
 
   // ─── Submit new result for a team ────────────────────────────────────────────
-  async function handleSubmitResult(teamId: string) {
+  async function handleSubmitResult(teamId: string, teamName: string) {
     if (!selectedWod) return
-    const validationError = validateScoreFields(enterFields)
+    const capSecs = parseCapSeconds(selectedWod.cap)
+    const validationError = validateScoreFields(enterFields, capSecs)
     if (validationError) { setEnterError(validationError); return }
     const encoded = encodeScore(enterFields)
     if (!encoded) { setEnterError('Resultado inválido'); return }
@@ -423,6 +431,8 @@ export default function CompetitionManage() {
       if (error) throw new Error(error.message)
       setEnterTeamId(null)
       setEnterFields({ type: selectedWod.score_type as WodScoreType })
+      setSavedMsg(`RESULTADO SALVO — ${teamName} · ${encoded.raw_result}`)
+      setTimeout(() => setSavedMsg(null), 4000)
       await load()
     } catch (e) {
       setMutateError(e instanceof Error ? e.message : 'Erro')
@@ -552,17 +562,23 @@ export default function CompetitionManage() {
     ? results.filter(r => r.wod_id === selectedWod.id)
     : []
 
+  const resultFilteredApproved = resultDivisionFilter === 'all'
+    ? approvedTeams
+    : approvedTeams.filter(t => t.division_id === resultDivisionFilter)
+
   // Sort results by score_numeric respecting score_order
   const sortedWodResults = selectedWod
-    ? [...wodResults].sort((a, b) => {
-        const av = a.score_numeric ?? 0
-        const bv = b.score_numeric ?? 0
-        return selectedWod.score_order === 'asc' ? av - bv : bv - av
-      })
+    ? [...wodResults]
+        .filter(r => resultFilteredApproved.some(t => t.id === r.team_id))
+        .sort((a, b) => {
+          const av = a.score_numeric ?? 0
+          const bv = b.score_numeric ?? 0
+          return selectedWod.score_order === 'asc' ? av - bv : bv - av
+        })
     : []
 
   const teamsWithoutResult = selectedWod
-    ? approvedTeams
+    ? resultFilteredApproved
         .filter(t => !wodResults.find(r => r.team_id === t.id))
         .sort((a, b) => a.name.localeCompare(b.name))
     : []
@@ -1610,11 +1626,11 @@ export default function CompetitionManage() {
           <div style={{ padding: 16, maxWidth: 1000, margin: '0 auto' }}>
 
             {/* WOD chips */}
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
               {wods.map((wod, idx) => (
                 <button
                   key={wod.id}
-                  onClick={() => setSelectedWodId(wod.id)}
+                  onClick={() => { setSelectedWodId(wod.id); setEnterTeamId(null); setResultDivisionFilter('all'); setSavedMsg(null) }}
                   style={{
                     background: selectedWodId === wod.id ? '#D4FF3A' : '#111111',
                     color: selectedWodId === wod.id ? '#0A0A0A' : '#6B6B68',
@@ -1633,6 +1649,41 @@ export default function CompetitionManage() {
               ))}
             </div>
 
+            {/* Division filter chips */}
+            {divisions.length > 0 && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+                {[{ id: 'all', label: 'TODAS' }, ...divisions.map(d => ({ id: d.id, label: divisionLabel(d) }))].map(opt => (
+                  <button
+                    key={opt.id}
+                    onClick={() => { setResultDivisionFilter(opt.id); setEnterTeamId(null) }}
+                    style={{
+                      background: resultDivisionFilter === opt.id ? '#1A1A1A' : 'none',
+                      border: `1px solid ${resultDivisionFilter === opt.id ? '#D4FF3A' : '#2A2A2A'}`,
+                      color: resultDivisionFilter === opt.id ? '#D4FF3A' : '#6B6B68',
+                      fontFamily: 'JetBrains Mono, monospace',
+                      fontWeight: 700,
+                      fontSize: 9,
+                      letterSpacing: '0.14em',
+                      textTransform: 'uppercase',
+                      padding: '4px 10px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Success banner */}
+            {savedMsg && (
+              <div style={{ background: '#D4FF3A18', border: '1px solid #D4FF3A44', padding: '10px 14px', marginBottom: 12 }}>
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, color: '#D4FF3A', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                  {savedMsg}
+                </span>
+              </div>
+            )}
+
             {!selectedWod ? (
               <div style={{ padding: 32, textAlign: 'center', color: '#3D3D3B', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
                 SELECIONE UM WOD
@@ -1642,7 +1693,7 @@ export default function CompetitionManage() {
                 {/* Summary row */}
                 <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
                   <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#6B6B68', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                    {wodResults.length} reviewed / {approvedTeams.length} total · {teamsWithoutResult.length} without result
+                    {sortedWodResults.length} com resultado / {resultFilteredApproved.length} total · {teamsWithoutResult.length} sem resultado
                   </span>
                   {selectedWod.status !== 'published' && (
                     <Btn color='#D4FF3A' disabled={mutating} onClick={() => publishWod(selectedWod.id)}>
@@ -1743,13 +1794,14 @@ export default function CompetitionManage() {
                               <ScoreInput
                                 type={selectedWod.score_type as WodScoreType}
                                 fields={enterFields}
+                                capSeconds={parseCapSeconds(selectedWod.cap)}
                                 onChange={f => { setEnterFields(f); setEnterError(null) }}
                                 error={enterError}
                               />
                             </td>
                             <td style={{ padding: '8px 12px' }}>
                               <div style={{ display: 'flex', gap: 4 }}>
-                                <Btn color='#D4FF3A' disabled={mutating} onClick={() => handleSubmitResult(team.id)}>
+                                <Btn color='#D4FF3A' disabled={mutating || !!validateScoreFields(enterFields, parseCapSeconds(selectedWod.cap))} onClick={() => handleSubmitResult(team.id, team.name)}>
                                   SALVAR
                                 </Btn>
                                 <Btn color='#6B6B68' onClick={() => { setEnterTeamId(null); setEnterError(null) }}>
@@ -1857,15 +1909,22 @@ const LABEL_SCORE: React.CSSProperties = {
 function ScoreInput({
   type,
   fields,
+  capSeconds,
   onChange,
   error,
 }: {
   type: WodScoreType
   fields: ScoreFields
+  capSeconds?: number | null
   onChange: (f: ScoreFields) => void
   error: string | null
 }) {
   const base = { ...fields, type }
+  // Real-time cap error shown inline (before user tries to save)
+  const capError = type === 'time' && capSeconds != null
+    ? validateScoreFields(fields, capSeconds)
+    : null
+  const displayError = error ?? capError
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -1965,9 +2024,9 @@ function ScoreInput({
           </>
         )}
       </div>
-      {error && (
+      {displayError && (
         <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#FF3B30' }}>
-          {error}
+          {displayError}
         </span>
       )}
     </div>
