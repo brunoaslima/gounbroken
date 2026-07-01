@@ -8,6 +8,13 @@ Formato de versão: `## [versão] — AAAA-MM-DD`
 
 ## [0.9.9] — 2026-07-01
 
+### Competition → Scoring
+
+- Competition → Leaderboard: leaderboard now works as a live scoreboard — results appear as soon as submitted, without requiring head judge to publish each result
+- Competition → Scoring: dynamic N-position scoring per division — 1st place earns N pts (N = approved teams in the division), last earns 1 pt
+- Competition → Results: results table in CompetitionManage shows per-division rank and points
+- Competition → Results: `get_competition_results` SECURITY DEFINER RPC bypasses RLS for judge/admin fetches
+
 ### Competition → Divisions
 
 - Competition → Divisions: new `competition_divisions` table (format × composition × category) with RLS — organizer can create/delete, everyone can read
