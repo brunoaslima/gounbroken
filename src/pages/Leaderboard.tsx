@@ -112,6 +112,55 @@ export default function Leaderboard() {
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL)
   const [refreshKey, setRefreshKey] = useState(0)
   const countdownRef = useRef(REFRESH_INTERVAL)
+  const divFilterRef = useRef<HTMLDivElement>(null)
+  const [filterHasMore, setFilterHasMore] = useState(false)
+  const dragRef = useRef({ active: false, startX: 0, scrollLeft: 0, moved: false })
+
+  const checkFilterOverflow = useCallback(() => {
+    const el = divFilterRef.current
+    if (!el) return
+    setFilterHasMore(el.scrollLeft + el.clientWidth < el.scrollWidth - 2)
+  }, [])
+
+  useEffect(() => {
+    checkFilterOverflow()
+    const el = divFilterRef.current
+    if (!el) return
+    el.addEventListener('scroll', checkFilterOverflow, { passive: true })
+    window.addEventListener('resize', checkFilterOverflow, { passive: true })
+    return () => {
+      el.removeEventListener('scroll', checkFilterOverflow)
+      window.removeEventListener('resize', checkFilterOverflow)
+    }
+  }, [checkFilterOverflow, divisions])
+
+  const onFilterMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = divFilterRef.current
+    if (!el) return
+    dragRef.current = { active: true, startX: e.pageX - el.offsetLeft, scrollLeft: el.scrollLeft, moved: false }
+    el.style.cursor = 'grabbing'
+  }, [])
+
+  const onFilterMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = divFilterRef.current
+    if (!el || !dragRef.current.active) return
+    const x = e.pageX - el.offsetLeft
+    const delta = x - dragRef.current.startX
+    if (Math.abs(delta) > 3) dragRef.current.moved = true
+    el.scrollLeft = dragRef.current.scrollLeft - delta
+  }, [])
+
+  const onFilterMouseUp = useCallback(() => {
+    const el = divFilterRef.current
+    dragRef.current.active = false
+    if (el) el.style.cursor = 'grab'
+  }, [])
+
+  const onFilterClick = useCallback((id: string | null) => {
+    // suppress click when the mouse was dragged
+    if (dragRef.current.moved) { dragRef.current.moved = false; return }
+    setSelectedDivisionId(id)
+  }, [])
 
   const load = useCallback(async () => {
     if (!id) return
@@ -171,7 +220,7 @@ export default function Leaderboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
+    <div className="bg-[#0A0A0A] flex flex-col" style={{ position: 'fixed', inset: 0, zIndex: 10, overflow: 'hidden' }}>
       {/* TOP BAR */}
       <div
         className="flex items-center justify-between gap-3 px-4 border-b border-[#2A2A2A]"
@@ -293,30 +342,56 @@ export default function Leaderboard() {
 
       {/* Division filter — only visible when 2+ divisions exist */}
       {divisions.length >= 2 && (
-        <div
-          className="flex items-center border-b border-[#2A2A2A] overflow-x-auto"
-          style={{ gap: 1, background: '#2A2A2A', scrollbarWidth: 'none', flexShrink: 0 }}
-        >
-          {[{ id: null, label: 'ALL' }, ...divisions.map(d => ({ id: d.id, label: divisionShortLabel(d) }))].map(item => {
-            const active = item.id === selectedDivisionId
-            return (
-              <button
-                key={item.id ?? 'all'}
-                onClick={() => setSelectedDivisionId(item.id)}
-                className="font-mono font-black uppercase shrink-0"
-                style={{
-                  fontSize: 9, letterSpacing: '0.18em',
-                  padding: '8px 12px',
-                  background: active ? '#D4FF3A' : '#0A0A0A',
-                  color: active ? '#0A0A0A' : '#6B6B68',
-                  border: 'none', cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {item.label}
-              </button>
-            )
-          })}
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <div
+            ref={divFilterRef}
+            className="flex items-center border-b border-[#2A2A2A]"
+            style={{
+              gap: 1, background: '#2A2A2A',
+              overflowX: 'scroll', scrollbarWidth: 'none', msOverflowStyle: 'none',
+              WebkitOverflowScrolling: 'touch',
+              touchAction: 'pan-x',
+              cursor: 'grab',
+              userSelect: 'none',
+            }}
+            onMouseDown={onFilterMouseDown}
+            onMouseMove={onFilterMouseMove}
+            onMouseUp={onFilterMouseUp}
+            onMouseLeave={onFilterMouseUp}
+          >
+            {[{ id: null, label: 'ALL' }, ...divisions.map(d => ({ id: d.id, label: divisionShortLabel(d) }))].map(item => {
+              const active = item.id === selectedDivisionId
+              return (
+                <button
+                  key={item.id ?? 'all'}
+                  onClick={() => onFilterClick(item.id)}
+                  className="font-mono font-black uppercase shrink-0"
+                  style={{
+                    fontSize: 9, letterSpacing: '0.18em',
+                    padding: '8px 12px',
+                    background: active ? '#D4FF3A' : '#0A0A0A',
+                    color: active ? '#0A0A0A' : '#6B6B68',
+                    border: 'none', cursor: 'inherit',
+                    whiteSpace: 'nowrap',
+                    touchAction: 'pan-x',
+                    WebkitTapHighlightColor: 'transparent',
+                  }}
+                >
+                  {item.label}
+                </button>
+              )
+            })}
+          </div>
+          {/* right-fade indicator — visible only when more pills are hidden to the right */}
+          {filterHasMore && (
+            <div
+              style={{
+                position: 'absolute', top: 0, right: 0, bottom: 0, width: 48,
+                pointerEvents: 'none',
+                background: 'linear-gradient(to right, transparent, #0A0A0A)',
+              }}
+            />
+          )}
         </div>
       )}
 
@@ -334,7 +409,7 @@ export default function Leaderboard() {
           </span>
         </div>
       ) : (
-        <div className="flex-1 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
+        <div className="flex-1 overflow-auto" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', minHeight: 0 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto', fontFamily: 'var(--font-mono, monospace)', fontVariantNumeric: 'tabular-nums' }}>
             <thead>
               <tr style={{ background: '#0A0A0A', borderBottom: '2px solid #F5F5F0' }}>
@@ -358,17 +433,6 @@ export default function Leaderboard() {
                   }}
                 >
                   EQUIPE
-                </th>
-                <th
-                  style={{
-                    padding: '8px 10px', textAlign: 'left', width: 110,
-                    fontFamily: 'inherit', fontSize: 10, fontWeight: 800,
-                    letterSpacing: '0.18em', textTransform: 'uppercase', color: '#6B6B68',
-                    whiteSpace: 'nowrap',
-                  }}
-                  className="hidden sm:table-cell"
-                >
-                  BOX
                 </th>
                 {publishedWods.map((w, i) => (
                   <th
@@ -440,23 +504,6 @@ export default function Leaderboard() {
                     >
                       {row.team_name}
                     </td>
-                    {/* BOX */}
-                    <td
-                      className="hidden sm:table-cell"
-                      style={{
-                        padding: '0 10px',
-                        fontSize: 11,
-                        color: '#6B6B68',
-                        letterSpacing: '0.04em',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        maxWidth: 110,
-                        borderBottom: '1px solid #1A1A1A',
-                      }}
-                    >
-                      {row.box ?? '—'}
-                    </td>
                     {/* WOD CELLS */}
                     {publishedWods.map(w => {
                       const cell = row.per_wod?.[w.id]
@@ -470,37 +517,38 @@ export default function Leaderboard() {
                               borderBottom: '1px solid #1A1A1A',
                             }}
                           >
-                            DNS
+                            —
                           </td>
                         )
                       }
-                      const isPos1 = cell.position === 1
+                      const pos = cell.position
+                      const bg =
+                        pos === 1 ? '#C9A227' :
+                        pos === 2 ? '#8C9094' :
+                        pos === 3 ? '#8B4A2D' :
+                                   '#1E1E1E'
+                      const color =
+                        pos === 1 ? '#0A0A0A' :
+                        pos === 2 ? '#0A0A0A' :
+                                   '#F5F5F0'
                       return (
                         <td
                           key={w.id}
                           style={{
-                            textAlign: 'center', padding: '0 8px',
+                            textAlign: 'center', padding: '0 6px',
                             borderBottom: '1px solid #1A1A1A',
-                            whiteSpace: 'nowrap',
                           }}
                         >
-                          <span
-                            style={{
-                              fontSize: isPos1 ? 15 : 13,
-                              fontWeight: 800,
-                              color: isPos1 ? '#D4FF3A' : '#F5F5F0',
-                              letterSpacing: 0,
-                            }}
-                          >
-                            {cell.position}
-                          </span>
-                          <span
-                            style={{
-                              fontSize: 9, color: '#6B6B68',
-                              marginLeft: 4, fontWeight: 700,
-                            }}
-                          >
-                            {cell.points}p
+                          <span style={{
+                            display: 'inline-block',
+                            background: bg, color,
+                            fontFamily: 'JetBrains Mono, monospace',
+                            fontSize: 12, fontWeight: 800,
+                            letterSpacing: '0.04em',
+                            padding: '3px 7px',
+                            fontVariantNumeric: 'tabular-nums',
+                          }}>
+                            {cell.points}
                           </span>
                         </td>
                       )

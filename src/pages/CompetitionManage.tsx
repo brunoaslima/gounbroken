@@ -3,6 +3,15 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { useProfile } from '@/hooks/useProfile'
+import {
+  encodeScore,
+  decodeScore,
+  validateScoreFields,
+  parseCapSeconds,
+  parseDisplayScore,
+  type WodScoreType,
+  type ScoreFields,
+} from '@/lib/competitionScore'
 import type {
   Competition,
   CompetitionDivision,
@@ -22,8 +31,6 @@ function divisionLabel(d: CompetitionDivision) {
   return `${FORMAT_LABEL[d.format]} · ${d.composition.toUpperCase()} · ${d.category.toUpperCase()}`
 }
 
-// ─── CF Games points scale ────────────────────────────────────────────────────
-const CF_POINTS = [100,95,92,89,86,83,80,78,76,74,72,70,68,66,64,62,60,58,56,54,52,50,48,46,44,42,40,38,36,34,32,30,28,26,24,22,20,18,16,14,12,10,8,6,4,2,1,0]
 
 // ─── StatusPill ───────────────────────────────────────────────────────────────
 const STATUS_CFG: Record<string, { dot: string; text: string; label: string }> = {
@@ -198,7 +205,10 @@ export default function CompetitionManage() {
   const [overrideDisplay, setOverrideDisplay] = useState('')
   const [overrideReason, setOverrideReason] = useState('')
   const [enterTeamId, setEnterTeamId] = useState<string | null>(null)
-  const [enterDisplay, setEnterDisplay] = useState('')
+  const [enterFields, setEnterFields] = useState<ScoreFields>({ type: 'time' })
+  const [enterError, setEnterError] = useState<string | null>(null)
+  const [savedMsg, setSavedMsg] = useState<string | null>(null)
+  const [resultDivisionFilter, setResultDivisionFilter] = useState<string>('all')
 
   // ── Status change ──
   const [statusChanging, setStatusChanging] = useState(false)
@@ -227,6 +237,7 @@ export default function CompetitionManage() {
       if (teamsRes.error) throw new Error(teamsRes.error.message)
       if (rolesRes.error) throw new Error(rolesRes.error.message)
       if (auditRes.error) throw new Error(`audit_log: ${auditRes.error.message}`)
+      if (divsRes.error) throw new Error(`competition_divisions: ${divsRes.error.message}`)
 
       const compData = compRes.data as Competition
       const wodsData = (wodsRes.data ?? []) as CompetitionWod[]
@@ -264,17 +275,10 @@ export default function CompetitionManage() {
         setMembersByTeam({})
       }
 
-      // Results for all wods
-      if (wodsData.length > 0) {
-        const wodIds = wodsData.map(w => w.id)
-        const { data: resultsData } = await supabase
-          .from('competition_results')
-          .select('*')
-          .in('wod_id', wodIds)
-        setResults((resultsData ?? []) as CompetitionResult[])
-      } else {
-        setResults([])
-      }
+      // Results for all wods — uses SECURITY DEFINER RPC to bypass RLS
+      const { data: resultsData, error: resultsError } = await supabase
+        .rpc('get_competition_results', { p_competition_id: id })
+      if (!resultsError) setResults((resultsData ?? []) as CompetitionResult[])
 
       // Batch profile lookup — inclui membros de equipes para exibição
       const userIds = new Set<string>()
@@ -301,6 +305,13 @@ export default function CompetitionManage() {
   }, [id, user?.id])
 
   useEffect(() => { load() }, [load])
+
+  // Auto-select first WOD when entering RESULTS tab
+  useEffect(() => {
+    if (activeTab === 'RESULTS' && !selectedWodId && wods.length > 0) {
+      setSelectedWodId(wods[0].id)
+    }
+  }, [activeTab, wods, selectedWodId])
 
   // ─── Guards ───────────────────────────────────────────────────────────────────
   const isAdmin = profile?.roles?.includes('admin') ?? false
@@ -372,14 +383,16 @@ export default function CompetitionManage() {
 
   // ─── Override result ─────────────────────────────────────────────────────────
   async function handleOverride(resultId: string) {
-    if (!overrideDisplay.trim() || !overrideReason.trim()) return
+    if (!overrideDisplay.trim() || !overrideReason.trim() || !selectedWod) return
+    const scoreNumeric = parseDisplayScore(selectedWod.score_type as WodScoreType, overrideDisplay)
+    if (scoreNumeric === null) { setMutateError('Formato inválido para este tipo de score'); return }
     setMutating(true)
     setMutateError(null)
     try {
       const { error } = await supabase.rpc('override_competition_result', {
         p_result_id: resultId,
         p_raw_result: overrideDisplay.trim(),
-        p_value: parseFloat(overrideDisplay) || 0,
+        p_value: scoreNumeric,
         p_reason: overrideReason.trim(),
       })
       if (error) throw new Error(error.message)
@@ -395,25 +408,34 @@ export default function CompetitionManage() {
   }
 
   // ─── Submit new result for a team ────────────────────────────────────────────
-  async function handleSubmitResult(teamId: string) {
-    if (!selectedWod || !enterDisplay.trim()) return
+  async function handleSubmitResult(teamId: string, teamName: string) {
+    if (!selectedWod) return
+    const capSecs = parseCapSeconds(selectedWod.cap)
+    const validationError = validateScoreFields(enterFields, capSecs)
+    if (validationError) { setEnterError(validationError); return }
+    const encoded = encodeScore(enterFields)
+    if (!encoded) { setEnterError('Resultado inválido'); return }
     setMutating(true)
     setMutateError(null)
+    setEnterError(null)
     try {
-      const numeric = parseFloat(enterDisplay.replace(',', '.')) || 0
       const { error } = await supabase.rpc('submit_competition_result', {
         p_wod_id: selectedWod.id,
         p_team_id: teamId,
-        p_raw_result: enterDisplay.trim(),
+        p_raw_result: encoded.raw_result,
         p_score_type: selectedWod.score_type,
-        p_score_numeric: numeric,
+        p_score_numeric: encoded.score_numeric,
       })
       if (error) throw new Error(error.message)
       setEnterTeamId(null)
-      setEnterDisplay('')
+      setEnterFields({ type: selectedWod.score_type as WodScoreType })
+      setSavedMsg(`RESULTADO SALVO — ${teamName} · ${encoded.raw_result}`)
+      setTimeout(() => setSavedMsg(null), 4000)
       await load()
     } catch (e) {
-      setMutateError(e instanceof Error ? e.message : 'Erro')
+      const msg = e instanceof Error ? e.message : 'Erro ao salvar'
+      setEnterError(msg)
+      setMutateError(msg)
     } finally {
       setMutating(false)
     }
@@ -540,17 +562,25 @@ export default function CompetitionManage() {
     ? results.filter(r => r.wod_id === selectedWod.id)
     : []
 
+  const resultFilteredApproved = resultDivisionFilter === 'all'
+    ? approvedTeams
+    : approvedTeams.filter(t => t.division_id === resultDivisionFilter)
+
   // Sort results by score_numeric respecting score_order
   const sortedWodResults = selectedWod
-    ? [...wodResults].sort((a, b) => {
-        const av = a.score_numeric ?? 0
-        const bv = b.score_numeric ?? 0
-        return selectedWod.score_order === 'asc' ? av - bv : bv - av
-      })
+    ? [...wodResults]
+        .filter(r => resultFilteredApproved.some(t => t.id === r.team_id) && r.score_numeric != null)
+        .sort((a, b) => {
+          const av = a.score_numeric!
+          const bv = b.score_numeric!
+          return selectedWod.score_order === 'asc' ? av - bv : bv - av
+        })
     : []
 
   const teamsWithoutResult = selectedWod
-    ? approvedTeams.filter(t => !wodResults.find(r => r.team_id === t.id))
+    ? resultFilteredApproved
+        .filter(t => !wodResults.find(r => r.team_id === t.id))
+        .sort((a, b) => a.name.localeCompare(b.name))
     : []
 
   // ─── Render ───────────────────────────────────────────────────────────────────
@@ -585,7 +615,7 @@ export default function CompetitionManage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0A0A0A', color: '#F5F5F0', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 10, background: '#0A0A0A', color: '#F5F5F0', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', flexDirection: 'column' }}>
 
       {/* ── Topbar ──────────────────────────────────────────────────────────────── */}
       <div style={{ background: '#111111', borderBottom: '1px solid #2A2A2A', padding: '0 16px', height: 52, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
@@ -1596,11 +1626,11 @@ export default function CompetitionManage() {
           <div style={{ padding: 16, maxWidth: 1000, margin: '0 auto' }}>
 
             {/* WOD chips */}
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
               {wods.map((wod, idx) => (
                 <button
                   key={wod.id}
-                  onClick={() => setSelectedWodId(wod.id)}
+                  onClick={() => { setSelectedWodId(wod.id); setEnterTeamId(null); setResultDivisionFilter('all'); setSavedMsg(null) }}
                   style={{
                     background: selectedWodId === wod.id ? '#D4FF3A' : '#111111',
                     color: selectedWodId === wod.id ? '#0A0A0A' : '#6B6B68',
@@ -1619,6 +1649,41 @@ export default function CompetitionManage() {
               ))}
             </div>
 
+            {/* Division filter chips */}
+            {divisions.length > 0 && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+                {[{ id: 'all', label: 'TODAS' }, ...divisions.map(d => ({ id: d.id, label: divisionLabel(d) }))].map(opt => (
+                  <button
+                    key={opt.id}
+                    onClick={() => { setResultDivisionFilter(opt.id); setEnterTeamId(null) }}
+                    style={{
+                      background: resultDivisionFilter === opt.id ? '#1A1A1A' : 'none',
+                      border: `1px solid ${resultDivisionFilter === opt.id ? '#D4FF3A' : '#2A2A2A'}`,
+                      color: resultDivisionFilter === opt.id ? '#D4FF3A' : '#6B6B68',
+                      fontFamily: 'JetBrains Mono, monospace',
+                      fontWeight: 700,
+                      fontSize: 9,
+                      letterSpacing: '0.14em',
+                      textTransform: 'uppercase',
+                      padding: '4px 10px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Success banner */}
+            {savedMsg && (
+              <div style={{ background: '#D4FF3A18', border: '1px solid #D4FF3A44', padding: '10px 14px', marginBottom: 12 }}>
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, color: '#D4FF3A', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                  {savedMsg}
+                </span>
+              </div>
+            )}
+
             {!selectedWod ? (
               <div style={{ padding: 32, textAlign: 'center', color: '#3D3D3B', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
                 SELECIONE UM WOD
@@ -1628,7 +1693,7 @@ export default function CompetitionManage() {
                 {/* Summary row */}
                 <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
                   <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#6B6B68', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                    {wodResults.length} reviewed / {approvedTeams.length} total · {teamsWithoutResult.length} without result
+                    {sortedWodResults.length} com resultado / {resultFilteredApproved.length} total · {teamsWithoutResult.length} sem resultado
                   </span>
                   {selectedWod.status !== 'published' && (
                     <Btn color='#D4FF3A' disabled={mutating} onClick={() => publishWod(selectedWod.id)}>
@@ -1651,7 +1716,7 @@ export default function CompetitionManage() {
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid #2A2A2A' }}>
-                        {['#','EQUIPE','RESULTADO','POSICAO','PONTOS CF','ACOES'].map(h => (
+                        {['#','EQUIPE','RESULTADO','POSICAO','PONTOS','ACOES'].map(h => (
                           <th key={h} style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68', padding: '8px 12px', textAlign: 'left', background: '#0D0D0D' }}>
                             {h}
                           </th>
@@ -1659,15 +1724,24 @@ export default function CompetitionManage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {sortedWodResults.map((res, pos) => {
+                      {sortedWodResults.map((res, _pos) => {
                         const team = teams.find(t => t.id === res.team_id)
-                        const points = CF_POINTS[pos] ?? 0
+                        const divId = team?.division_id ?? null
+                        const nDiv = approvedTeams.filter(t => t.division_id === divId).length || approvedTeams.length
+                        const sameDivResults = sortedWodResults.filter(r => {
+                          const t = teams.find(t2 => t2.id === r.team_id)
+                          return t?.division_id === divId
+                        })
+                        const divRank = sameDivResults.indexOf(res) + 1
+                        const points = Math.max(nDiv - divRank + 1, 0)
                         const isEditing = overrideResultId === res.id
-                        const displayVal = res.score_numeric != null ? String(res.score_numeric) : '—'
+                        const displayVal = res.score_numeric != null
+                          ? decodeScore(selectedWod.score_type as WodScoreType, res.score_numeric)
+                          : '—'
                         return (
                           <tr key={res.id} style={{ borderBottom: '1px solid #1A1A1A' }}>
                             <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 11, color: '#3D3D3B' }}>
-                              {String(pos + 1).padStart(2, '0')}
+                              {String(divRank).padStart(2, '0')}
                             </td>
                             <td style={{ padding: '12px', fontWeight: 700, fontSize: 13 }}>
                               {team?.name ?? res.team_id}
@@ -1676,7 +1750,7 @@ export default function CompetitionManage() {
                               {displayVal}
                             </td>
                             <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#6B6B68' }}>
-                              {pos + 1}°
+                              {divRank}°
                             </td>
                             <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 700, color: '#D4FF3A' }}>
                               {points}
@@ -1709,7 +1783,7 @@ export default function CompetitionManage() {
                                   </div>
                                 </div>
                               ) : (
-                                <Btn color='#6B6B68' onClick={() => { setOverrideResultId(res.id); setOverrideDisplay(displayVal !== '—' ? displayVal : '') }}>
+                                <Btn color='#6B6B68' onClick={() => { setOverrideResultId(res.id); setOverrideDisplay(res.raw_result ?? (displayVal !== '—' ? displayVal : '')) }}>
                                   CORRIGIR
                                 </Btn>
                               )}
@@ -1719,65 +1793,51 @@ export default function CompetitionManage() {
                       })}
                       {teamsWithoutResult.map(team => {
                         const isEntering = enterTeamId === team.id
-                        return (
+                        return isEntering ? (
                           <tr key={team.id} style={{ borderBottom: '1px solid #1A1A1A', background: '#0D0D0D' }}>
-                            <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 11, color: '#3D3D3B' }}>
-                              —
+                            <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 11, color: '#3D3D3B' }}>—</td>
+                            <td style={{ padding: '8px 12px', fontWeight: 700, fontSize: 13, color: '#F5F5F0' }}>{team.name}</td>
+                            <td colSpan={3} style={{ padding: '8px 12px' }}>
+                              <ScoreInput
+                                type={selectedWod.score_type as WodScoreType}
+                                fields={enterFields}
+                                capSeconds={parseCapSeconds(selectedWod.cap)}
+                                onChange={f => { setEnterFields(f); setEnterError(null) }}
+                                error={enterError}
+                              />
                             </td>
-                            <td style={{ padding: '12px', fontWeight: 700, fontSize: 13, color: '#6B6B68' }}>
-                              {team.name}
-                            </td>
-                            <td style={{ padding: '12px' }} colSpan={isEntering ? 1 : 2}>
-                              {isEntering ? (
-                                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                                  <input
-                                    autoFocus
-                                    type='text'
-                                    placeholder='Resultado...'
-                                    value={enterDisplay}
-                                    onChange={e => setEnterDisplay(e.target.value)}
-                                    onKeyDown={e => { if (e.key === 'Enter') handleSubmitResult(team.id) }}
-                                    style={{ background: '#111111', border: '1px solid #D4FF3A', color: '#F5F5F0', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, padding: '4px 8px', outline: 'none', width: 140, borderRadius: 0 }}
-                                  />
-                                </div>
-                              ) : (
-                                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#3D3D3B', letterSpacing: '0.12em' }}>
-                                  SEM RESULTADO
-                                </span>
-                              )}
-                            </td>
-                            {!isEntering && (
-                              <>
-                                <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3D3D3B' }}>—</td>
-                                <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3D3D3B' }}>0</td>
-                              </>
-                            )}
-                            {isEntering && (
-                              <>
-                                <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3D3D3B' }}>—</td>
-                                <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3D3D3B' }}>—</td>
-                              </>
-                            )}
-                            <td style={{ padding: '12px' }}>
-                              {isEntering ? (
-                                <div style={{ display: 'flex', gap: 4 }}>
-                                  <Btn color='#D4FF3A' disabled={!enterDisplay.trim() || mutating} onClick={() => handleSubmitResult(team.id)}>
-                                    SALVAR
-                                  </Btn>
-                                  <Btn color='#6B6B68' onClick={() => { setEnterTeamId(null); setEnterDisplay('') }}>
-                                    CANCEL
-                                  </Btn>
-                                </div>
-                              ) : (
-                                <Btn color='#D4FF3A' onClick={() => { setEnterTeamId(team.id); setEnterDisplay(''); setOverrideResultId(null) }}>
-                                  INSERIR
+                            <td style={{ padding: '8px 12px' }}>
+                              <div style={{ display: 'flex', gap: 4 }}>
+                                <Btn color='#D4FF3A' disabled={mutating || !!validateScoreFields(enterFields, parseCapSeconds(selectedWod.cap))} onClick={() => handleSubmitResult(team.id, team.name)}>
+                                  SALVAR
                                 </Btn>
-                              )}
+                                <Btn color='#6B6B68' onClick={() => { setEnterTeamId(null); setEnterError(null) }}>
+                                  CANCEL
+                                </Btn>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          <tr key={team.id} style={{ borderBottom: '1px solid #1A1A1A', background: '#0D0D0D' }}>
+                            <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 11, color: '#3D3D3B' }}>—</td>
+                            <td style={{ padding: '12px', fontWeight: 700, fontSize: 13, color: '#6B6B68' }}>{team.name}</td>
+                            <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#3D3D3B', letterSpacing: '0.12em' }}>SEM RESULTADO</td>
+                            <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3D3D3B' }}>—</td>
+                            <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3D3D3B' }}>0</td>
+                            <td style={{ padding: '12px' }}>
+                              <Btn color='#D4FF3A' onClick={() => {
+                                setEnterTeamId(team.id)
+                                setEnterFields({ type: selectedWod.score_type as WodScoreType })
+                                setEnterError(null)
+                                setOverrideResultId(null)
+                              }}>
+                                INSERIR
+                              </Btn>
                             </td>
                           </tr>
                         )
                       })}
-                      {approvedTeams.length === 0 && (
+                      {resultFilteredApproved.length === 0 && (
                         <tr>
                           <td colSpan={6} style={{ padding: '24px 12px', textAlign: 'center', color: '#3D3D3B', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
                             NENHUMA EQUIPE APROVADA
@@ -1824,6 +1884,164 @@ export default function CompetitionManage() {
         )}
 
       </div>
+    </div>
+  )
+}
+
+// ─── ScoreInput ───────────────────────────────────────────────────────────────
+
+const INPUT_SCORE: React.CSSProperties = {
+  background: '#111111',
+  border: '1px solid #D4FF3A',
+  color: '#F5F5F0',
+  fontFamily: 'JetBrains Mono, monospace',
+  fontWeight: 700,
+  fontSize: 13,
+  padding: '6px 8px',
+  outline: 'none',
+  borderRadius: 0,
+  width: 64,
+  textAlign: 'center',
+}
+
+const LABEL_SCORE: React.CSSProperties = {
+  fontFamily: 'JetBrains Mono, monospace',
+  fontSize: 9,
+  fontWeight: 700,
+  letterSpacing: '0.14em',
+  textTransform: 'uppercase',
+  color: '#6B6B68',
+}
+
+function ScoreInput({
+  type,
+  fields,
+  capSeconds,
+  onChange,
+  error,
+}: {
+  type: WodScoreType
+  fields: ScoreFields
+  capSeconds?: number | null
+  onChange: (f: ScoreFields) => void
+  error: string | null
+}) {
+  const base = { ...fields, type }
+
+  // Show live validation only after user has started typing something
+  const hasValue = type === 'time'
+    ? ((fields.minutes ?? 0) > 0 || (fields.seconds ?? 0) > 0)
+    : type === 'reps' ? (fields.reps ?? 0) > 0
+    : type === 'weight' ? (fields.kg ?? 0) > 0
+    : ((fields.rounds ?? 0) > 0 || (fields.partialReps ?? 0) > 0)
+
+  const liveError = hasValue ? validateScoreFields(fields, capSeconds ?? undefined) : null
+  // error prop = explicit error from save attempt (takes priority)
+  const displayError = error ?? liveError
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {type === 'time' && (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <span style={LABEL_SCORE}>MIN</span>
+              <input
+                autoFocus
+                type='number'
+                min={0}
+                max={99}
+                value={fields.minutes ?? ''}
+                placeholder='00'
+                onChange={e => onChange({ ...base, minutes: e.target.value === '' ? undefined : parseInt(e.target.value) })}
+                style={INPUT_SCORE}
+              />
+            </div>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 18, fontWeight: 700, color: '#F5F5F0', marginTop: 14 }}>:</span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <span style={LABEL_SCORE}>SEG</span>
+              <input
+                type='number'
+                min={0}
+                max={59}
+                value={fields.seconds ?? ''}
+                placeholder='00'
+                onChange={e => onChange({ ...base, seconds: e.target.value === '' ? undefined : Math.min(59, parseInt(e.target.value)) })}
+                style={INPUT_SCORE}
+              />
+            </div>
+          </>
+        )}
+
+        {type === 'reps' && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+            <span style={LABEL_SCORE}>REPS</span>
+            <input
+              autoFocus
+              type='number'
+              min={1}
+              value={fields.reps ?? ''}
+              placeholder='0'
+              onChange={e => onChange({ ...base, reps: e.target.value === '' ? undefined : parseInt(e.target.value) })}
+              style={{ ...INPUT_SCORE, width: 96 }}
+            />
+          </div>
+        )}
+
+        {type === 'weight' && (
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <span style={LABEL_SCORE}>KG</span>
+              <input
+                autoFocus
+                type='number'
+                min={0.5}
+                step={0.5}
+                value={fields.kg ?? ''}
+                placeholder='0'
+                onChange={e => onChange({ ...base, kg: e.target.value === '' ? undefined : parseFloat(e.target.value) })}
+                style={{ ...INPUT_SCORE, width: 96 }}
+              />
+            </div>
+            <span style={{ ...LABEL_SCORE, marginBottom: 8 }}>KG</span>
+          </div>
+        )}
+
+        {type === 'rounds_plus_reps' && (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <span style={LABEL_SCORE}>ROUNDS</span>
+              <input
+                autoFocus
+                type='number'
+                min={0}
+                value={fields.rounds ?? ''}
+                placeholder='0'
+                onChange={e => onChange({ ...base, rounds: e.target.value === '' ? undefined : parseInt(e.target.value) })}
+                style={INPUT_SCORE}
+              />
+            </div>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: 700, color: '#6B6B68', marginTop: 14 }}>+</span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <span style={LABEL_SCORE}>REPS</span>
+              <input
+                type='number'
+                min={0}
+                max={9999}
+                value={fields.partialReps ?? ''}
+                placeholder='0'
+                onChange={e => onChange({ ...base, partialReps: e.target.value === '' ? undefined : parseInt(e.target.value) })}
+                style={INPUT_SCORE}
+              />
+            </div>
+          </>
+        )}
+      </div>
+      {displayError && (
+        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#FF3B30' }}>
+          {displayError}
+        </span>
+      )}
     </div>
   )
 }

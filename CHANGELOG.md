@@ -6,7 +6,37 @@ Formato de versão: `## [versão] — AAAA-MM-DD`
 
 ---
 
+## [1.0.0] — 2026-07-01
+
+### Competition → Judge Panel & Leaderboard polish
+
+- Competition → JudgePanel: structured score inputs (MIN/SEC/REPS/KG/ROUNDS) matching the Results tab format
+- Competition → JudgePanel: confirm button always visible via `position: fixed` bottom — no longer hidden behind keyboard or tall content
+- Competition → JudgePanel: division filter pills with horizontal scroll, matching leaderboard
+- Competition → JudgePanel: teams sorted alphabetically; division label shown instead of box name for both pending and submitted teams
+- Competition → JudgePanel: live cap validation error shown inline (e.g. time exceeds 08:00 cap)
+- Competition → JudgePanel: score inputs allow clearing to zero (empty field instead of stuck at 0)
+- Competition → Leaderboard: WOD cells show points as primary value; top-3 positions highlighted with gold/silver/bronze badge
+- Competition → Leaderboard: BOX column removed
+- Competition → Leaderboard: teams without a result show `—` instead of DNS
+- Competition → Leaderboard: live scoreboard — submitted results appear immediately without requiring publish
+
+### Platform → Layout & Scroll fixes
+
+- Platform → Layout: `TabLayout` bounded to `h-dvh overflow-hidden` on all breakpoints — eliminates document-level scroll on mobile
+- Platform → Layout: full-screen pages (`JudgePanel`, `Leaderboard`, `CompetitionManage`, `CompetitionDetail`) use `position: fixed; inset: 0` to escape the layout wrapper and manage their own scroll
+- Platform → Layout: resolves all cases where last list item was cut off or confirm button was unreachable on mobile
+
+---
+
 ## [0.9.9] — 2026-07-01
+
+### Competition → Scoring
+
+- Competition → Leaderboard: leaderboard now works as a live scoreboard — results appear as soon as submitted, without requiring head judge to publish each result
+- Competition → Scoring: dynamic N-position scoring per division — 1st place earns N pts (N = approved teams in the division), last earns 1 pt
+- Competition → Results: results table in CompetitionManage shows per-division rank and points
+- Competition → Results: `get_competition_results` SECURITY DEFINER RPC bypasses RLS for judge/admin fetches
 
 ### Competition → Divisions
 

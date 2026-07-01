@@ -3,7 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { useProfile } from '@/hooks/useProfile'
-import type { CompetitionWod, CompetitionTeam, CompetitionRole, CompetitionResult } from '@/types'
+import type { CompetitionWod, CompetitionTeam, CompetitionRole, CompetitionResult, CompetitionDivision } from '@/types'
+import { encodeScore, validateScoreFields, parseCapSeconds } from '@/lib/competitionScore'
+import type { ScoreFields, WodScoreType } from '@/lib/competitionScore'
+
+const FORMAT_SHORT: Record<string, string> = { individual: 'IND', pair: 'PAIR', team3: 'T3', team4: 'T4' }
+function divLabel(d: CompetitionDivision) {
+  return `${FORMAT_SHORT[d.format] ?? d.format} · ${d.composition.toUpperCase()} · ${d.category.toUpperCase()}`
+}
 
 const SCORE_LABEL: Record<string, string> = {
   time:             'FOR TIME',
@@ -12,38 +19,6 @@ const SCORE_LABEL: Record<string, string> = {
   rounds_plus_reps: 'ROUNDS + REPS',
 }
 
-function parseScore(type: string, val: string): { raw: string; numeric: number } | null {
-  switch (type) {
-    case 'time': {
-      const m = val.match(/^(\d{1,2}):(\d{2})$/)
-      if (!m) return null
-      const secs = parseInt(m[2], 10)
-      if (secs >= 60) return null
-      const total = parseInt(m[1], 10) * 60 + secs
-      return { raw: val, numeric: total }
-    }
-    case 'reps': {
-      const n = parseInt(val, 10)
-      if (isNaN(n) || n < 0) return null
-      return { raw: val, numeric: n }
-    }
-    case 'weight': {
-      const n = parseFloat(val.replace(',', '.'))
-      if (isNaN(n) || n <= 0) return null
-      return { raw: `${val} kg`, numeric: n }
-    }
-    case 'rounds_plus_reps': {
-      const m = val.match(/^(\d+)\s*\+\s*(\d+)$/)
-      if (!m) return null
-      return { raw: val, numeric: parseInt(m[1], 10) * 1000 + parseInt(m[2], 10) }
-    }
-    default:
-      return null
-  }
-}
-
-// Exported for unit tests
-export { parseScore }
 
 export default function JudgePanel() {
   const { id } = useParams<{ id: string }>()
@@ -58,13 +33,15 @@ export default function JudgePanel() {
   const [totalWodsCount, setTotalWodsCount] = useState(0)
   const [teams, setTeams] = useState<CompetitionTeam[]>([])
   const [results, setResults] = useState<CompetitionResult[]>([])
+  const [divisions, setDivisions] = useState<CompetitionDivision[]>([])
   const [myRole, setMyRole] = useState<CompetitionRole | null>(null)
 
   const [activeWodId, setActiveWodId] = useState<string | null>(null)
+  const [activeDivisionId, setActiveDivisionId] = useState<string | null>(null)
 
   // Score form
   const [scoringTeamId, setScoringTeamId] = useState<string | null>(null)
-  const [scoreVal, setScoreVal] = useState('')
+  const [scoreFields, setScoreFields] = useState<ScoreFields>({ type: 'time' })
   const [scoreNotes, setScoreNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -76,16 +53,18 @@ export default function JudgePanel() {
     setLoading(true)
     setError(null)
     try {
-      const [compRes, allWodsRes, teamsRes, roleRes] = await Promise.all([
+      const [compRes, allWodsRes, teamsRes, roleRes, divsRes] = await Promise.all([
         supabase.from('competitions').select('name').eq('id', id).single(),
         supabase.from('competition_wods').select('*').eq('competition_id', id).order('order_index'),
         supabase.from('competition_teams').select('*').eq('competition_id', id).eq('status', 'approved'),
         supabase.from('competition_roles').select('*').eq('competition_id', id).eq('user_id', user.id).single(),
+        supabase.from('competition_divisions').select('*').eq('competition_id', id).order('format').order('composition').order('category'),
       ])
 
       if (compRes.error) throw new Error(compRes.error.message)
       if (allWodsRes.error) throw new Error(allWodsRes.error.message)
       if (teamsRes.error) throw new Error(teamsRes.error.message)
+      if (!divsRes.error) setDivisions((divsRes.data ?? []) as CompetitionDivision[])
 
       const allWods = (allWodsRes.data ?? []) as CompetitionWod[]
       const role = roleRes.error ? null : (roleRes.data as CompetitionRole)
@@ -108,9 +87,7 @@ export default function JudgePanel() {
 
       if (visibleWods.length > 0) {
         const { data: resultsData } = await supabase
-          .from('competition_results')
-          .select('*')
-          .in('wod_id', visibleWods.map(w => w.id))
+          .rpc('get_competition_results', { p_competition_id: id })
         setResults((resultsData ?? []) as CompetitionResult[])
       } else {
         setResults([])
@@ -130,49 +107,55 @@ export default function JudgePanel() {
   const isJudge = myRole?.role === 'head_judge' || myRole?.role === 'judge'
   if (!isAdmin && !isJudge) return <Screen><Mono color='#FF3B30'>ACESSO NEGADO</Mono></Screen>
 
+  const divisionById = Object.fromEntries(divisions.map(d => [d.id, d]))
+
   const activeWod    = wods.find(w => w.id === activeWodId) ?? null
   const activeWodIdx = wods.findIndex(w => w.id === activeWodId)
   const wodResults   = activeWod ? results.filter(r => r.wod_id === activeWod.id) : []
   const submittedIds = new Set(wodResults.map(r => r.team_id))
-  const pendingTeams = teams.filter(t => !submittedIds.has(t.id))
-  const doneTeams    = teams.filter(t => submittedIds.has(t.id))
+
+  const divisionTeams = activeDivisionId
+    ? teams.filter(t => t.division_id === activeDivisionId)
+    : teams
+
+  const pendingTeams = divisionTeams
+    .filter(t => !submittedIds.has(t.id))
+    .sort((a, b) => a.name.localeCompare(b.name))
+  const doneTeams = divisionTeams
+    .filter(t => submittedIds.has(t.id))
+    .sort((a, b) => a.name.localeCompare(b.name))
   const scoringTeam  = scoringTeamId ? teams.find(t => t.id === scoringTeamId) : null
 
   function openScoreForm(teamId: string) {
     setScoringTeamId(teamId)
-    setScoreVal('')
+    setScoreFields({ type: (activeWod?.score_type ?? 'time') as WodScoreType })
     setScoreNotes('')
     setSubmitError(null)
   }
 
   function closeScoreForm() {
     setScoringTeamId(null)
-    setScoreVal('')
+    setScoreFields({ type: 'time' })
     setScoreNotes('')
     setSubmitError(null)
   }
 
   async function handleSubmit() {
-    if (!activeWod || !scoringTeamId || !scoreVal.trim() || submitting) return
-    const parsed = parseScore(activeWod.score_type, scoreVal.trim())
-    if (!parsed) {
-      setSubmitError(
-        activeWod.score_type === 'time'             ? 'Use format MM:SS (e.g. 5:42)' :
-        activeWod.score_type === 'rounds_plus_reps' ? 'Use format ROUNDS+REPS (e.g. 5+12)' :
-        'Invalid value'
-      )
-      return
-    }
+    if (!activeWod || !scoringTeamId || submitting) return
+    const validationError = validateScoreFields(scoreFields, parseCapSeconds(activeWod.cap))
+    if (validationError) { setSubmitError(validationError); return }
+    const encoded = encodeScore(scoreFields)
+    if (!encoded) { setSubmitError('Invalid value'); return }
     setSubmitting(true)
     setSubmitError(null)
     try {
       const { error: rpcError } = await supabase.rpc('submit_competition_result', {
-        p_wod_id:       activeWod.id,
-        p_team_id:      scoringTeamId,
-        p_raw_result:   parsed.raw,
-        p_score_type:   activeWod.score_type,
-        p_score_numeric: parsed.numeric,
-        p_notes:        scoreNotes.trim() || null,
+        p_wod_id:        activeWod.id,
+        p_team_id:       scoringTeamId,
+        p_raw_result:    encoded.raw_result,
+        p_score_type:    activeWod.score_type,
+        p_score_numeric: encoded.score_numeric,
+        p_notes:         scoreNotes.trim() || null,
       })
       if (rpcError) throw new Error(rpcError.message)
       closeScoreForm()
@@ -186,15 +169,10 @@ export default function JudgePanel() {
 
   // ── Score form view ────────────────────────────────────────────────────────
   if (scoringTeamId && activeWod) {
-    const placeholder =
-      activeWod.score_type === 'time'             ? 'MM:SS' :
-      activeWod.score_type === 'reps'             ? '0'     :
-      activeWod.score_type === 'weight'           ? '0.0'   : '0+0'
-    const unit =
-      activeWod.score_type === 'time'             ? 'MIN : SEC · COMPLETION TIME' :
-      activeWod.score_type === 'reps'             ? 'REPS · TOTAL AT CAP'         :
-      activeWod.score_type === 'weight'           ? 'KG · MAX LOAD'               :
-      'ROUNDS + REPS'
+    const scoreType = activeWod.score_type as WodScoreType
+    const capSecs = parseCapSeconds(activeWod.cap)
+    const validationError = validateScoreFields(scoreFields, capSecs)
+    const canSubmit = !validationError && !submitting
 
     return (
       <div style={pageStyle}>
@@ -206,88 +184,136 @@ export default function JudgePanel() {
           </span>
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 560, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+        <style>{`
+          .judge-score-input::-webkit-outer-spin-button,
+          .judge-score-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+          .judge-score-input { -moz-appearance: textfield; }
+        `}</style>
+        {/* Scrollable content — paddingBottom clears the fixed CTA */}
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          <div style={{ padding: 20, paddingBottom: 100, display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 560, margin: '0 auto' }}>
 
-          {/* Context cards */}
-          <ContextCard label='EQUIPE' value={scoringTeam?.name ?? '—'} />
-          <ContextCard
-            label='WOD'
-            value={`${String(activeWodIdx + 1).padStart(2, '0')} · ${activeWod.name} · ${SCORE_LABEL[activeWod.score_type]}${activeWod.cap ? ` · CAP ${activeWod.cap}` : ''}`}
-          />
-
-          <div style={{ fontWeight: 700, fontSize: 22, letterSpacing: '-0.015em', lineHeight: 1.1 }}>
-            Resultado da equipe
-          </div>
-
-          {/* Big score input */}
-          <div>
-            <input
-              autoFocus
-              type='text'
-              value={scoreVal}
-              onChange={e => { setScoreVal(e.target.value); setSubmitError(null) }}
-              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-              placeholder={placeholder}
-              style={{
-                fontFamily: 'JetBrains Mono, monospace',
-                fontSize: 56, fontWeight: 800,
-                letterSpacing: '-0.04em',
-                fontVariantNumeric: 'tabular-nums',
-                color: '#D4FF3A',
-                background: '#111111',
-                border: `1px solid ${submitError ? '#FF3B30' : '#2A2A2A'}`,
-                padding: '22px 18px',
-                outline: 0,
-                textAlign: 'center',
-                width: '100%',
-                boxSizing: 'border-box',
-              }}
+            <ContextCard label='EQUIPE' value={scoringTeam?.name ?? '—'} />
+            <ContextCard
+              label='WOD'
+              value={`${String(activeWodIdx + 1).padStart(2, '0')} · ${activeWod.name} · ${SCORE_LABEL[scoreType]}${activeWod.cap ? ` · CAP ${activeWod.cap}` : ''}`}
             />
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', color: '#6B6B68', textAlign: 'center', textTransform: 'uppercase', marginTop: 6 }}>
-              {unit}
+
+            <div style={{ fontWeight: 700, fontSize: 22, letterSpacing: '-0.015em', lineHeight: 1.1 }}>
+              Resultado da equipe
             </div>
-            {submitError && (
-              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, color: '#FF3B30', textAlign: 'center', marginTop: 6, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                {submitError}
+
+            {/* Score inputs — same pattern as CompetitionManage Results tab */}
+            <div style={{ background: '#111111', border: `1px solid ${(submitError || validationError) ? '#FF3B30' : '#2A2A2A'}`, padding: '28px 20px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12 }}>
+              {scoreType === 'time' && (
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <span style={fieldLabel}>MIN</span>
+                    <input autoFocus type='number' min={0} max={99}
+                      value={scoreFields.minutes ?? ''}
+                      placeholder='00'
+                      onChange={e => { const v = e.target.value; setScoreFields(f => ({ ...f, minutes: v === '' ? undefined : Math.max(0, parseInt(v)) })); setSubmitError(null) }}
+                      className="judge-score-input" style={SCORE_INPUT}
+                    />
+                  </div>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 36, fontWeight: 800, color: '#D4FF3A', marginTop: 16 }}>:</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <span style={fieldLabel}>SEG</span>
+                    <input type='number' min={0} max={59}
+                      value={scoreFields.seconds ?? ''}
+                      placeholder='00'
+                      onChange={e => { const v = e.target.value; setScoreFields(f => ({ ...f, seconds: v === '' ? undefined : Math.min(59, Math.max(0, parseInt(v))) })); setSubmitError(null) }}
+                      className="judge-score-input" style={SCORE_INPUT}
+                    />
+                  </div>
+                </>
+              )}
+              {scoreType === 'reps' && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                  <span style={fieldLabel}>REPS</span>
+                  <input autoFocus type='number' min={1}
+                    value={scoreFields.reps ?? ''}
+                    placeholder='0'
+                    onChange={e => { const v = e.target.value; setScoreFields(f => ({ ...f, reps: v === '' ? undefined : Math.max(0, parseInt(v)) })); setSubmitError(null) }}
+                    className="judge-score-input" style={{ ...SCORE_INPUT, width: 100 }}
+                  />
+                </div>
+              )}
+              {scoreType === 'weight' && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                  <span style={fieldLabel}>KG</span>
+                  <input autoFocus type='number' min={0} step={0.5}
+                    value={scoreFields.kg ?? ''}
+                    placeholder='0'
+                    onChange={e => { const v = e.target.value; setScoreFields(f => ({ ...f, kg: v === '' ? undefined : Math.max(0, parseFloat(v)) })); setSubmitError(null) }}
+                    className="judge-score-input" style={{ ...SCORE_INPUT, width: 100 }}
+                  />
+                </div>
+              )}
+              {scoreType === 'rounds_plus_reps' && (
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <span style={fieldLabel}>ROUNDS</span>
+                    <input autoFocus type='number' min={0}
+                      value={scoreFields.rounds ?? ''}
+                      placeholder='0'
+                      onChange={e => { const v = e.target.value; setScoreFields(f => ({ ...f, rounds: v === '' ? undefined : Math.max(0, parseInt(v)) })); setSubmitError(null) }}
+                      className="judge-score-input" style={SCORE_INPUT}
+                    />
+                  </div>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 28, fontWeight: 800, color: '#D4FF3A', marginTop: 16 }}>+</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <span style={fieldLabel}>REPS</span>
+                    <input type='number' min={0}
+                      value={scoreFields.partialReps ?? ''}
+                      placeholder='0'
+                      onChange={e => { const v = e.target.value; setScoreFields(f => ({ ...f, partialReps: v === '' ? undefined : Math.max(0, parseInt(v)) })); setSubmitError(null) }}
+                      className="judge-score-input" style={SCORE_INPUT}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+            {(submitError || validationError) && (
+              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, color: '#FF3B30', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                {submitError ?? validationError}
               </div>
             )}
-          </div>
 
-          {/* Notes */}
-          <div>
-            <div style={fieldLabel}>NOTES (OPTIONAL)</div>
-            <textarea
-              value={scoreNotes}
-              onChange={e => setScoreNotes(e.target.value)}
-              rows={3}
-              placeholder='Ex.: 1 no-rep on thruster · split jerk valid'
-              style={{ width: '100%', background: '#111111', border: '1px solid #2A2A2A', color: '#F5F5F0', fontFamily: 'inherit', fontSize: 13, padding: '8px 12px', outline: 'none', resize: 'none', boxSizing: 'border-box' }}
-            />
-          </div>
-
-          {/* Info */}
-          <div style={{ padding: '12px 14px', border: '1px solid #2A2A2A', background: '#111111', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <span style={{ width: 22, height: 22, background: '#FFB800', color: '#0A0A0A', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 800, flexShrink: 0 }}>!</span>
-            <div style={{ flex: 1, fontSize: 12, lineHeight: 1.4, color: '#6B6B68' }}>
-              After submitting, the result is placed <strong style={{ color: '#F5F5F0' }}>under review</strong>. The Head Judge reviews it before publishing to the leaderboard.
+            <div>
+              <div style={fieldLabel}>NOTES (OPTIONAL)</div>
+              <textarea
+                value={scoreNotes}
+                onChange={e => setScoreNotes(e.target.value)}
+                rows={3}
+                placeholder='Ex.: 1 no-rep on thruster · split jerk valid'
+                style={{ width: '100%', background: '#111111', border: '1px solid #2A2A2A', color: '#F5F5F0', fontFamily: 'inherit', fontSize: 13, padding: '8px 12px', outline: 'none', resize: 'none', boxSizing: 'border-box' }}
+              />
             </div>
-          </div>
 
+            <div style={{ padding: '12px 14px', border: '1px solid #2A2A2A', background: '#111111', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <span style={{ width: 22, height: 22, background: '#FFB800', color: '#0A0A0A', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 800, flexShrink: 0 }}>!</span>
+              <div style={{ flex: 1, fontSize: 12, lineHeight: 1.4, color: '#6B6B68' }}>
+                After submitting, the result appears <strong style={{ color: '#D4FF3A' }}>immediately on the live leaderboard</strong>.
+              </div>
+            </div>
+
+          </div>
         </div>
 
-        {/* Bottom CTA */}
-        <div style={{ background: '#0A0A0A', borderTop: '1px solid #2A2A2A', padding: '14px 20px 24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, flexShrink: 0 }}>
+        {/* Bottom CTA — fixed so it's always visible regardless of keyboard/viewport */}
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#0A0A0A', borderTop: '1px solid #2A2A2A', padding: '14px 20px calc(14px + env(safe-area-inset-bottom, 0px))', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, zIndex: 50 }}>
           <button onClick={closeScoreForm} style={ghostBtnStyle}>CANCEL</button>
           <button
             onClick={handleSubmit}
-            disabled={!scoreVal.trim() || submitting}
+            disabled={!canSubmit}
             style={{
-              background: (!scoreVal.trim() || submitting) ? '#1A1A1A' : '#D4FF3A',
+              background: canSubmit ? '#D4FF3A' : '#1A1A1A',
               border: 'none', padding: '14px',
               fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 800,
               letterSpacing: '0.16em', textTransform: 'uppercase',
-              color: (!scoreVal.trim() || submitting) ? '#3D3D3B' : '#0A0A0A',
-              cursor: (!scoreVal.trim() || submitting) ? 'not-allowed' : 'pointer',
+              color: canSubmit ? '#0A0A0A' : '#3D3D3B',
+              cursor: canSubmit ? 'pointer' : 'not-allowed',
             }}
           >
             {submitting ? 'ENVIANDO...' : 'CONFIRMAR'}
@@ -364,6 +390,28 @@ export default function JudgePanel() {
           )}
         </div>
 
+        {/* ── Division filter ───────────────────────────────────────────────── */}
+        {divisions.length > 0 && (
+          <div style={{ display: 'flex', gap: 1, background: '#2A2A2A', borderBottom: '1px solid #2A2A2A', overflowX: 'auto', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' as never }}>
+            {[{ id: null, label: 'TODAS' }, ...divisions.map(d => ({ id: d.id, label: divLabel(d) }))].map(opt => (
+              <button
+                key={opt.id ?? 'all'}
+                onClick={() => setActiveDivisionId(opt.id)}
+                style={{
+                  fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, fontSize: 9,
+                  letterSpacing: '0.16em', textTransform: 'uppercase',
+                  padding: '8px 12px',
+                  background: activeDivisionId === opt.id ? '#D4FF3A' : '#0A0A0A',
+                  color: activeDivisionId === opt.id ? '#0A0A0A' : '#6B6B68',
+                  border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* ── Stats ─────────────────────────────────────────────────────────── */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, background: '#2A2A2A', borderBottom: '1px solid #2A2A2A' }}>
           <StatCell label='PENDENTES'   value={pendingTeams.length} color='#FFB800' />
@@ -420,9 +468,9 @@ export default function JudgePanel() {
                 </span>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 15, letterSpacing: '-0.005em' }}>{t.name}</div>
-                  {t.box && (
+                  {t.division_id && divisionById[t.division_id] && (
                     <div style={{ marginTop: 3, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68' }}>
-                      {t.box}
+                      {divLabel(divisionById[t.division_id])}
                     </div>
                   )}
                 </div>
@@ -456,7 +504,8 @@ export default function JudgePanel() {
                       <div>
                         <div style={{ fontWeight: 600, fontSize: 14, textDecoration: 'line-through', textDecorationColor: '#3D3D3B' }}>{t.name}</div>
                         <div style={{ marginTop: 3, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#6B6B68' }}>
-                          {result?.raw_result ?? '—'}
+                          {t.division_id && divisionById[t.division_id] ? divLabel(divisionById[t.division_id]) : '—'}
+                          {result?.raw_result && <span style={{ color: '#D4FF3A', marginLeft: 8 }}>{result.raw_result}</span>}
                         </div>
                       </div>
                       <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 900, color: '#D4FF3A', padding: '4px 7px', border: '1px solid #D4FF3A33', letterSpacing: '0.14em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
@@ -478,8 +527,10 @@ export default function JudgePanel() {
 // ─── Shared primitives ────────────────────────────────────────────────────────
 
 const pageStyle: React.CSSProperties = {
-  minHeight: '100vh', background: '#0A0A0A', color: '#F5F5F0',
+  position: 'fixed', inset: 0, zIndex: 10,
+  background: '#0A0A0A', color: '#F5F5F0',
   fontFamily: 'Space Grotesk, sans-serif', display: 'flex', flexDirection: 'column',
+  overflow: 'hidden',
 }
 
 const topbarStyle: React.CSSProperties = {
@@ -496,6 +547,21 @@ const titleStyle: React.CSSProperties = {
 const fieldLabel: React.CSSProperties = {
   fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700,
   letterSpacing: '0.16em', textTransform: 'uppercase', color: '#6B6B68', marginBottom: 6,
+}
+
+const SCORE_INPUT: React.CSSProperties = {
+  background: '#0A0A0A',
+  border: '1px solid #D4FF3A',
+  color: '#D4FF3A',
+  fontFamily: 'JetBrains Mono, monospace',
+  fontWeight: 800,
+  fontSize: 36,
+  padding: '10px 8px',
+  outline: 'none',
+  width: 80,
+  textAlign: 'center',
+  fontVariantNumeric: 'tabular-nums',
+  letterSpacing: '-0.02em',
 }
 
 const ghostBtnStyle: React.CSSProperties = {
