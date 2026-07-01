@@ -271,14 +271,7 @@ function DivisionTable({
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
-                    <MedalRank rank={rank} />
-                    {isTiebreak(row) && (
-                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, fontWeight: 800, letterSpacing: '0.12em', color: '#6B6B68', lineHeight: 1 }}>
-                        TB
-                      </span>
-                    )}
-                  </div>
+                  <MedalRank rank={rank} />
                 </td>
                 <td
                   style={{
@@ -302,6 +295,11 @@ function DivisionTable({
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, maxWidth: '100%' }}>
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.team_name}</span>
                     {isFirst && <CrownIcon />}
+                    {isTiebreak(row) && (
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, fontWeight: 800, letterSpacing: '0.12em', color: '#6B6B68', lineHeight: 1, flexShrink: 0 }}>
+                        TB
+                      </span>
+                    )}
                     <MoveArrow move={movements.get(row.team_id)} />
                   </span>
                 </td>
@@ -481,17 +479,22 @@ export default function Leaderboard() {
       if (lb.data) {
         const newRows = lb.data as LeaderboardRow[]
         const now = Date.now()
+        // compute moves synchronously BEFORE the baseline merge below —
+        // React runs setState updaters lazily at render time, after prevRanksRef
+        // is already overwritten, so the diff must not live inside the updater
+        const moved: Array<[string, RankMove]> = []
+        newRows.forEach(r => {
+          const prevRank = prevRanksRef.current.get(r.team_id)
+          if (prevRank !== undefined && prevRank !== r.overall_rank) {
+            moved.push([r.team_id, { delta: prevRank - r.overall_rank, at: now }])
+          }
+        })
         // arrows persist ARROW_TTL ms independent of the refresh cycle;
         // a new move resets the clock with the new direction
         setMovements(prev => {
           const next = new Map(prev)
           next.forEach((m, teamId) => { if (now - m.at >= ARROW_TTL) next.delete(teamId) })
-          newRows.forEach(r => {
-            const prevRank = prevRanksRef.current.get(r.team_id)
-            if (prevRank !== undefined && prevRank !== r.overall_rank) {
-              next.set(r.team_id, { delta: prevRank - r.overall_rank, at: now })
-            }
-          })
+          moved.forEach(([teamId, m]) => next.set(teamId, m))
           return next
         })
         // merge (not replace) so filtering by division keeps other divisions' baseline
