@@ -112,6 +112,26 @@ export default function Leaderboard() {
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL)
   const [refreshKey, setRefreshKey] = useState(0)
   const countdownRef = useRef(REFRESH_INTERVAL)
+  const divFilterRef = useRef<HTMLDivElement>(null)
+  const [filterHasMore, setFilterHasMore] = useState(false)
+
+  const checkFilterOverflow = useCallback(() => {
+    const el = divFilterRef.current
+    if (!el) return
+    setFilterHasMore(el.scrollLeft + el.clientWidth < el.scrollWidth - 2)
+  }, [])
+
+  useEffect(() => {
+    checkFilterOverflow()
+    const el = divFilterRef.current
+    if (!el) return
+    el.addEventListener('scroll', checkFilterOverflow, { passive: true })
+    window.addEventListener('resize', checkFilterOverflow, { passive: true })
+    return () => {
+      el.removeEventListener('scroll', checkFilterOverflow)
+      window.removeEventListener('resize', checkFilterOverflow)
+    }
+  }, [checkFilterOverflow, divisions])
 
   const load = useCallback(async () => {
     if (!id) return
@@ -171,7 +191,7 @@ export default function Leaderboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
+    <div className="bg-[#0A0A0A] flex flex-col" style={{ height: '100dvh', overflow: 'hidden' }}>
       {/* TOP BAR */}
       <div
         className="flex items-center justify-between gap-3 px-4 border-b border-[#2A2A2A]"
@@ -293,30 +313,43 @@ export default function Leaderboard() {
 
       {/* Division filter — only visible when 2+ divisions exist */}
       {divisions.length >= 2 && (
-        <div
-          className="flex items-center border-b border-[#2A2A2A] overflow-x-auto"
-          style={{ gap: 1, background: '#2A2A2A', scrollbarWidth: 'none', flexShrink: 0 }}
-        >
-          {[{ id: null, label: 'ALL' }, ...divisions.map(d => ({ id: d.id, label: divisionShortLabel(d) }))].map(item => {
-            const active = item.id === selectedDivisionId
-            return (
-              <button
-                key={item.id ?? 'all'}
-                onClick={() => setSelectedDivisionId(item.id)}
-                className="font-mono font-black uppercase shrink-0"
-                style={{
-                  fontSize: 9, letterSpacing: '0.18em',
-                  padding: '8px 12px',
-                  background: active ? '#D4FF3A' : '#0A0A0A',
-                  color: active ? '#0A0A0A' : '#6B6B68',
-                  border: 'none', cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {item.label}
-              </button>
-            )
-          })}
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <div
+            ref={divFilterRef}
+            className="flex items-center border-b border-[#2A2A2A] overflow-x-auto"
+            style={{ gap: 1, background: '#2A2A2A', scrollbarWidth: 'none' }}
+          >
+            {[{ id: null, label: 'ALL' }, ...divisions.map(d => ({ id: d.id, label: divisionShortLabel(d) }))].map(item => {
+              const active = item.id === selectedDivisionId
+              return (
+                <button
+                  key={item.id ?? 'all'}
+                  onClick={() => setSelectedDivisionId(item.id)}
+                  className="font-mono font-black uppercase shrink-0"
+                  style={{
+                    fontSize: 9, letterSpacing: '0.18em',
+                    padding: '8px 12px',
+                    background: active ? '#D4FF3A' : '#0A0A0A',
+                    color: active ? '#0A0A0A' : '#6B6B68',
+                    border: 'none', cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {item.label}
+                </button>
+              )
+            })}
+          </div>
+          {/* right-fade indicator — visible only when more pills are hidden to the right */}
+          {filterHasMore && (
+            <div
+              style={{
+                position: 'absolute', top: 0, right: 0, bottom: 0, width: 48,
+                pointerEvents: 'none',
+                background: 'linear-gradient(to right, transparent, #0A0A0A)',
+              }}
+            />
+          )}
         </div>
       )}
 
@@ -334,7 +367,7 @@ export default function Leaderboard() {
           </span>
         </div>
       ) : (
-        <div className="flex-1 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
+        <div className="flex-1 overflow-auto" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', minHeight: 0 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto', fontFamily: 'var(--font-mono, monospace)', fontVariantNumeric: 'tabular-nums' }}>
             <thead>
               <tr style={{ background: '#0A0A0A', borderBottom: '2px solid #F5F5F0' }}>
