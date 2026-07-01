@@ -197,6 +197,8 @@ export default function CompetitionManage() {
   const [overrideResultId, setOverrideResultId] = useState<string | null>(null)
   const [overrideDisplay, setOverrideDisplay] = useState('')
   const [overrideReason, setOverrideReason] = useState('')
+  const [enterTeamId, setEnterTeamId] = useState<string | null>(null)
+  const [enterDisplay, setEnterDisplay] = useState('')
 
   // ── Status change ──
   const [statusChanging, setStatusChanging] = useState(false)
@@ -384,6 +386,31 @@ export default function CompetitionManage() {
       setOverrideResultId(null)
       setOverrideDisplay('')
       setOverrideReason('')
+      await load()
+    } catch (e) {
+      setMutateError(e instanceof Error ? e.message : 'Erro')
+    } finally {
+      setMutating(false)
+    }
+  }
+
+  // ─── Submit new result for a team ────────────────────────────────────────────
+  async function handleSubmitResult(teamId: string) {
+    if (!selectedWod || !enterDisplay.trim()) return
+    setMutating(true)
+    setMutateError(null)
+    try {
+      const numeric = parseFloat(enterDisplay.replace(',', '.')) || 0
+      const { error } = await supabase.rpc('submit_competition_result', {
+        p_wod_id: selectedWod.id,
+        p_team_id: teamId,
+        p_raw_result: enterDisplay.trim(),
+        p_score_type: selectedWod.score_type,
+        p_score_numeric: numeric,
+      })
+      if (error) throw new Error(error.message)
+      setEnterTeamId(null)
+      setEnterDisplay('')
       await load()
     } catch (e) {
       setMutateError(e instanceof Error ? e.message : 'Erro')
@@ -1663,14 +1690,14 @@ export default function CompetitionManage() {
                                     placeholder='Novo resultado...'
                                     value={overrideDisplay}
                                     onChange={e => setOverrideDisplay(e.target.value)}
-                                    style={{ background: '#0D0D0D', border: '1px solid #4DA3FF', color: '#F5F5F0', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, padding: '4px 8px', outline: 'none', width: 140 }}
+                                    style={{ background: '#0D0D0D', border: '1px solid #4DA3FF', color: '#F5F5F0', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, padding: '4px 8px', outline: 'none', width: 140, borderRadius: 0 }}
                                   />
                                   <input
                                     type='text'
                                     placeholder='Motivo...'
                                     value={overrideReason}
                                     onChange={e => setOverrideReason(e.target.value)}
-                                    style={{ background: '#0D0D0D', border: '1px solid #2A2A2A', color: '#F5F5F0', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, padding: '4px 8px', outline: 'none', width: 140 }}
+                                    style={{ background: '#0D0D0D', border: '1px solid #2A2A2A', color: '#F5F5F0', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, padding: '4px 8px', outline: 'none', width: 140, borderRadius: 0 }}
                                   />
                                   <div style={{ display: 'flex', gap: 4 }}>
                                     <Btn color='#4DA3FF' disabled={!overrideDisplay.trim() || !overrideReason.trim() || mutating} onClick={() => handleOverride(res.id)}>
@@ -1690,10 +1717,70 @@ export default function CompetitionManage() {
                           </tr>
                         )
                       })}
-                      {sortedWodResults.length === 0 && (
+                      {teamsWithoutResult.map(team => {
+                        const isEntering = enterTeamId === team.id
+                        return (
+                          <tr key={team.id} style={{ borderBottom: '1px solid #1A1A1A', background: '#0D0D0D' }}>
+                            <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 11, color: '#3D3D3B' }}>
+                              —
+                            </td>
+                            <td style={{ padding: '12px', fontWeight: 700, fontSize: 13, color: '#6B6B68' }}>
+                              {team.name}
+                            </td>
+                            <td style={{ padding: '12px' }} colSpan={isEntering ? 1 : 2}>
+                              {isEntering ? (
+                                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                  <input
+                                    autoFocus
+                                    type='text'
+                                    placeholder='Resultado...'
+                                    value={enterDisplay}
+                                    onChange={e => setEnterDisplay(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter') handleSubmitResult(team.id) }}
+                                    style={{ background: '#111111', border: '1px solid #D4FF3A', color: '#F5F5F0', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, padding: '4px 8px', outline: 'none', width: 140, borderRadius: 0 }}
+                                  />
+                                </div>
+                              ) : (
+                                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#3D3D3B', letterSpacing: '0.12em' }}>
+                                  SEM RESULTADO
+                                </span>
+                              )}
+                            </td>
+                            {!isEntering && (
+                              <>
+                                <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3D3D3B' }}>—</td>
+                                <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3D3D3B' }}>0</td>
+                              </>
+                            )}
+                            {isEntering && (
+                              <>
+                                <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3D3D3B' }}>—</td>
+                                <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3D3D3B' }}>—</td>
+                              </>
+                            )}
+                            <td style={{ padding: '12px' }}>
+                              {isEntering ? (
+                                <div style={{ display: 'flex', gap: 4 }}>
+                                  <Btn color='#D4FF3A' disabled={!enterDisplay.trim() || mutating} onClick={() => handleSubmitResult(team.id)}>
+                                    SALVAR
+                                  </Btn>
+                                  <Btn color='#6B6B68' onClick={() => { setEnterTeamId(null); setEnterDisplay('') }}>
+                                    CANCEL
+                                  </Btn>
+                                </div>
+                              ) : (
+                                <Btn color='#D4FF3A' onClick={() => { setEnterTeamId(team.id); setEnterDisplay(''); setOverrideResultId(null) }}>
+                                  INSERIR
+                                </Btn>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                      {approvedTeams.length === 0 && (
                         <tr>
                           <td colSpan={6} style={{ padding: '24px 12px', textAlign: 'center', color: '#3D3D3B', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                            NENHUM RESULTADO ENVIADO
+                            NENHUMA EQUIPE APROVADA
                           </td>
                         </tr>
                       )}
