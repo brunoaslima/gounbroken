@@ -79,7 +79,14 @@ function FocusTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>)
   )
 }
 
-// ─── StepperButton ────────────────────────────────────────────────────────────
+/**
+ * Renders a numeric stepper with decrement and increment controls.
+ *
+ * @param value - The current number to display
+ * @param min - The lowest selectable value
+ * @param max - The highest selectable value
+ * @param onChange - Called with the updated value
+ */
 
 function Stepper({ value, min, max, onChange }: { value: number; min: number; max: number; onChange: (v: number) => void }) {
   return (
@@ -146,16 +153,34 @@ const CATEGORY_PRESETS = ['SCALED', 'INTERMEDIATE', 'RX', 'ELITE']
 
 type PendingDivision = { format: DivisionFormat; composition: DivisionComposition; category: string }
 
+/**
+ * Builds a unique key for a division.
+ *
+ * @param d - The pending division to key
+ * @returns A key composed of the format, composition, and lowercased category
+ */
 function divisionKey(d: PendingDivision): string {
   return `${d.format}|${d.composition}|${d.category.toLowerCase()}`
 }
 
+/**
+ * Formats a display label for a division.
+ *
+ * @param d - The division details to format
+ * @returns A label in the form `FORMAT · COMPOSITION · CATEGORY`
+ */
 function formatDivisionLabel(d: PendingDivision): string {
   const fmtMap: Record<DivisionFormat, string> = { individual: 'IND', pair: 'PAIR', team3: 'TEAM 3', team4: 'TEAM 4' }
   return `${fmtMap[d.format]} · ${d.composition.toUpperCase()} · ${d.category.toUpperCase()}`
 }
 
-// ─── page ─────────────────────────────────────────────────────────────────────
+/**
+ * Renders the competition creation page.
+ *
+ * Displays form fields for competition details, event dates, and division configuration, then creates the competition and its divisions on submission.
+ *
+ * @returns The competition creation page.
+ */
 
 export default function CompetitionCreate() {
   const navigate = useNavigate()
@@ -177,6 +202,11 @@ export default function CompetitionCreate() {
 
   const mixedBlocked = divFormat === 'individual' || divFormat === 'team3'
 
+  /**
+   * Adds the selected division to the list of pending divisions.
+   *
+   * Uses the custom category when provided, otherwise the preset category, and skips duplicates.
+   */
   function addDivision() {
     const cat = (divCustomCategory.trim() || divCategory).toLowerCase()
     if (!cat) return
@@ -187,6 +217,11 @@ export default function CompetitionCreate() {
     setDivCustomCategory('')
   }
 
+  /**
+   * Removes a division from the pending list.
+   *
+   * @param key - The division key to remove
+   */
   function removeDivision(key: string) {
     setDivisions(prev => prev.filter(d => divisionKey(d) !== key))
   }
@@ -194,6 +229,11 @@ export default function CompetitionCreate() {
   const deadlineValid = !!(deadline && startDate && deadline < startDate)
   const canSubmit = name.trim().length > 0 && startDate && deadline && deadlineValid && !saving
 
+  /**
+   * Creates the competition and saves any added divisions.
+   *
+   * Submits the competition details to the backend, stores the pending divisions for the created competition, and then navigates to the competition page. If creation fails, the error message is shown and saving stops.
+   */
   async function handleSubmit() {
     if (!canSubmit) return
     setSaving(true)

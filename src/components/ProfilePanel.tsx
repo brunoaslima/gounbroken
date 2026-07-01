@@ -22,6 +22,13 @@ const ROLE_COLORS: Record<string, string> = {
   box_admin: '#FFB800',
 }
 
+/**
+ * Renders the profile side panel with editable personal details, physical data, weight history, and sign-out controls.
+ *
+ * @param open - Controls whether the panel is visible.
+ * @param onClose - Closes the panel.
+ * @returns The profile panel content.
+ */
 export default function ProfilePanel({ open, onClose }: Props) {
   const { user, signOut } = useAuth()
   const { profile, loading, updateProfile, getAge, getBMI, getBMILabel } = useProfile(user?.id)

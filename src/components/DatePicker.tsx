@@ -10,22 +10,50 @@ interface Props {
   placeholder?: string
 }
 
+/**
+ * Parses a `YYYY-MM-DD` date string into a local `Date`.
+ *
+ * @param s - The date string to parse.
+ * @returns A `Date` for `s`, or `undefined` if `s` is empty.
+ */
 function parseYMD(s: string): Date | undefined {
   if (!s) return undefined
   const [y, m, d] = s.split('-').map(Number)
   return new Date(y, m - 1, d)
 }
 
+/**
+ * Formats a date as `YYYY-MM-DD`.
+ *
+ * @param d - The date to format
+ * @returns The formatted date string
+ */
 function toYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+/**
+ * Formats a date string for display.
+ *
+ * @param s - A date string in `YYYY-MM-DD` format.
+ * @returns The date formatted as `DD/MM/YYYY`, or an empty string if `s` is falsy.
+ */
 function fmt(s: string): string {
   if (!s) return ''
   const [y, m, d] = s.split('-')
   return `${d}/${m}/${y}`
 }
 
+/**
+ * Renders a date picker with a text field and calendar popover.
+ *
+ * @param value - The selected date in `YYYY-MM-DD` format.
+ * @param onChange - Called with the newly selected date in `YYYY-MM-DD` format.
+ * @param min - The earliest selectable date in `YYYY-MM-DD` format.
+ * @param max - The latest selectable date in `YYYY-MM-DD` format.
+ * @param invalid - Controls the error border style.
+ * @param placeholder - The text shown when no date is selected.
+ */
 export function DatePicker({ value, onChange, min, max, invalid, placeholder = 'DD/MM/YYYY' }: Props) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)

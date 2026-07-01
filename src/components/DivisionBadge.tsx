@@ -14,6 +14,14 @@ interface Props {
   dim?: boolean
 }
 
+/**
+ * Displays a division badge with the format label, composition, and category.
+ *
+ * @param format - Division format used to select the badge label.
+ * @param composition - Division composition displayed in uppercase.
+ * @param category - Category displayed in uppercase.
+ * @param dim - Uses the dimmed badge color when set.
+ */
 export default function DivisionBadge({ format, composition, category, dim }: Props) {
   return (
     <span

@@ -5,6 +5,12 @@ import type { Profile } from '@/types'
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced' | 'athlete'
 export type MainGoal = 'strength' | 'hypertrophy' | 'crossfit' | 'fat_loss' | 'health' | 'performance'
 
+/**
+ * Loads and manages the current user's profile data and related profile actions.
+ *
+ * @param userId - The current user's identifier.
+ * @returns The current profile state, loading state, and profile management helpers.
+ */
 export function useProfile(userId: string | undefined) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)

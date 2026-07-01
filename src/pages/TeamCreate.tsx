@@ -10,6 +10,11 @@ const FORMAT_LABELS: Record<DivisionFormat, string> = {
   team4: 'TEAM 4',
 }
 
+/**
+ * Renders the create-team page for a competition.
+ *
+ * @returns The create-team page UI.
+ */
 export default function TeamCreate() {
   const { id: competitionId } = useParams<{ id: string }>()
   const navigate = useNavigate()

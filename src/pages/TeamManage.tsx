@@ -345,7 +345,11 @@ function ctaLabel(status: TeamStatus, slotsEmpty: number): string {
   }
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+/**
+ * Renders the team management page.
+ *
+ * Shows the team's details, members, invite actions, share link, and invite sheet.
+ */
 
 export default function TeamManage() {
   const { id: competitionId, teamId } = useParams<{ id: string; teamId: string }>()

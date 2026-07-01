@@ -18,6 +18,12 @@ import type {
 const FORMAT_SIZE: Record<string, number> = { individual: 1, pair: 2, team3: 3, team4: 4 }
 const FORMAT_LABEL: Record<string, string> = { individual: 'IND', pair: 'PAIR', team3: 'TEAM 3', team4: 'TEAM 4' }
 
+/**
+ * Formats a competition division label.
+ *
+ * @param d - The division to format
+ * @returns The division label combining format, composition, and category
+ */
 function divisionLabel(d: CompetitionDivision) {
   return `${FORMAT_LABEL[d.format]} · ${d.composition.toUpperCase()} · ${d.category.toUpperCase()}`
 }
@@ -129,7 +135,11 @@ const TEAM_FILTERS = [
 ] as const
 type TeamFilter = typeof TEAM_FILTERS[number]['key']
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+/**
+ * Displays the competition management page.
+ *
+ * Loads competition data and provides tabbed controls for overview, teams, WODs, judges, results, and audit log management.
+ */
 export default function CompetitionManage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -370,7 +380,11 @@ export default function CompetitionManage() {
     }
   }
 
-  // ─── Override result ─────────────────────────────────────────────────────────
+  /**
+   * Overrides a competition result with a manual value and reason.
+   *
+   * @param resultId - The result record to update
+   */
   async function handleOverride(resultId: string) {
     if (!overrideDisplay.trim() || !overrideReason.trim()) return
     setMutating(true)
@@ -394,7 +408,11 @@ export default function CompetitionManage() {
     }
   }
 
-  // ─── Submit new result for a team ────────────────────────────────────────────
+  /**
+   * Submits a result for an approved team in the selected WOD.
+   *
+   * @param teamId - The team receiving the result
+   */
   async function handleSubmitResult(teamId: string) {
     if (!selectedWod || !enterDisplay.trim()) return
     setMutating(true)
@@ -419,6 +437,11 @@ export default function CompetitionManage() {
     }
   }
 
+  /**
+   * Updates the competition status.
+   *
+   * @param newStatus - The status to apply to the competition
+   */
   async function handleStatusChange(newStatus: string) {
     if (!id || statusChanging) return
     setStatusChanging(true)

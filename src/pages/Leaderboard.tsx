@@ -37,6 +37,12 @@ const FORMAT_SHORT: Record<DivisionFormat, string> = {
   team4: 'T4',
 }
 
+/**
+ * Builds a short uppercase label for a division.
+ *
+ * @param d - The division to label.
+ * @returns A label in the form `"<FORMAT> · <COMPOSITION> · <CATEGORY>"`.
+ */
 function divisionShortLabel(d: CompetitionDivision): string {
   return `${FORMAT_SHORT[d.format]} · ${d.composition.toUpperCase()} · ${d.category.toUpperCase()}`
 }
@@ -99,6 +105,13 @@ function MedalRank({ rank }: { rank: number }) {
   )
 }
 
+/**
+ * Renders the competition leaderboard page.
+ *
+ * Displays leaderboard results with per-WOD columns, division filtering when available, and automatic refresh.
+ *
+ * @returns The leaderboard page interface.
+ */
 export default function Leaderboard() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()

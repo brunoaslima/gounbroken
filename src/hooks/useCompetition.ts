@@ -13,6 +13,13 @@ export interface PendingJudgeInvite { id: string; competition_id: string }
 
 export interface PendingTeamInvite { id: string; team_id: string; team_name: string | null }
 
+/**
+ * Loads competition data and derives the current user's competition state.
+ *
+ * @param competitionId - The competition identifier to load.
+ * @param userId - The authenticated user's identifier, if available.
+ * @returns The loaded competition data, derived user state, loading flag, and a reload function.
+ */
 export function useCompetition(competitionId: string | undefined, userId: string | undefined) {
   const [competition, setCompetition] = useState<Competition | null>(null)
   const [wods, setWods] = useState<CompetitionWod[]>([])

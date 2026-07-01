@@ -151,7 +151,11 @@ function MedalRank({ rank }: { rank: number }) {
   )
 }
 
-// ─── page ─────────────────────────────────────────────────────────────────────
+/**
+ * Displays the competition detail page.
+ *
+ * @returns The competition detail page content.
+ */
 
 export default function CompetitionDetail() {
   const { id } = useParams<{ id: string }>()
