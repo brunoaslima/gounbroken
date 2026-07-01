@@ -269,7 +269,7 @@ export default function JudgePanel() {
           <div style={{ padding: '12px 14px', border: '1px solid #2A2A2A', background: '#111111', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
             <span style={{ width: 22, height: 22, background: '#FFB800', color: '#0A0A0A', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 800, flexShrink: 0 }}>!</span>
             <div style={{ flex: 1, fontSize: 12, lineHeight: 1.4, color: '#6B6B68' }}>
-              After submitting, the result is placed <strong style={{ color: '#F5F5F0' }}>under review</strong>. The Head Judge reviews it before publishing to the leaderboard.
+              After submitting, the result appears <strong style={{ color: '#D4FF3A' }}>immediately on the live leaderboard</strong>.
             </div>
           </div>
 
@@ -478,8 +478,9 @@ export default function JudgePanel() {
 // ─── Shared primitives ────────────────────────────────────────────────────────
 
 const pageStyle: React.CSSProperties = {
-  minHeight: '100vh', background: '#0A0A0A', color: '#F5F5F0',
+  height: '100dvh', background: '#0A0A0A', color: '#F5F5F0',
   fontFamily: 'Space Grotesk, sans-serif', display: 'flex', flexDirection: 'column',
+  overflow: 'hidden',
 }
 
 const topbarStyle: React.CSSProperties = {
