@@ -27,6 +27,7 @@ interface LeaderboardRow {
   division_id: string | null
   total_points: number
   overall_rank: number
+  wod_wins: number
   per_wod: Record<string, WodCell>
 }
 
@@ -65,6 +66,18 @@ function BackIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M15 18l-6-6 6-6" />
+    </svg>
+  )
+}
+
+function CrownIcon() {
+  return (
+    <svg
+      width="12" height="10" viewBox="0 0 12 10"
+      fill="#D4FF3A" aria-hidden="true"
+      style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 5, flexShrink: 0 }}
+    >
+      <path d="M0 10 L0 4 L3 1 L5 5 L6 0 L7 5 L9 1 L12 4 L12 10Z" />
     </svg>
   )
 }
@@ -114,6 +127,16 @@ function DivisionTable({
     if (idx % 2 === 1) return 'rgba(255,255,255,0.025)'
     return 'transparent'
   }
+
+  // detect tiebreaks: teams sharing (division_id, total_points) within these rows
+  const tiedKeys = new Set<string>()
+  const keyCount = new Map<string, number>()
+  rows.forEach(r => {
+    const k = `${r.division_id ?? ''}:${r.total_points}`
+    keyCount.set(k, (keyCount.get(k) ?? 0) + 1)
+  })
+  keyCount.forEach((n, k) => { if (n > 1) tiedKeys.add(k) })
+  const isTiebreak = (r: LeaderboardRow) => tiedKeys.has(`${r.division_id ?? ''}:${r.total_points}`)
 
   return (
     <div style={{ flex: 1, overflowX: 'auto', overflowY: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', minHeight: 0 }}>
@@ -185,7 +208,14 @@ function DivisionTable({
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  <MedalRank rank={rank} />
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+                    <MedalRank rank={rank} />
+                    {isTiebreak(row) && (
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, fontWeight: 800, letterSpacing: '0.12em', color: '#6B6B68', lineHeight: 1 }}>
+                        TB
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td
                   style={{
@@ -206,7 +236,10 @@ function DivisionTable({
                     borderRight: '1px solid #2A2A2A',
                   }}
                 >
-                  {row.team_name}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', maxWidth: '100%' }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.team_name}</span>
+                    {isFirst && <CrownIcon />}
+                  </span>
                 </td>
                 {publishedWods.map(w => {
                   const cell = row.per_wod?.[w.id]

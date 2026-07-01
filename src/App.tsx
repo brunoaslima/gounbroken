@@ -31,6 +31,7 @@ import SideNav from '@/components/SideNav'
 import TermsAcceptance from '@/pages/TermsAcceptance'
 import CompetitionPublic from '@/pages/CompetitionPublic'
 import Landing from '@/pages/Landing'
+import Timer from '@/pages/Timer'
 import { CURRENT_TERMS_VERSION } from '@/lib/terms'
 
 function Spinner() {
@@ -115,6 +116,7 @@ export default function App() {
         <Route path="/athlete/add"            element={<RequireAuth><TabLayout><AddScore /></TabLayout></RequireAuth>} />
         <Route path="/athlete/movement/:id"   element={<RequireAuth><TabLayout><MovementDetail /></TabLayout></RequireAuth>} />
         <Route path="/athlete/buildup"        element={<RequireAuth><TabLayout><Buildup /></TabLayout></RequireAuth>} />
+        <Route path="/athlete/timer"          element={<RequireAuth><TabLayout><Timer /></TabLayout></RequireAuth>} />
         <Route path="/athlete/invites"        element={<RequireAuth><TabLayout><InviteInbox /></TabLayout></RequireAuth>} />
         <Route path="/athlete/admin"          element={<RequireRole roles={['admin']}><TabLayout><Admin /></TabLayout></RequireRole>} />
         <Route path="/athlete/personal"              element={<RequireRole roles={['admin','personal']}><TabLayout><Personal /></TabLayout></RequireRole>} />
