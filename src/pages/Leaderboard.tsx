@@ -76,7 +76,7 @@ function CrownIcon() {
       width="13" height="13" viewBox="0 0 24 24"
       fill="none" stroke="#D4FF3A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
       aria-hidden="true"
-      style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 5, flexShrink: 0 }}
+      style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0 }}
     >
       <path d="M12 6l4 6l5 -4l-2 10h-14l-2 -10l5 4z" />
     </svg>
@@ -90,6 +90,8 @@ interface RankMove {
 
 const ARROW_TTL = 30_000
 const ARROW_FADE = 8_000
+// baseline survives navigation/reload so arrows show up when returning to the page
+const BASELINE_TTL = 10 * 60_000
 
 function MoveArrow({ move }: { move?: RankMove }) {
   if (!move || move.delta === 0) return null
@@ -167,10 +169,10 @@ function DivisionTable({
       if (delta === 0) return
       el.style.transition = 'none'
       el.style.transform = `translateY(${delta}px)`
-      requestAnimationFrame(() => {
-        el.style.transition = 'transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)'
-        el.style.transform = ''
-      })
+      // force reflow so the browser commits the offset before transitioning back
+      void el.offsetHeight
+      el.style.transition = 'transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)'
+      el.style.transform = ''
     })
     prevTopsRef.current = newTops
   }, [rows])
@@ -270,7 +272,6 @@ function DivisionTable({
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
-                    <MoveArrow move={movements.get(row.team_id)} />
                     <MedalRank rank={rank} />
                     {isTiebreak(row) && (
                       <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, fontWeight: 800, letterSpacing: '0.12em', color: '#6B6B68', lineHeight: 1 }}>
@@ -298,9 +299,10 @@ function DivisionTable({
                     borderRight: '1px solid #2A2A2A',
                   }}
                 >
-                  <span style={{ display: 'inline-flex', alignItems: 'center', maxWidth: '100%' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, maxWidth: '100%' }}>
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.team_name}</span>
                     {isFirst && <CrownIcon />}
+                    <MoveArrow move={movements.get(row.team_id)} />
                   </span>
                 </td>
                 {publishedWods.map(w => {
@@ -387,6 +389,19 @@ export default function Leaderboard() {
   const [lbError, setLbError] = useState<string | null>(null)
   const [movements, setMovements] = useState<Map<string, RankMove>>(new Map())
   const prevRanksRef = useRef(new Map<string, number>())
+
+  useEffect(() => {
+    if (!id) return
+    try {
+      const raw = sessionStorage.getItem(`lb-ranks-${id}`)
+      if (raw) {
+        const saved = JSON.parse(raw) as { at: number; ranks: Record<string, number> }
+        if (Date.now() - saved.at < BASELINE_TTL) {
+          prevRanksRef.current = new Map(Object.entries(saved.ranks))
+        }
+      }
+    } catch { /* corrupted storage — start fresh */ }
+  }, [id])
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL)
   const [refreshKey, setRefreshKey] = useState(0)
   const countdownRef = useRef(REFRESH_INTERVAL)
@@ -479,7 +494,14 @@ export default function Leaderboard() {
           })
           return next
         })
-        prevRanksRef.current = new Map(newRows.map(r => [r.team_id, r.overall_rank]))
+        // merge (not replace) so filtering by division keeps other divisions' baseline
+        newRows.forEach(r => prevRanksRef.current.set(r.team_id, r.overall_rank))
+        try {
+          sessionStorage.setItem(`lb-ranks-${id}`, JSON.stringify({
+            at: now,
+            ranks: Object.fromEntries(prevRanksRef.current),
+          }))
+        } catch { /* storage full/unavailable — arrows just won't survive navigation */ }
         setRows(newRows)
       }
       if (comp.data) setCompName(comp.data.name)
