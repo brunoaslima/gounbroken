@@ -17,6 +17,7 @@ interface Props {
   onPause: () => void
   onResume: () => void
   onReset: () => void
+  onBack: () => void
   onFinishEarly: () => void
   onSkipPhase: () => void
   onAddMinute: () => void
@@ -157,7 +158,7 @@ function ControlBtn({
 export function TimerDisplay({
   status, config, displayFormatted, displaySeconds, currentRound, totalRounds,
   phase, countdownValue, finalDisplay, cappedOut, amrapRounds,
-  onPause, onResume, onReset, onFinishEarly, onSkipPhase, onAddMinute, onAddAmrapRound,
+  onPause, onResume, onReset, onBack, onFinishEarly, onSkipPhase, onAddMinute, onAddAmrapRound,
 }: Props) {
   const bg = getBg(status, config, displaySeconds, phase)
   const numColor = getNumberColor(status, config, displaySeconds, phase)
@@ -297,9 +298,14 @@ export function TimerDisplay({
       {/* Controls */}
       <div style={{ padding: '0 20px 32px', flexShrink: 0 }}>
         {status === 'done' && (
-          <ControlBtn onClick={onReset} color="#D4FF3A" textColor="#0A0A0A" filled>
-            NEW TIMER
-          </ControlBtn>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <ControlBtn onClick={onBack} color="#2A2A2A" neutral>
+              ← BACK
+            </ControlBtn>
+            <ControlBtn onClick={onReset} color="#D4FF3A" textColor="#0A0A0A" filled>
+              NEW TIMER
+            </ControlBtn>
+          </div>
         )}
 
         {(isRunning || isPaused) && (

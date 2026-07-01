@@ -85,6 +85,7 @@ export default function Timer() {
           onPause={timer.pause}
           onResume={timer.resume}
           onReset={timer.reset}
+          onBack={() => navigate(-1)}
           onFinishEarly={timer.finishEarly}
           onSkipPhase={timer.skipPhase}
           onAddMinute={timer.addMinute}

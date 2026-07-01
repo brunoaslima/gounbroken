@@ -322,6 +322,7 @@ export default function Leaderboard() {
   const [selectedDivisionId, setSelectedDivisionId] = useState<string | null>(null)
   const [compName, setCompName] = useState('')
   const [loading, setLoading] = useState(true)
+  const [lbError, setLbError] = useState<string | null>(null)
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL)
   const [refreshKey, setRefreshKey] = useState(0)
   const countdownRef = useRef(REFRESH_INTERVAL)
@@ -392,6 +393,12 @@ export default function Leaderboard() {
           .order('order_index'),
         supabase.from('competition_divisions').select('*').eq('competition_id', id).order('created_at'),
       ])
+      if (lb.error) {
+        console.error('[leaderboard] rpc error:', lb.error)
+        setLbError(lb.error.message)
+      } else {
+        setLbError(null)
+      }
       if (lb.data) setRows(lb.data as LeaderboardRow[])
       if (comp.data) setCompName(comp.data.name)
       if (wodList.data) setWods(wodList.data as WodInfo[])
@@ -613,6 +620,13 @@ export default function Leaderboard() {
           <span className="font-mono font-bold uppercase text-[10px] tracking-[0.14em] text-[#6B6B68]">
             Carregando...
           </span>
+        </div>
+      ) : lbError ? (
+        <div className="flex-1 flex flex-col items-center justify-center gap-2 px-6">
+          <span className="font-mono font-bold uppercase text-[10px] tracking-[0.14em] text-[#FF3B30]">
+            Erro ao carregar
+          </span>
+          <span className="font-mono text-[10px] text-[#6B6B68] text-center">{lbError}</span>
         </div>
       ) : rows.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
