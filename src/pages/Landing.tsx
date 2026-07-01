@@ -278,10 +278,21 @@ function ScriptedBoard() {
           OPEN BOX CHAMPIONSHIP 2026 · {status}
         </span>
       </div>
-      <div style={{ padding: '8px 0' }}>
+      {/* overflowAnchor none: reordering rows must not drag the page scroll along */}
+      <div style={{ padding: '8px 0', overflowAnchor: 'none' }}>
         {rows.map((row, i) => {
           const isFlash = row.team === flashTeam
           const move = arrows[row.team]
+          const rank = i + 1
+          const medal =
+            rank === 1 ? { bg: '#C9A227', color: '#0A0A0A' } :
+            rank === 2 ? { bg: '#8C9094', color: '#0A0A0A' } :
+            rank === 3 ? { bg: '#8B4A2D', color: '#F5F5F0' } :
+            null
+          const rowBg = isFlash ? '#13160a'
+            : rank === 1 ? 'rgba(212,255,58,0.12)'
+            : rank <= 3 ? 'rgba(212,255,58,0.06)'
+            : 'transparent'
           return (
             <div
               key={row.team}
@@ -289,24 +300,34 @@ function ScriptedBoard() {
                 if (el) rowRefs.current.set(row.team, el)
                 else rowRefs.current.delete(row.team)
               }}
-              style={{ display: 'grid', gridTemplateColumns: '48px 16px 1fr 160px 70px', alignItems: 'center', gap: 14, padding: '15px 32px', borderBottom: '1px solid #161616', background: isFlash ? '#13160a' : 'transparent', transition: 'background 0.25s' }}
+              style={{ display: 'grid', gridTemplateColumns: '56px 1fr 160px 70px', alignItems: 'center', gap: 14, padding: '13px 32px', borderBottom: '1px solid #161616', background: rowBg, transition: 'background 0.25s' }}
             >
-              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 15, fontWeight: 800, color: TIER_COLORS[i] || '#6B6B68' }}>
-                {String(i + 1).padStart(2, '0')}
-              </span>
-              <span style={{ width: 11, height: 11, background: TIER_COLORS[i] || '#6B6B68', display: 'inline-block' }} />
-              <span style={{ fontWeight: 700, fontSize: 15, color: '#F5F5F0' }}>
+              {medal ? (
+                <span style={{ justifySelf: 'start', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: medal.bg, color: medal.color, fontFamily: "'JetBrains Mono', monospace", fontWeight: 900, fontSize: 13, letterSpacing: '0.04em', padding: '3px 8px' }}>
+                  {String(rank).padStart(2, '0')}
+                </span>
+              ) : (
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 800, color: '#6B6B68' }}>
+                  {String(rank).padStart(2, '0')}
+                </span>
+              )}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: rank === 1 ? 16 : 15, color: rank === 1 ? '#D4FF3A' : '#F5F5F0' }}>
                 {row.team}
+                {rank === 1 && (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4FF3A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+                    <path d="M12 6l4 6l5 -4l-2 10h-14l-2 -10l5 4z" />
+                  </svg>
+                )}
                 {move !== undefined && (
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 800, marginLeft: 10, color: move > 0 ? '#D4FF3A' : '#FF3B30' }}>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 800, color: move > 0 ? '#D4FF3A' : '#FF3B30' }}>
                     {move > 0 ? `▲${move}` : `▼${-move}`}
                   </span>
                 )}
               </span>
               <div style={{ height: 8, background: '#1c1c1c' }}>
-                <div style={{ height: '100%', width: `${Math.round((row.pts / maxPts) * 100)}%`, background: TIER_COLORS[i] || '#6B6B68', transition: 'width 0.5s cubic-bezier(0.2,0.8,0.2,1)' }} />
+                <div style={{ height: '100%', width: `${Math.round((row.pts / maxPts) * 100)}%`, background: rank === 1 ? '#D4FF3A' : rank <= 3 ? '#A8A8A4' : '#3D3D3B', transition: 'width 0.5s cubic-bezier(0.2,0.8,0.2,1)' }} />
               </div>
-              <RollingPts value={row.pts} color={i === 0 ? '#D4FF3A' : '#A8A8A4'} />
+              <RollingPts value={row.pts} color="#D4FF3A" />
             </div>
           )
         })}
