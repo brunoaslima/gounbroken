@@ -442,7 +442,9 @@ export default function CompetitionManage() {
       setTimeout(() => setSavedMsg(null), 4000)
       await load()
     } catch (e) {
-      setMutateError(e instanceof Error ? e.message : 'Erro')
+      const msg = e instanceof Error ? e.message : 'Erro ao salvar'
+      setEnterError(msg)
+      setMutateError(msg)
     } finally {
       setMutating(false)
     }
@@ -1927,11 +1929,17 @@ function ScoreInput({
   error: string | null
 }) {
   const base = { ...fields, type }
-  // Real-time cap error shown inline (before user tries to save)
-  const capError = type === 'time' && capSeconds != null
-    ? validateScoreFields(fields, capSeconds)
-    : null
-  const displayError = error ?? capError
+
+  // Show live validation only after user has started typing something
+  const hasValue = type === 'time'
+    ? ((fields.minutes ?? 0) > 0 || (fields.seconds ?? 0) > 0)
+    : type === 'reps' ? (fields.reps ?? 0) > 0
+    : type === 'weight' ? (fields.kg ?? 0) > 0
+    : ((fields.rounds ?? 0) > 0 || (fields.partialReps ?? 0) > 0)
+
+  const liveError = hasValue ? validateScoreFields(fields, capSeconds ?? undefined) : null
+  // error prop = explicit error from save attempt (takes priority)
+  const displayError = error ?? liveError
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
