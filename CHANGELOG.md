@@ -6,6 +6,21 @@ Formato de versão: `## [versão] — AAAA-MM-DD`
 
 ---
 
+## [1.1.0] — 2026-07-01
+
+### Tools → CrossFit Timer
+
+- Tools → Timer: 6 modes — For Time, AMRAP, EMOM, Tabata, Interval, Stopwatch
+- Tools → Timer: fullscreen display with 3-2-1 countdown, phase colors, last-10s pulse animation
+- Tools → Timer: Web Audio beeps for countdown, phase transitions, and finish
+- Tools → Timer: Wake Lock API keeps screen on during active timer
+- Tools → Timer: vibration feedback on finish
+- Tools → Timer: AMRAP round counter with tap-to-count + ROUND button
+- Tools → Timer: editable time fields with +15s/+30s/+1m/+5m quick increments
+- Tools → Timer: accessible from Profile → Calculators section
+
+---
+
 ## [1.0.0] — 2026-07-01
 
 ### Competition → Judge Panel & Leaderboard polish
