@@ -210,7 +210,7 @@ export default function JudgePanel() {
             </div>
 
             {/* Score inputs — same pattern as CompetitionManage Results tab */}
-            <div style={{ background: '#111111', border: `1px solid ${submitError ? '#FF3B30' : '#2A2A2A'}`, padding: '28px 20px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12 }}>
+            <div style={{ background: '#111111', border: `1px solid ${(submitError || validationError) ? '#FF3B30' : '#2A2A2A'}`, padding: '28px 20px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12 }}>
               {scoreType === 'time' && (
                 <>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
@@ -218,7 +218,7 @@ export default function JudgePanel() {
                     <input autoFocus type='number' min={0} max={99}
                       value={scoreFields.minutes ?? ''}
                       placeholder='00'
-                      onChange={e => { setScoreFields(f => ({ ...f, minutes: parseInt(e.target.value) || 0 })); setSubmitError(null) }}
+                      onChange={e => { const v = e.target.value; setScoreFields(f => ({ ...f, minutes: v === '' ? undefined : Math.max(0, parseInt(v)) })); setSubmitError(null) }}
                       className="judge-score-input" style={SCORE_INPUT}
                     />
                   </div>
@@ -228,7 +228,7 @@ export default function JudgePanel() {
                     <input type='number' min={0} max={59}
                       value={scoreFields.seconds ?? ''}
                       placeholder='00'
-                      onChange={e => { setScoreFields(f => ({ ...f, seconds: Math.min(59, parseInt(e.target.value) || 0) })); setSubmitError(null) }}
+                      onChange={e => { const v = e.target.value; setScoreFields(f => ({ ...f, seconds: v === '' ? undefined : Math.min(59, Math.max(0, parseInt(v))) })); setSubmitError(null) }}
                       className="judge-score-input" style={SCORE_INPUT}
                     />
                   </div>
@@ -240,7 +240,7 @@ export default function JudgePanel() {
                   <input autoFocus type='number' min={1}
                     value={scoreFields.reps ?? ''}
                     placeholder='0'
-                    onChange={e => { setScoreFields(f => ({ ...f, reps: parseInt(e.target.value) || 0 })); setSubmitError(null) }}
+                    onChange={e => { const v = e.target.value; setScoreFields(f => ({ ...f, reps: v === '' ? undefined : Math.max(0, parseInt(v)) })); setSubmitError(null) }}
                     className="judge-score-input" style={{ ...SCORE_INPUT, width: 100 }}
                   />
                 </div>
@@ -251,7 +251,7 @@ export default function JudgePanel() {
                   <input autoFocus type='number' min={0} step={0.5}
                     value={scoreFields.kg ?? ''}
                     placeholder='0'
-                    onChange={e => { setScoreFields(f => ({ ...f, kg: parseFloat(e.target.value) || 0 })); setSubmitError(null) }}
+                    onChange={e => { const v = e.target.value; setScoreFields(f => ({ ...f, kg: v === '' ? undefined : Math.max(0, parseFloat(v)) })); setSubmitError(null) }}
                     className="judge-score-input" style={{ ...SCORE_INPUT, width: 100 }}
                   />
                 </div>
@@ -263,7 +263,7 @@ export default function JudgePanel() {
                     <input autoFocus type='number' min={0}
                       value={scoreFields.rounds ?? ''}
                       placeholder='0'
-                      onChange={e => { setScoreFields(f => ({ ...f, rounds: parseInt(e.target.value) || 0 })); setSubmitError(null) }}
+                      onChange={e => { const v = e.target.value; setScoreFields(f => ({ ...f, rounds: v === '' ? undefined : Math.max(0, parseInt(v)) })); setSubmitError(null) }}
                       className="judge-score-input" style={SCORE_INPUT}
                     />
                   </div>
@@ -273,16 +273,16 @@ export default function JudgePanel() {
                     <input type='number' min={0}
                       value={scoreFields.partialReps ?? ''}
                       placeholder='0'
-                      onChange={e => { setScoreFields(f => ({ ...f, partialReps: parseInt(e.target.value) || 0 })); setSubmitError(null) }}
+                      onChange={e => { const v = e.target.value; setScoreFields(f => ({ ...f, partialReps: v === '' ? undefined : Math.max(0, parseInt(v)) })); setSubmitError(null) }}
                       className="judge-score-input" style={SCORE_INPUT}
                     />
                   </div>
                 </>
               )}
             </div>
-            {submitError && (
+            {(submitError || validationError) && (
               <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, color: '#FF3B30', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                {submitError}
+                {submitError ?? validationError}
               </div>
             )}
 
