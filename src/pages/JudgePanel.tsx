@@ -3,7 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { useProfile } from '@/hooks/useProfile'
-import type { CompetitionWod, CompetitionTeam, CompetitionRole, CompetitionResult } from '@/types'
+import type { CompetitionWod, CompetitionTeam, CompetitionRole, CompetitionResult, CompetitionDivision } from '@/types'
+
+const FORMAT_SHORT: Record<string, string> = { individual: 'IND', pair: 'PAIR', team3: 'T3', team4: 'T4' }
+function divLabel(d: CompetitionDivision) {
+  return `${FORMAT_SHORT[d.format] ?? d.format} · ${d.composition.toUpperCase()} · ${d.category.toUpperCase()}`
+}
 
 const SCORE_LABEL: Record<string, string> = {
   time:             'FOR TIME',
@@ -58,9 +63,11 @@ export default function JudgePanel() {
   const [totalWodsCount, setTotalWodsCount] = useState(0)
   const [teams, setTeams] = useState<CompetitionTeam[]>([])
   const [results, setResults] = useState<CompetitionResult[]>([])
+  const [divisions, setDivisions] = useState<CompetitionDivision[]>([])
   const [myRole, setMyRole] = useState<CompetitionRole | null>(null)
 
   const [activeWodId, setActiveWodId] = useState<string | null>(null)
+  const [activeDivisionId, setActiveDivisionId] = useState<string | null>(null)
 
   // Score form
   const [scoringTeamId, setScoringTeamId] = useState<string | null>(null)
@@ -76,16 +83,18 @@ export default function JudgePanel() {
     setLoading(true)
     setError(null)
     try {
-      const [compRes, allWodsRes, teamsRes, roleRes] = await Promise.all([
+      const [compRes, allWodsRes, teamsRes, roleRes, divsRes] = await Promise.all([
         supabase.from('competitions').select('name').eq('id', id).single(),
         supabase.from('competition_wods').select('*').eq('competition_id', id).order('order_index'),
         supabase.from('competition_teams').select('*').eq('competition_id', id).eq('status', 'approved'),
         supabase.from('competition_roles').select('*').eq('competition_id', id).eq('user_id', user.id).single(),
+        supabase.from('competition_divisions').select('*').eq('competition_id', id).order('format').order('composition').order('category'),
       ])
 
       if (compRes.error) throw new Error(compRes.error.message)
       if (allWodsRes.error) throw new Error(allWodsRes.error.message)
       if (teamsRes.error) throw new Error(teamsRes.error.message)
+      if (!divsRes.error) setDivisions((divsRes.data ?? []) as CompetitionDivision[])
 
       const allWods = (allWodsRes.data ?? []) as CompetitionWod[]
       const role = roleRes.error ? null : (roleRes.data as CompetitionRole)
@@ -134,8 +143,17 @@ export default function JudgePanel() {
   const activeWodIdx = wods.findIndex(w => w.id === activeWodId)
   const wodResults   = activeWod ? results.filter(r => r.wod_id === activeWod.id) : []
   const submittedIds = new Set(wodResults.map(r => r.team_id))
-  const pendingTeams = teams.filter(t => !submittedIds.has(t.id))
-  const doneTeams    = teams.filter(t => submittedIds.has(t.id))
+
+  const divisionTeams = activeDivisionId
+    ? teams.filter(t => t.division_id === activeDivisionId)
+    : teams
+
+  const pendingTeams = divisionTeams
+    .filter(t => !submittedIds.has(t.id))
+    .sort((a, b) => a.name.localeCompare(b.name))
+  const doneTeams = divisionTeams
+    .filter(t => submittedIds.has(t.id))
+    .sort((a, b) => a.name.localeCompare(b.name))
   const scoringTeam  = scoringTeamId ? teams.find(t => t.id === scoringTeamId) : null
 
   function openScoreForm(teamId: string) {
@@ -363,6 +381,28 @@ export default function JudgePanel() {
             </div>
           )}
         </div>
+
+        {/* ── Division filter ───────────────────────────────────────────────── */}
+        {divisions.length > 0 && (
+          <div style={{ display: 'flex', gap: 1, background: '#2A2A2A', borderBottom: '1px solid #2A2A2A', overflowX: 'auto', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' as never }}>
+            {[{ id: null, label: 'TODAS' }, ...divisions.map(d => ({ id: d.id, label: divLabel(d) }))].map(opt => (
+              <button
+                key={opt.id ?? 'all'}
+                onClick={() => setActiveDivisionId(opt.id)}
+                style={{
+                  fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, fontSize: 9,
+                  letterSpacing: '0.16em', textTransform: 'uppercase',
+                  padding: '8px 12px',
+                  background: activeDivisionId === opt.id ? '#D4FF3A' : '#0A0A0A',
+                  color: activeDivisionId === opt.id ? '#0A0A0A' : '#6B6B68',
+                  border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* ── Stats ─────────────────────────────────────────────────────────── */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, background: '#2A2A2A', borderBottom: '1px solid #2A2A2A' }}>
