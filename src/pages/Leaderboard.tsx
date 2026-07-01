@@ -42,7 +42,7 @@ function divisionShortLabel(d: CompetitionDivision): string {
   return `${FORMAT_SHORT[d.format]} · ${d.composition.toUpperCase()} · ${d.category.toUpperCase()}`
 }
 
-const REFRESH_INTERVAL = 10
+const REFRESH_INTERVAL = 30
 
 const ScoreTypeLabel: Record<string, string> = {
   time: 'FOR TIME',
