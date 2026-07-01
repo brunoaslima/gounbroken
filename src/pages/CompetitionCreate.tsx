@@ -532,9 +532,9 @@ export default function CompetitionCreate() {
 
       </div>
 
-      {/* Sticky CTA — z-50 to stack above BottomNav (z-30) on mobile */}
+      {/* Sticky CTA — z-40: above BottomNav (z-30), below sheets/popovers (z-50) */}
       <div
-        className="fixed bottom-0 left-0 right-0 z-50 md:relative md:z-auto"
+        className="fixed bottom-0 left-0 right-0 z-40 md:relative md:z-auto"
         style={{ background: '#0A0A0A', borderTop: '1px solid #2A2A2A', padding: '12px 16px', paddingBottom: 'max(env(safe-area-inset-bottom, 12px), 12px)' }}
       >
         <button
