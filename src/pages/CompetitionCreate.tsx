@@ -36,6 +36,7 @@ const INPUT_STYLE: React.CSSProperties = {
   width: '100%',
   background: '#111111',
   border: '1px solid #2A2A2A',
+  borderRadius: 0,
   color: '#F5F5F0',
   fontFamily: 'inherit',
   fontSize: 15,
@@ -431,8 +432,8 @@ export default function CompetitionCreate() {
                 style={{
                   fontSize: 10, letterSpacing: '0.14em',
                   padding: '9px 4px',
-                  background: divFormat === opt.value ? '#F5F5F0' : '#0A0A0A',
-                  color: divFormat === opt.value ? '#0A0A0A' : '#6B6B68',
+                  background: divFormat === opt.value ? '#F5F5F0' : '#1A1A1A',
+                  color: divFormat === opt.value ? '#0A0A0A' : '#A8A8A4',
                   border: 'none', cursor: 'pointer',
                 }}
               >
@@ -456,8 +457,8 @@ export default function CompetitionCreate() {
                   style={{
                     fontSize: 10, letterSpacing: '0.14em',
                     padding: '9px 4px',
-                    background: divComposition === opt.value && !disabled ? '#F5F5F0' : '#0A0A0A',
-                    color: disabled ? '#2A2A2A' : divComposition === opt.value ? '#0A0A0A' : '#6B6B68',
+                    background: divComposition === opt.value && !disabled ? '#F5F5F0' : '#1A1A1A',
+                    color: disabled ? '#333333' : divComposition === opt.value ? '#0A0A0A' : '#A8A8A4',
                     border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
                   }}
                 >
@@ -480,8 +481,8 @@ export default function CompetitionCreate() {
                 style={{
                   fontSize: 10, letterSpacing: '0.14em',
                   padding: '9px 4px',
-                  background: divCategory === cat && !divCustomCategory ? '#F5F5F0' : '#0A0A0A',
-                  color: divCategory === cat && !divCustomCategory ? '#0A0A0A' : '#6B6B68',
+                  background: divCategory === cat && !divCustomCategory ? '#F5F5F0' : '#1A1A1A',
+                  color: divCategory === cat && !divCustomCategory ? '#0A0A0A' : '#A8A8A4',
                   border: 'none', cursor: 'pointer',
                 }}
               >
@@ -492,11 +493,10 @@ export default function CompetitionCreate() {
 
           <FocusInput
             type="text"
-            placeholder="Custom category (e.g. ATHX Pro)"
+            placeholder="or type a custom category..."
             value={divCustomCategory}
             onChange={e => setDivCustomCategory(e.target.value)}
             maxLength={50}
-            style={{ marginBottom: 10, fontSize: 13, padding: '9px 12px', background: '#111111', border: '1px solid #2A2A2A', color: '#F5F5F0', width: '100%', outline: 'none', fontFamily: 'inherit' }}
           />
 
           {/* Preview label */}
