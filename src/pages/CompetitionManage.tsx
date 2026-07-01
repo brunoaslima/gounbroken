@@ -315,6 +315,13 @@ export default function CompetitionManage() {
 
   useEffect(() => { load() }, [load])
 
+  // Auto-select first WOD when entering RESULTS tab
+  useEffect(() => {
+    if (activeTab === 'RESULTS' && !selectedWodId && wods.length > 0) {
+      setSelectedWodId(wods[0].id)
+    }
+  }, [activeTab, wods, selectedWodId])
+
   // ─── Guards ───────────────────────────────────────────────────────────────────
   const isAdmin = profile?.roles?.includes('admin') ?? false
   const isHeadJudge = myRole === 'head_judge'
