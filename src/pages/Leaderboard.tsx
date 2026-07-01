@@ -333,20 +333,30 @@ function DivisionTable({
                     <td
                       key={w.id}
                       style={{
-                        textAlign: 'center', padding: '0 6px',
+                        textAlign: 'center', padding: '0 8px',
                         borderBottom: '1px solid #1A1A1A',
+                        whiteSpace: 'nowrap',
                       }}
                     >
-                      <span style={{
-                        display: 'inline-block',
-                        background: cellBg, color: cellColor,
-                        fontFamily: 'JetBrains Mono, monospace',
-                        fontSize: 12, fontWeight: 800,
-                        letterSpacing: '0.04em',
-                        padding: '3px 7px',
-                        fontVariantNumeric: 'tabular-nums',
-                      }}>
-                        {cell.points}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{
+                          fontFamily: 'JetBrains Mono, monospace',
+                          fontSize: 11, fontWeight: 700,
+                          color: '#F5F5F0',
+                          fontVariantNumeric: 'tabular-nums',
+                        }}>
+                          {cell.raw_result}
+                        </span>
+                        <span style={{
+                          background: cellBg, color: cellColor,
+                          fontFamily: 'JetBrains Mono, monospace',
+                          fontSize: 9, fontWeight: 800,
+                          letterSpacing: '0.04em',
+                          padding: '2px 5px',
+                          fontVariantNumeric: 'tabular-nums',
+                        }}>
+                          {cell.points}
+                        </span>
                       </span>
                     </td>
                   )
