@@ -402,12 +402,19 @@ export default function Landing() {
           {h1Shown}
           <span style={{ display: 'inline-block', width: '0.5em', height: '0.82em', background: '#D4FF3A', verticalAlign: 'baseline', transform: 'translateY(0.12em)', marginLeft: 6, animation: h1Done ? 'blink 1.1s step-end infinite' : 'none' }} />
         </h1>
-        <p style={{ fontSize: 15.5, lineHeight: 1.7, color: '#A8A8A4', maxWidth: 500, margin: '0 auto 40px', opacity: h1Done ? 1 : 0 }}>
+        <p style={{ fontSize: 15.5, lineHeight: 1.7, color: '#A8A8A4', maxWidth: 500, margin: '0 auto 40px', opacity: h1Done ? 1 : 0, transition: 'opacity 700ms ease-out' }}>
           The full athlete journey in one platform: log your PRs, follow your programming, and compete on a live floor.
         </p>
 
         {/* Percentile strip — supporting artifact, marker climbs in steps */}
-        <div style={{ maxWidth: 640, margin: '0 auto', opacity: h1Done ? 1 : 0 }}>
+        <div
+          style={{
+            maxWidth: 640, margin: '0 auto',
+            opacity: h1Done ? 1 : 0,
+            transform: h1Done ? 'none' : 'translateY(8px)',
+            transition: 'opacity 700ms ease-out, transform 700ms ease-out',
+          }}
+        >
           <div style={{ position: 'relative', height: 24, display: 'flex', border: '1px solid #2A2A2A' }}>
             {[12, 22, 30, 22, 10, 4].map((pct, i) => (
               <div key={i} style={{ flex: `0 0 ${pct}%`, background: TIER_COLORS[i] }} />
