@@ -10,6 +10,13 @@ import {
   getSuggestions,
   isWeighted,
 } from '@/lib/exerciseLibrary'
+import {
+  type ExerciseCatalog,
+  getCatalogSuggestions,
+  resolveMovement,
+  searchMatches,
+} from '@/lib/exerciseCatalog'
+import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -775,10 +782,11 @@ function ExerciseRow({ ex, prs, onChange, onDelete, dragHandleProps }: {
 
 // ── Add exercise sheet ───────────────────────────────────────────────
 
-function AddExerciseSheet({ sectionType, focuses, prs, onAdd, onClose }: {
+function AddExerciseSheet({ sectionType, focuses, prs, catalog, onAdd, onClose }: {
   sectionType: SectionType
   focuses: TrainingFocus[]
   prs: AthletePR[]
+  catalog: ExerciseCatalog | null
   onAdd: (name: string) => void
   onClose: () => void
 }) {
@@ -787,10 +795,17 @@ function AddExerciseSheet({ sectionType, focuses, prs, onAdd, onClose }: {
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
-  const suggestions = getSuggestions(sectionType, focuses)
-  const filtered = search
-    ? suggestions.filter(s => s.toLowerCase().includes(search.toLowerCase()))
-    : suggestions
+  // catálogo (415 movimentos, ranking por foco); lista legada só enquanto o chunk carrega
+  const catalogSuggestions = catalog ? getCatalogSuggestions(catalog, sectionType, focuses) : null
+  const filtered = catalogSuggestions
+    ? (search
+        ? catalogSuggestions.filter(s => searchMatches(s.movement, search))
+        : catalogSuggestions)
+    : getSuggestions(sectionType, focuses)
+        .filter(s => !search || s.toLowerCase().includes(search.toLowerCase()))
+        .map(name => ({ movement: { name } as { name: string }, focusMatch: false }))
+
+  const focusMatchCount = filtered.filter(s => s.focusMatch).length
 
   const hasPR = (name: string) =>
     prs.some(p => p.movement_name.toLowerCase() === name.toLowerCase())
@@ -823,16 +838,31 @@ function AddExerciseSheet({ sectionType, focuses, prs, onAdd, onClose }: {
               No suggestions. Use "+ Create" to add one.
             </p>
           )}
-          {filtered.map(name => (
-            <button key={name}
-              onClick={() => { onAdd(name); onClose() }}
-              className="w-full flex items-center justify-between gap-2 px-4 py-3 rounded-xl bg-card border border-white/5 text-left active:border-lime/20 transition-colors">
-              <span className="text-soft-white text-sm">{name}</span>
-              {hasPR(name) && (
-                <PRBadge kg={prs.find(p => p.movement_name.toLowerCase() === name.toLowerCase() && p.reps === 1)?.max_weight ?? 0} />
-              )}
-            </button>
-          ))}
+          {filtered.map((s, i) => {
+            const name = s.movement.name
+            return (
+              <React.Fragment key={name}>
+                {focusMatchCount > 0 && i === 0 && (
+                  <p className="text-muted-gray/40 text-[10px] font-bold uppercase tracking-widest pt-1 pb-0.5">
+                    Matches your focus
+                  </p>
+                )}
+                {focusMatchCount > 0 && i === focusMatchCount && (
+                  <p className="text-muted-gray/40 text-[10px] font-bold uppercase tracking-widest pt-3 pb-0.5">
+                    All movements
+                  </p>
+                )}
+                <button
+                  onClick={() => { onAdd(name); onClose() }}
+                  className="w-full flex items-center justify-between gap-2 px-4 py-3 rounded-xl bg-card border border-white/5 text-left active:border-lime/20 transition-colors">
+                  <span className="text-soft-white text-sm">{name}</span>
+                  {hasPR(name) && (
+                    <PRBadge kg={prs.find(p => p.movement_name.toLowerCase() === name.toLowerCase() && p.reps === 1)?.max_weight ?? 0} />
+                  )}
+                </button>
+              </React.Fragment>
+            )
+          })}
         </div>
 
         {/* Search input — anchored at bottom so it stays near the keyboard */}
@@ -847,7 +877,7 @@ function AddExerciseSheet({ sectionType, focuses, prs, onAdd, onClose }: {
               autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
               className="flex-1 bg-card border border-white/10 rounded-2xl px-4 py-3 text-soft-white placeholder-muted-gray/30 text-sm focus:outline-none focus:border-lime/40 transition-colors"
             />
-            {search.trim() && !filtered.some(f => f.toLowerCase() === search.toLowerCase()) && (
+            {search.trim() && !filtered.some(f => f.movement.name.toLowerCase() === search.toLowerCase()) && (
               <button onClick={addCustom}
                 className="shrink-0 bg-lime/15 border border-lime/30 text-lime text-xs font-bold px-3 py-2 rounded-xl">
                 + Create
@@ -1323,6 +1353,7 @@ export default function PersonalWorkout() {
   const [params] = useSearchParams()
   const navigate  = useNavigate()
   const location  = useLocation()
+  const catalog   = useExerciseCatalog()
 
   const athleteId    = params.get('a') ?? ''
   const workoutDate  = params.get('d') ?? ''
@@ -1517,6 +1548,7 @@ export default function PersonalWorkout() {
           modality_tags: s.modality_tags.length > 0 ? s.modality_tags : null,
           exercises: s.exercises.map((e, ei) => ({
             movement_name: e.movement_name,
+            movement_id: resolveMovement(e.movement_name)?.id ?? null,
             sets:              e.sets ? parseInt(e.sets) : null,
             reps:              e.reps && /^\d+$/.test(e.reps.trim()) ? parseInt(e.reps) : null,
             duration_seconds:  durationToSeconds(e.duration_min, e.duration_sec),
@@ -1593,6 +1625,7 @@ export default function PersonalWorkout() {
           sectionType={addExSheet.sectionType}
           focuses={focus}
           prs={prs}
+          catalog={catalog}
           onAdd={name => addExercise(addExSheet.sectionTempId, name)}
           onClose={() => setAddExSheet(null)}
         />

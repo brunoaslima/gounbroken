@@ -48,6 +48,7 @@ export interface Profile {
 export interface WorkoutExerciseData {
   id: string
   movement_name: string
+  movement_id?: string | null
   sets: number | null
   reps: number | null
   duration_seconds: number | null
