@@ -568,22 +568,23 @@ function PRBadge({ kg }: { kg: number }) {
 
 // ── Exercise row ─────────────────────────────────────────────────────
 
-function ExerciseRow({ ex, prs, autoExpand, onChange, onDelete, dragHandleProps }: {
+function ExerciseRow({ ex, prs, expanded, autoFocus, onToggle, onChange, onDelete, dragHandleProps }: {
   ex: DraftExercise
   prs: AthletePR[]
-  autoExpand?: boolean
+  expanded: boolean
+  autoFocus?: boolean
+  onToggle: () => void
   onChange: (updated: DraftExercise) => void
   onDelete: () => void
   dragHandleProps?: React.HTMLAttributes<HTMLSpanElement>
 }) {
-  const [expanded, setExpanded] = useState(!!autoExpand)
   const repsInputRef = useRef<HTMLInputElement>(null)
   const weighted = isWeighted(ex.movement_name)
 
   useEffect(() => {
-    if (autoExpand) repsInputRef.current?.focus()
+    if (expanded && autoFocus) repsInputRef.current?.focus()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [expanded])
 
   const pr1rm = prs.find(
     p => p.movement_name.toLowerCase() === ex.movement_name.toLowerCase() && p.reps === 1
@@ -636,7 +637,7 @@ function ExerciseRow({ ex, prs, autoExpand, onChange, onDelete, dragHandleProps 
         </span>
         <button
           className="flex-1 flex items-center gap-3 pr-3 py-3 text-left"
-          onClick={() => setExpanded(e => !e)}
+          onClick={onToggle}
         >
           <div className="w-1.5 h-1.5 rounded-full bg-lime/60 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
@@ -1385,8 +1386,10 @@ export default function PersonalWorkout() {
   // Sheet state
   const [addExSheet, setAddExSheet] = useState<{ sectionTempId: string; sectionType: SectionType } | null>(null)
   const [addSectionOpen, setAddSectionOpen] = useState(false)
-  // Recém-adicionado abre expandido direto, sem precisar clicar de novo para preencher reps/cal
-  const [autoExpandId, setAutoExpandId] = useState<string | null>(null)
+  // Accordion: só um exercício expandido por vez, em todo o treino
+  const [expandedExId, setExpandedExId] = useState<string | null>(null)
+  // Recém-adicionado abre expandido e com o campo de reps focado, sem precisar clicar de novo
+  const [focusExId, setFocusExId] = useState<string | null>(null)
 
   // Drag state for section reordering
   const [dragSectionIndex, setDragSectionIndex] = useState<number | null>(null)
@@ -1494,7 +1497,8 @@ export default function PersonalWorkout() {
         ? { ...s, exercises: [...s.exercises, ex] }
         : s
     ))
-    setAutoExpandId(ex.tempId)
+    setExpandedExId(ex.tempId)
+    setFocusExId(ex.tempId)
   }
 
   function updateExercise(sectionTempId: string, ex: DraftExercise) {
@@ -1928,7 +1932,9 @@ export default function PersonalWorkout() {
                       <ExerciseRow
                         ex={ex}
                         prs={prs}
-                        autoExpand={ex.tempId === autoExpandId}
+                        expanded={ex.tempId === expandedExId}
+                        autoFocus={ex.tempId === focusExId}
+                        onToggle={() => setExpandedExId(prev => prev === ex.tempId ? null : ex.tempId)}
                         onChange={updated => updateExercise(section.tempId, updated)}
                         onDelete={() => removeExercise(section.tempId, ex.tempId)}
                         dragHandleProps={{
