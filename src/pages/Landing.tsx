@@ -17,7 +17,7 @@ const JOURNEY = [
   {
     num: '01', label: 'LOG', color: '#4DA3FF',
     title: 'Every lift on record',
-    desc: 'PRs, benchmarks and WODs with auto e1RM math — and a percentile tier that tells you exactly where you stand.',
+    desc: 'PRs, benchmarks and WODs with auto e1RM math, plus a percentile tier that tells you exactly where you stand.',
     log: '> snatch 82kg logged',
   },
   {
@@ -68,7 +68,7 @@ const BOARD_SCRIPT = [
 
 const FAQ_ITEMS = [
   { q: 'Is it really free to start?', a: 'Yes. Create an account and log unlimited PRs with no card required. Paid plans add coach programming, team competitions and advanced analytics.' },
-  { q: 'How do live competitions work?', a: 'Create the event, set divisions and WODs, invite judges. Scores go in from the judge panel and the public leaderboard updates in seconds — no spreadsheets, no recount.' },
+  { q: 'How do live competitions work?', a: 'Create the event, set divisions and WODs, invite judges. Scores go in from the judge panel and the public leaderboard updates in seconds, no spreadsheets, no recount.' },
   { q: 'Can my coach program for me?', a: 'Coaches prescribe sessions straight into your app. You execute, log and progress while they see every athlete\'s full history in one dashboard.' },
   { q: 'Does it work offline as a PWA?', a: 'Install Go Unbroken to your home screen and log lifts at the rack even with no signal. Everything syncs the moment you reconnect.' },
 ]
@@ -403,7 +403,7 @@ export default function Landing() {
           <span style={{ display: 'inline-block', width: '0.5em', height: '0.82em', background: '#D4FF3A', verticalAlign: 'baseline', transform: 'translateY(0.12em)', marginLeft: 6, animation: h1Done ? 'blink 1.1s step-end infinite' : 'none' }} />
         </h1>
         <p style={{ fontSize: 15.5, lineHeight: 1.7, color: '#A8A8A4', maxWidth: 500, margin: '0 auto 40px', opacity: h1Done ? 1 : 0 }}>
-          The full athlete journey in one platform — log your PRs, follow your programming, and compete on a live floor.
+          The full athlete journey in one platform: log your PRs, follow your programming, and compete on a live floor.
         </p>
 
         {/* Percentile strip — supporting artifact, marker climbs in steps */}
@@ -505,21 +505,21 @@ export default function Landing() {
             Prescribe sessions, athletes log them, and every curve lands back on your dashboard.
           </p>
           <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: '#A8A8A4', lineHeight: 2 }}>
-            › PRESCRIBE — SESSIONS STRAIGHT TO THE APP<br />
-            › TRACK — EVERY ATHLETE'S FULL HISTORY<br />
-            › ADJUST — AI SUGGESTIONS ON TAP
+            › PRESCRIBE: SESSIONS STRAIGHT TO THE APP<br />
+            › TRACK: EVERY ATHLETE'S FULL HISTORY<br />
+            › ADJUST: AI SUGGESTIONS ON TAP
           </div>
         </div>
         <div style={{ padding: '44px 32px' }}>
           <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 800, letterSpacing: '0.2em', color: '#FF8A00', marginBottom: 16 }}>ORGANIZER</div>
           <h3 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 12px', letterSpacing: '-0.01em' }}>Run a throwdown without spreadsheets.</h3>
           <p style={{ fontSize: 13.5, lineHeight: 1.65, color: '#6B6B68', margin: '0 0 20px' }}>
-            Divisions, teams, judges and a public live board — the whole event in one place.
+            Divisions, teams, judges and a public live board: the whole event in one place.
           </p>
           <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: '#A8A8A4', lineHeight: 2 }}>
-            › CREATE — DIVISIONS, WODS, HEATS<br />
-            › JUDGE — SCORES IN FROM THE FLOOR<br />
-            › BROADCAST — LIVE PUBLIC LEADERBOARD
+            › CREATE: DIVISIONS, WODS, HEATS<br />
+            › JUDGE: SCORES IN FROM THE FLOOR<br />
+            › BROADCAST: LIVE PUBLIC LEADERBOARD
           </div>
         </div>
       </Section>
