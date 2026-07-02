@@ -265,8 +265,8 @@ export default function TeamCreate() {
         )}
       </div>
 
-      {/* Sticky bottom CTA */}
-      <div className="sticky bottom-0 px-5 py-4 bg-[#0A0A0A] border-t border-[#2A2A2A] flex-shrink-0">
+      {/* Sticky bottom CTA — z-40: above BottomNav (z-30), below sheets/popovers (z-50) */}
+      <div className="sticky bottom-0 z-40 px-5 py-4 bg-[#0A0A0A] border-t border-[#2A2A2A] flex-shrink-0">
         <button
           onClick={handleSubmit}
           disabled={!canSubmit}

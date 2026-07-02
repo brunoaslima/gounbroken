@@ -1059,7 +1059,7 @@ export default function CompetitionDetail() {
         })
         return (
           <div
-            className="sticky bottom-0 border-t border-[#2A2A2A]"
+            className="sticky bottom-0 z-40 border-t border-[#2A2A2A]"
             style={{ padding: '14px 20px 24px', background: '#0A0A0A' }}
           >
             <button

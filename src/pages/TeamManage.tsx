@@ -720,7 +720,7 @@ export default function TeamManage() {
 
       {/* Sticky bottom CTA — hidden when approved */}
       {showCta && (
-        <div className="sticky bottom-0 px-5 py-4 bg-[#0A0A0A] border-t border-[#2A2A2A] flex-shrink-0">
+        <div className="sticky bottom-0 z-40 px-5 py-4 bg-[#0A0A0A] border-t border-[#2A2A2A] flex-shrink-0">
           <button
             disabled
             className="w-full font-mono font-black uppercase text-[12px] text-[#3D3D3B] border border-[#2A2A2A] py-4 flex items-center justify-center cursor-not-allowed"
