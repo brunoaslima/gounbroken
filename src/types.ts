@@ -133,7 +133,14 @@ export interface CompetitionDivision {
   format: DivisionFormat
   composition: DivisionComposition
   category: string
+  max_teams: number | null
   created_at: string
+}
+
+export interface DivisionAvailability {
+  division_id: string
+  max_teams: number | null
+  taken: number
 }
 
 export type CompetitionStatus = 'draft' | 'open' | 'closed' | 'in_progress' | 'finished' | 'cancelled'
@@ -154,6 +161,8 @@ export interface Competition {
   status: CompetitionStatus
   created_by: string | null
   public_slug: string | null
+  is_private: boolean
+  invite_code: string | null
   created_at: string
   updated_at: string
 }

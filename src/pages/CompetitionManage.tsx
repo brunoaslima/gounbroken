@@ -165,6 +165,44 @@ export default function CompetitionManage() {
   const [divisions, setDivisions] = useState<CompetitionDivision[]>([])
   const [myRole, setMyRole] = useState<string | null>(null)
 
+  // ── Privacy + slots (overview) ──
+  const [privacyConfirming, setPrivacyConfirming] = useState(false)
+  const [privacyChanging, setPrivacyChanging] = useState(false)
+  const [inviteCopied, setInviteCopied] = useState(false)
+  const [savingSlotsId, setSavingSlotsId] = useState<string | null>(null)
+
+  async function handleTogglePrivacy() {
+    if (!comp || privacyChanging) return
+    setPrivacyChanging(true)
+    const { data, error: rpcErr } = await supabase.rpc('update_competition_privacy', {
+      p_competition_id: comp.id,
+      p_is_private: !comp.is_private,
+    })
+    setPrivacyChanging(false)
+    setPrivacyConfirming(false)
+    if (rpcErr) { setError(rpcErr.message); return }
+    setComp({ ...comp, is_private: !comp.is_private, invite_code: (data as string | null) ?? comp.invite_code })
+  }
+
+  async function handleUpdateMaxTeams(divisionId: string, next: number | null) {
+    if (savingSlotsId) return
+    setSavingSlotsId(divisionId)
+    const { error: updErr } = await supabase
+      .from('competition_divisions')
+      .update({ max_teams: next })
+      .eq('id', divisionId)
+    setSavingSlotsId(null)
+    if (updErr) { setError(updErr.message); return }
+    setDivisions(prev => prev.map(d => d.id === divisionId ? { ...d, max_teams: next } : d))
+  }
+
+  function copyInviteLink() {
+    if (!comp?.invite_code) return
+    navigator.clipboard.writeText(`gounbroken.app/comp/${comp.invite_code}`)
+    setInviteCopied(true)
+    setTimeout(() => setInviteCopied(false), 2000)
+  }
+
   // ── Teams tab state ──
   const [teamFilter, setTeamFilter] = useState<TeamFilter>('all')
   const [divisionFilter, setDivisionFilter] = useState<string>('all')
@@ -714,7 +752,15 @@ export default function CompetitionManage() {
                       <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#6B6B68', marginBottom: 8 }}>
                         COMPETITION STATUS
                       </div>
-                      <StatusPill status={comp.status} />
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <StatusPill status={comp.status} />
+                        {comp.is_private && (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#FF8A00', border: '1px solid rgba(255,138,0,0.35)', padding: '4px 8px' }}>
+                            <span style={{ width: 6, height: 6, background: '#FF8A00', display: 'inline-block' }} />
+                            PRIVADA
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                       {transitions.map(t => t.next === 'finished' ? (
@@ -781,6 +827,61 @@ export default function CompetitionManage() {
                         </span>
                       )}
                     </div>
+                  </div>
+
+                  {/* Link de convite (privada) */}
+                  {comp.is_private && comp.invite_code && (
+                    <div style={{ borderTop: '1px solid #1A1A1A', paddingTop: 12 }}>
+                      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 900, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#D4FF3A', marginBottom: 6 }}>
+                        LINK DE CONVITE · ACESSO PRIVADO
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, border: '1px dashed #D4FF3A', padding: '10px 12px' }}>
+                        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.04em', color: '#A8A8A4', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          gounbroken.app/comp/{comp.invite_code}
+                        </span>
+                        <button
+                          onClick={copyInviteLink}
+                          style={{ background: 'transparent', border: 0, padding: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase', color: inviteCopied ? '#D4FF3A' : '#6B6B68', cursor: 'pointer', flexShrink: 0 }}
+                        >
+                          {inviteCopied ? 'COPIADO' : 'COPIAR'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Toggle privacidade */}
+                  <div style={{ borderTop: '1px solid #1A1A1A', paddingTop: 12 }}>
+                    {privacyConfirming ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, color: '#FF8A00', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                          {comp.is_private
+                            ? 'TORNAR PÚBLICA? A COMPETIÇÃO APARECERÁ NA LISTAGEM PARA TODOS.'
+                            : 'TORNAR PRIVADA? ELA SAI DA LISTAGEM E O ACESSO PASSA A SER POR LINK.'}
+                        </span>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button
+                            disabled={privacyChanging}
+                            onClick={handleTogglePrivacy}
+                            style={{ background: '#FF8A00', border: 'none', padding: '7px 14px', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#0A0A0A', cursor: 'pointer' }}
+                          >
+                            {privacyChanging ? '...' : comp.is_private ? 'SIM, TORNAR PÚBLICA' : 'SIM, TORNAR PRIVADA'}
+                          </button>
+                          <button
+                            onClick={() => setPrivacyConfirming(false)}
+                            style={{ background: 'none', border: '1px solid #2A2A2A', padding: '7px 14px', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68', cursor: 'pointer' }}
+                          >
+                            VOLTAR
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setPrivacyConfirming(true)}
+                        style={{ background: 'none', border: 'none', padding: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#3D3D3B', cursor: 'pointer' }}
+                      >
+                        {comp.is_private ? 'TORNAR PÚBLICA' : 'TORNAR PRIVADA'}
+                      </button>
+                    )}
                   </div>
 
                   {/* Cancelar competição */}
@@ -855,6 +956,65 @@ export default function CompetitionManage() {
                 </div>
               ))}
             </div>
+
+            {/* Vagas por divisão */}
+            {divisions.length > 0 && (
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68', marginBottom: 12 }}>
+                  VAGAS POR DIVISÃO
+                </div>
+                <div style={{ background: '#111111', border: '1px solid #2A2A2A' }}>
+                  {divisions.map((d, i) => {
+                    const taken = teams.filter(t => t.division_id === d.id && !['rejected', 'cancelled'].includes(t.status)).length
+                    const pending = teams.filter(t => t.division_id === d.id && ['pending_members', 'pending_payment', 'pending_approval'].includes(t.status)).length
+                    const full = d.max_teams !== null && taken >= d.max_teams
+                    const saving = savingSlotsId === d.id
+                    const pct = d.max_teams ? Math.min(100, Math.round((taken / d.max_teams) * 100)) : 0
+                    return (
+                      <div key={d.id} style={{ padding: '12px 16px', borderTop: i > 0 ? '1px solid #1A1A1A' : 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#F5F5F0' }}>
+                            {divisionLabel(d)}
+                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: 900, fontVariantNumeric: 'tabular-nums', color: full ? '#FF8A00' : '#F5F5F0' }}>
+                              {taken}/{d.max_teams ?? '—'}
+                            </span>
+                            {full && (
+                              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 900, letterSpacing: '0.12em', color: '#FF8A00' }}>
+                                ESGOTADO
+                              </span>
+                            )}
+                            {full && pending > 0 && (
+                              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: '#FFB800' }}>
+                                {pending} AGUARDANDO APROVAÇÃO
+                              </span>
+                            )}
+                            <div style={{ display: 'flex', alignItems: 'stretch', gap: 1, background: '#2A2A2A' }}>
+                              <button
+                                disabled={saving}
+                                onClick={() => handleUpdateMaxTeams(d.id, d.max_teams === null ? null : d.max_teams <= 1 ? null : d.max_teams - 1)}
+                                style={{ width: 26, background: '#1A1A1A', border: 'none', color: '#F5F5F0', fontSize: 13, cursor: 'pointer', padding: '3px 0' }}
+                              >−</button>
+                              <button
+                                disabled={saving}
+                                onClick={() => handleUpdateMaxTeams(d.id, d.max_teams === null ? Math.max(taken, 10) : Math.min(999, d.max_teams + 1))}
+                                style={{ width: 26, background: '#1A1A1A', border: 'none', color: '#F5F5F0', fontSize: 13, cursor: 'pointer', padding: '3px 0' }}
+                              >+</button>
+                            </div>
+                          </div>
+                        </div>
+                        {d.max_teams !== null && (
+                          <div style={{ height: 4, background: '#1A1A1A' }}>
+                            <div style={{ height: '100%', width: `${pct}%`, background: full ? '#FF8A00' : '#D4FF3A', transition: 'width 0.3s' }} />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Pending actions */}
             <div style={{ marginBottom: 24 }}>

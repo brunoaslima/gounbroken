@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { useProfile } from '@/hooks/useProfile'
 import { useCompetition } from '@/hooks/useCompetition'
-import type { CompetitionStatus, TeamStatus } from '@/types'
+import type { CompetitionStatus, DivisionAvailability, TeamStatus } from '@/types'
 
 // ─── types (leaderboard final) ───────────────────────────────────────────────
 
@@ -161,6 +161,14 @@ export default function CompetitionDetail() {
   const { competition, wods, divisions, myTeam, myRole, teamCounts, pendingJudgeInvite, pendingTeamInvite, loading, reload } = useCompetition(id, user?.id)
   const [copied, setCopied] = useState(false)
   const [inviteLoading, setInviteLoading] = useState(false)
+  const [availability, setAvailability] = useState<Map<string, DivisionAvailability>>(new Map())
+
+  useEffect(() => {
+    if (!id) return
+    supabase.rpc('get_division_availability', { p_competition_id: id }).then(({ data }) => {
+      if (data) setAvailability(new Map((data as DivisionAvailability[]).map(a => [a.division_id, a])))
+    })
+  }, [id])
 
   // Final results (finished state)
   const [finalRows, setFinalRows] = useState<FinalRow[]>([])
@@ -257,9 +265,13 @@ export default function CompetitionDetail() {
     reload()
   }
 
+  // privada compartilha o link de convite (resgate); pública, a página do slug
+  const shareUrl = competition?.is_private && competition.invite_code
+    ? `gounbroken.app/comp/${competition.invite_code}`
+    : `gounbroken.app/competition/${competition?.public_slug ?? competition?.id ?? ''}`
+
   function copySlug() {
-    const slug = competition?.public_slug ?? competition?.id ?? ''
-    navigator.clipboard.writeText(`gounbroken.app/competition/${slug}`)
+    navigator.clipboard.writeText(shareUrl)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -356,6 +368,15 @@ export default function CompetitionDetail() {
           </h1>
           <div className="flex flex-wrap gap-1.5">
             <StatusPill status={competition.status} />
+            {competition.is_private && (
+              <span
+                className="inline-flex items-center gap-1.5 font-mono font-black uppercase"
+                style={{ fontSize: 9, letterSpacing: '0.14em', color: '#FF8A00', border: '1px solid rgba(255,138,0,0.35)', padding: '4px 8px' }}
+              >
+                <span style={{ width: 6, height: 6, background: '#FF8A00', display: 'inline-block' }} />
+                PRIVADA
+              </span>
+            )}
             {myTeam && <StatusPill status={myTeam.team.status} />}
             <NeutralPill>
               {divisions.length} {divisions.length === 1 ? 'DIVISÃO' : 'DIVISÕES'} · {wods.length} WODs
@@ -497,14 +518,23 @@ export default function CompetitionDetail() {
               <span className="font-mono" style={{ fontSize: 12, color: '#3D3D3B' }}>—</span>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                {divisions.map(d => (
-                  <span key={d.id} className="font-mono font-bold uppercase" style={{ fontSize: 10, letterSpacing: '0.12em', color: '#D4FF3A' }}>
-                    {['individual','pair','team3','team4'].indexOf(d.format) >= 0
-                      ? { individual:'IND', pair:'PAIR', team3:'TEAM 3', team4:'TEAM 4' }[d.format as 'individual'|'pair'|'team3'|'team4']
-                      : d.format.toUpperCase()
-                    } · {d.composition.toUpperCase()} · {d.category.toUpperCase()}
-                  </span>
-                ))}
+                {divisions.map(d => {
+                  const avail = availability.get(d.id)
+                  const left = avail && avail.max_teams !== null ? Math.max(0, avail.max_teams - avail.taken) : null
+                  return (
+                    <span key={d.id} className="font-mono font-bold uppercase" style={{ fontSize: 10, letterSpacing: '0.12em', color: '#D4FF3A' }}>
+                      {['individual','pair','team3','team4'].indexOf(d.format) >= 0
+                        ? { individual:'IND', pair:'PAIR', team3:'TEAM 3', team4:'TEAM 4' }[d.format as 'individual'|'pair'|'team3'|'team4']
+                        : d.format.toUpperCase()
+                      } · {d.composition.toUpperCase()} · {d.category.toUpperCase()}
+                      {left !== null && (
+                        <span style={{ color: left === 0 ? '#FF3B30' : '#6B6B68' }}>
+                          {' '}· {left === 0 ? 'ESGOTADO' : `${left} VAGAS`}
+                        </span>
+                      )}
+                    </span>
+                  )
+                })}
               </div>
             )}
           </StatCell>
@@ -744,20 +774,28 @@ export default function CompetitionDetail() {
           </div>
         )}
 
-        {/* Share line */}
+        {/* Share line — privada usa o link de convite (borda lime = chave de acesso) */}
+        <div style={{ margin: '16px 20px' }}>
+          {competition.is_private && (
+            <span
+              className="font-mono font-black uppercase block"
+              style={{ fontSize: 9, letterSpacing: '0.16em', color: '#D4FF3A', marginBottom: 6 }}
+            >
+              LINK DE CONVITE · ACESSO PRIVADO
+            </span>
+          )}
         <div
           className="flex items-center justify-between gap-2.5"
           style={{
-            margin: '16px 20px',
             padding: '12px 14px',
-            border: '1px dashed #3A3A3A',
+            border: competition.is_private ? '1px dashed #D4FF3A' : '1px dashed #3A3A3A',
           }}
         >
           <span
             className="font-mono font-semibold truncate"
             style={{ fontSize: 11, letterSpacing: '0.04em', color: '#A8A8A4' }}
           >
-            gounbroken.app/competition/{slug}
+            {shareUrl}
           </span>
           <button
             onClick={copySlug}
@@ -777,6 +815,7 @@ export default function CompetitionDetail() {
             </svg>
             {copied ? 'COPIADO' : 'COPIAR'}
           </button>
+        </div>
         </div>
 
         {/* Action buttons */}
@@ -995,27 +1034,35 @@ export default function CompetitionDetail() {
       )}
 
       {/* Sticky bottom CTA — only if registration open and no team yet */}
-      {registrationOpen && !myTeam && (
-        <div
-          className="sticky bottom-0 border-t border-[#2A2A2A]"
-          style={{ padding: '14px 20px 24px', background: '#0A0A0A' }}
-        >
-          <button
-            onClick={() => navigate(`/athlete/competitions/${id}/team/new`)}
-            className="w-full flex items-center justify-center font-mono font-black uppercase"
-            style={{
-              fontSize: 12,
-              letterSpacing: '0.14em',
-              padding: '16px 20px',
-              background: '#D4FF3A',
-              color: '#0A0A0A',
-              border: 0,
-            }}
+      {registrationOpen && !myTeam && (() => {
+        const allFull = divisions.length > 0 && divisions.every(d => {
+          const a = availability.get(d.id)
+          return a && a.max_teams !== null && a.taken >= a.max_teams
+        })
+        return (
+          <div
+            className="sticky bottom-0 border-t border-[#2A2A2A]"
+            style={{ padding: '14px 20px 24px', background: '#0A0A0A' }}
           >
-            CREATE TEAM → BECOME CAPTAIN
-          </button>
-        </div>
-      )}
+            <button
+              onClick={() => !allFull && navigate(`/athlete/competitions/${id}/team/new`)}
+              disabled={allFull}
+              className="w-full flex items-center justify-center font-mono font-black uppercase"
+              style={{
+                fontSize: 12,
+                letterSpacing: '0.14em',
+                padding: '16px 20px',
+                background: allFull ? '#1A1A1A' : '#D4FF3A',
+                color: allFull ? '#3D3D3B' : '#0A0A0A',
+                border: allFull ? '1px solid #2A2A2A' : 0,
+                cursor: allFull ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {allFull ? 'INSCRIÇÕES ESGOTADAS' : 'CREATE TEAM → BECOME CAPTAIN'}
+            </button>
+          </div>
+        )
+      })()}
 
     </div>
   )

@@ -144,15 +144,42 @@ const COMPOSITION_OPTIONS: { value: DivisionComposition; label: string }[] = [
 
 const CATEGORY_PRESETS = ['SCALED', 'INTERMEDIATE', 'RX', 'ELITE']
 
-type PendingDivision = { format: DivisionFormat; composition: DivisionComposition; category: string }
+type PendingDivision = { format: DivisionFormat; composition: DivisionComposition; category: string; maxTeams: number | null }
 
 function divisionKey(d: PendingDivision): string {
   return `${d.format}|${d.composition}|${d.category.toLowerCase()}`
 }
 
-function formatDivisionLabel(d: PendingDivision): string {
+function formatDivisionLabel(d: Pick<PendingDivision, 'format' | 'composition' | 'category'>): string {
   const fmtMap: Record<DivisionFormat, string> = { individual: 'IND', pair: 'PAIR', team3: 'TEAM 3', team4: 'TEAM 4' }
   return `${fmtMap[d.format]} · ${d.composition.toUpperCase()} · ${d.category.toUpperCase()}`
+}
+
+// Stepper de vagas com estado "—" (null = ilimitado); nunca zero, nunca input livre
+function SlotsStepper({ value, onChange }: { value: number | null; onChange: (v: number | null) => void }) {
+  const dec = () => onChange(value === null ? null : value <= 1 ? null : value - 1)
+  const inc = () => onChange(value === null ? 10 : Math.min(999, value + 1))
+  const btnStyle: React.CSSProperties = {
+    width: 44, background: '#1A1A1A', border: 'none',
+    color: '#F5F5F0', fontSize: 18, cursor: 'pointer', flexShrink: 0, padding: '8px 0',
+  }
+  return (
+    <div>
+      <div className="flex items-stretch" style={{ gap: 1, background: '#2A2A2A' }}>
+        <button type="button" onClick={dec} style={btnStyle}>−</button>
+        <div
+          className="flex-1 flex items-center justify-center font-mono font-black"
+          style={{ background: '#1A1A1A', fontSize: 14, letterSpacing: '0.1em', color: value === null ? '#6B6B68' : '#F5F5F0' }}
+        >
+          {value === null ? '—' : value}
+        </div>
+        <button type="button" onClick={inc} style={btnStyle}>+</button>
+      </div>
+      <span className="font-mono block mt-1.5" style={{ fontSize: 9, letterSpacing: '0.12em', color: '#3D3D3B' }}>
+        {value === null ? 'ILIMITADO · TOQUE + PARA DEFINIR LIMITE' : `${value} VAGA${value === 1 ? '' : 'S'} NESTA DIVISÃO`}
+      </span>
+    </div>
+  )
 }
 
 // ─── page ─────────────────────────────────────────────────────────────────────
@@ -165,6 +192,7 @@ export default function CompetitionCreate() {
   const [venue, setVenue] = useState('')
   const [startDate, setStartDate] = useState(todayPlus(30))
   const [deadline, setDeadline] = useState(todayPlus(20))
+  const [isPrivate, setIsPrivate] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -174,6 +202,7 @@ export default function CompetitionCreate() {
   const [divComposition, setDivComposition] = useState<DivisionComposition>('mixed')
   const [divCategory, setDivCategory] = useState<string>('RX')
   const [divCustomCategory, setDivCustomCategory] = useState('')
+  const [divMaxTeams, setDivMaxTeams] = useState<number | null>(null)
 
   const mixedBlocked = divFormat === 'individual' || divFormat === 'team3'
 
@@ -181,10 +210,11 @@ export default function CompetitionCreate() {
     const cat = (divCustomCategory.trim() || divCategory).toLowerCase()
     if (!cat) return
     const comp: DivisionComposition = (mixedBlocked && divComposition === 'mixed') ? 'male' : divComposition
-    const pending: PendingDivision = { format: divFormat, composition: comp, category: cat }
+    const pending: PendingDivision = { format: divFormat, composition: comp, category: cat, maxTeams: divMaxTeams }
     if (divisions.some(d => divisionKey(d) === divisionKey(pending))) return
     setDivisions(prev => [...prev, pending])
     setDivCustomCategory('')
+    setDivMaxTeams(null)
   }
 
   function removeDivision(key: string) {
@@ -205,6 +235,7 @@ export default function CompetitionCreate() {
       p_venue: venue.trim(),
       p_start_date: startDate,
       p_registration_deadline: new Date(deadline + 'T23:59:59').toISOString(),
+      p_is_private: isPrivate,
     })
 
     if (rpcErr) {
@@ -222,6 +253,7 @@ export default function CompetitionCreate() {
           format: d.format,
           composition: d.composition,
           category: d.category,
+          max_teams: d.maxTeams,
         }))
       )
     }
@@ -302,12 +334,60 @@ export default function CompetitionCreate() {
           />
         </FieldBlock>
 
+        {/* Section: Visibilidade */}
+        <div
+          className="font-mono font-bold uppercase border-b border-[#2A2A2A]"
+          style={{ fontSize: 9, letterSpacing: '0.18em', color: '#D4FF3A', padding: '10px 20px', background: '#0D0D0D', marginTop: 8 }}
+        >
+          02 · VISIBILIDADE
+        </div>
+
+        <div className="border-b border-[#2A2A2A]" style={{ padding: '16px 20px' }}>
+          <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 1, background: '#2A2A2A' }}>
+            {([false, true] as const).map(priv => (
+              <button
+                key={String(priv)}
+                type="button"
+                onClick={() => setIsPrivate(priv)}
+                className="font-mono font-black uppercase"
+                style={{
+                  fontSize: 10, letterSpacing: '0.14em',
+                  padding: '10px 4px',
+                  background: isPrivate === priv ? '#F5F5F0' : '#1A1A1A',
+                  color: isPrivate === priv ? '#0A0A0A' : '#A8A8A4',
+                  border: 'none', cursor: 'pointer',
+                }}
+              >
+                {priv ? 'PRIVADA' : 'PÚBLICA'}
+              </button>
+            ))}
+          </div>
+          <span className="font-mono block mt-1.5" style={{ fontSize: 9, letterSpacing: '0.12em', color: '#3D3D3B' }}>
+            {isPrivate
+              ? 'FORA DA LISTAGEM · ACESSO SOMENTE POR LINK DE CONVITE'
+              : 'VISÍVEL NA LISTAGEM · QUALQUER ATLETA PODE SE INSCREVER'}
+          </span>
+          {isPrivate && (
+            <div className="flex items-start" style={{ gap: 10, border: '1px solid #2A2A2A', background: '#111111', padding: '10px 12px', marginTop: 10 }}>
+              <span
+                className="flex items-center justify-center font-mono font-black flex-shrink-0"
+                style={{ width: 16, height: 16, background: '#D4FF3A', color: '#0A0A0A', fontSize: 10 }}
+              >
+                i
+              </span>
+              <span className="font-mono" style={{ fontSize: 10, letterSpacing: '0.04em', lineHeight: 1.6, color: '#A8A8A4' }}>
+                O link de convite será gerado após a criação. Compartilhe com os atletas: só quem tem o link vê e se inscreve.
+              </span>
+            </div>
+          )}
+        </div>
+
         {/* Section: Datas */}
         <div
           className="font-mono font-bold uppercase border-b border-[#2A2A2A]"
           style={{ fontSize: 9, letterSpacing: '0.18em', color: '#D4FF3A', padding: '10px 20px', background: '#0D0D0D', marginTop: 8 }}
         >
-          02 · DATES
+          03 · DATES
         </div>
 
         <FieldBlock label="Event date" required>
@@ -339,7 +419,7 @@ export default function CompetitionCreate() {
           className="font-mono font-bold uppercase border-b border-[#2A2A2A]"
           style={{ fontSize: 9, letterSpacing: '0.18em', color: '#D4FF3A', padding: '10px 20px', background: '#0D0D0D', marginTop: 8 }}
         >
-          03 · DIVISIONS
+          04 · DIVISIONS
         </div>
 
         {/* Added divisions list */}
@@ -354,6 +434,9 @@ export default function CompetitionCreate() {
                 >
                   <span className="font-mono font-bold uppercase" style={{ fontSize: 10, letterSpacing: '0.14em', color: '#D4FF3A' }}>
                     {formatDivisionLabel(d)}
+                    {d.maxTeams !== null && (
+                      <span style={{ color: '#6B6B68' }}> · {d.maxTeams} VAGAS</span>
+                    )}
                   </span>
                   <button
                     type="button"
@@ -487,6 +570,19 @@ export default function CompetitionCreate() {
                 }}
               />
             </div>
+          </div>
+
+          <div className="flex items-center" style={{ gap: 6, marginBottom: 8 }}>
+            <span style={{ width: 3, height: 10, background: '#D4FF3A', display: 'inline-block', flexShrink: 0 }} />
+            <span className="font-mono font-bold uppercase" style={{ fontSize: 10, letterSpacing: '0.18em', color: '#F5F5F0' }}>
+              Vagas
+            </span>
+            <span className="font-mono font-bold uppercase" style={{ fontSize: 9, letterSpacing: '0.14em', color: '#3D3D3B' }}>
+              (OPCIONAL)
+            </span>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <SlotsStepper value={divMaxTeams} onChange={setDivMaxTeams} />
           </div>
 
           {/* Preview label */}
