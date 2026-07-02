@@ -1385,6 +1385,7 @@ export default function PersonalWorkout() {
   const [workoutNotes, setWorkoutNotes] = useState('')
   const [studentNote, setStudentNote]   = useState('')
   const [saving, setSaving]             = useState(false)
+  const [saveError, setSaveError]       = useState<string | null>(null)
   const [loading, setLoading]           = useState(true)
   const [date, setDate]                 = useState(editWorkout?.workout_date ?? workoutDate)
   const [showDatePicker, setShowDatePicker] = useState(false)
@@ -1540,6 +1541,7 @@ export default function PersonalWorkout() {
       return
     }
     setSaving(true)
+    setSaveError(null)
     try {
       const allFocus = [...focus, ...workoutTags.map(t => t.toLowerCase().replace(' ', '_'))]
 
@@ -1617,6 +1619,7 @@ export default function PersonalWorkout() {
       navigate(-1)
     } catch (err) {
       console.error(err)
+      setSaveError(err instanceof Error ? err.message : 'Failed to save workout')
     } finally {
       setSaving(false)
     }
@@ -2041,6 +2044,9 @@ export default function PersonalWorkout() {
 
       {/* Save button */}
       <div className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-8 pt-3 bg-gradient-to-t from-graphite via-graphite/95 to-transparent">
+        {saveError && (
+          <p className="text-warning text-xs font-semibold text-center mb-2">{saveError}</p>
+        )}
         <button
           onClick={handleSave}
           disabled={saving || sections.length === 0}
