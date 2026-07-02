@@ -568,15 +568,22 @@ function PRBadge({ kg }: { kg: number }) {
 
 // ── Exercise row ─────────────────────────────────────────────────────
 
-function ExerciseRow({ ex, prs, onChange, onDelete, dragHandleProps }: {
+function ExerciseRow({ ex, prs, autoExpand, onChange, onDelete, dragHandleProps }: {
   ex: DraftExercise
   prs: AthletePR[]
+  autoExpand?: boolean
   onChange: (updated: DraftExercise) => void
   onDelete: () => void
   dragHandleProps?: React.HTMLAttributes<HTMLSpanElement>
 }) {
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(!!autoExpand)
+  const repsInputRef = useRef<HTMLInputElement>(null)
   const weighted = isWeighted(ex.movement_name)
+
+  useEffect(() => {
+    if (autoExpand) repsInputRef.current?.focus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const pr1rm = prs.find(
     p => p.movement_name.toLowerCase() === ex.movement_name.toLowerCase() && p.reps === 1
@@ -664,7 +671,7 @@ function ExerciseRow({ ex, prs, onChange, onDelete, dragHandleProps }: {
             </div>
             <div>
               <p className="text-[10px] text-muted-gray/50 uppercase tracking-wider mb-1">Reps / Scheme</p>
-              <input type="text" value={ex.reps} onChange={e => field('reps', e.target.value)}
+              <input ref={repsInputRef} type="text" value={ex.reps} onChange={e => field('reps', e.target.value)}
                 placeholder="ex: 10 ou 21-15-9" className={inp} />
             </div>
             <div>
@@ -1378,6 +1385,8 @@ export default function PersonalWorkout() {
   // Sheet state
   const [addExSheet, setAddExSheet] = useState<{ sectionTempId: string; sectionType: SectionType } | null>(null)
   const [addSectionOpen, setAddSectionOpen] = useState(false)
+  // Recém-adicionado abre expandido direto, sem precisar clicar de novo para preencher reps/cal
+  const [autoExpandId, setAutoExpandId] = useState<string | null>(null)
 
   // Drag state for section reordering
   const [dragSectionIndex, setDragSectionIndex] = useState<number | null>(null)
@@ -1479,11 +1488,13 @@ export default function PersonalWorkout() {
   }
 
   function addExercise(sectionTempId: string, name: string) {
+    const ex = emptyExercise(name)
     setSections(prev => prev.map(s =>
       s.tempId === sectionTempId
-        ? { ...s, exercises: [...s.exercises, emptyExercise(name)] }
+        ? { ...s, exercises: [...s.exercises, ex] }
         : s
     ))
+    setAutoExpandId(ex.tempId)
   }
 
   function updateExercise(sectionTempId: string, ex: DraftExercise) {
@@ -1917,6 +1928,7 @@ export default function PersonalWorkout() {
                       <ExerciseRow
                         ex={ex}
                         prs={prs}
+                        autoExpand={ex.tempId === autoExpandId}
                         onChange={updated => updateExercise(section.tempId, updated)}
                         onDelete={() => removeExercise(section.tempId, ex.tempId)}
                         dragHandleProps={{

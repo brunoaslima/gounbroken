@@ -62,10 +62,9 @@ export function buildFormatLine(section: {
 
 // ── Exercise prescription lines ────────────────────────────────────────
 
-export function buildPrescription(ex: WorkoutExerciseData): string[] {
-  const lines: string[] = []
-
-  // Main line: sets × reps or duration
+// Main line only: sets × reps or duration. Extracted so it can be shown as a
+// highlighted prefix in front of the exercise name, separate from load/rest.
+export function buildMainLine(ex: WorkoutExerciseData): string | null {
   const main: string[] = []
   if (ex.sets && ex.reps)  main.push(`${ex.sets} × ${ex.reps} REPS`)
   else if (ex.sets)        main.push(`${ex.sets} SETS`)
@@ -76,7 +75,14 @@ export function buildPrescription(ex: WorkoutExerciseData): string[] {
     const s = ex.duration_seconds % 60
     main.push(m > 0 && s === 0 ? `${m}:00` : m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `${s}s`)
   }
-  if (main.length) lines.push(main.join(' · '))
+  return main.length ? main.join(' · ') : null
+}
+
+export function buildPrescription(ex: WorkoutExerciseData): string[] {
+  const lines: string[] = []
+
+  const main = buildMainLine(ex)
+  if (main) lines.push(main)
 
   // Load line
   const load: string[] = []
