@@ -51,6 +51,10 @@ export interface WorkoutExerciseData {
   movement_id?: string | null
   sets: number | null
   reps: number | null
+  // exact raw text the coach typed (e.g. "60m", "60 cal", "21-15-9") — always
+  // used for display; `reps` above is a best-effort leading integer kept
+  // only for volume calculations (see WrappedReport.computeVolume)
+  reps_label?: string | null
   duration_seconds: number | null
   load_kg: number | null
   load_kg_to: number | null

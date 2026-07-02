@@ -505,8 +505,8 @@ function workoutToDraft(workout: PrescribedWorkoutData): DraftSection[] {
         return {
           tempId: uid(),
           movement_name: e.movement_name,
-          sets:            e.sets     != null ? String(e.sets)     : '',
-          reps:            e.reps     != null ? String(e.reps)     : '',
+          sets:            e.sets != null ? String(e.sets) : '',
+          reps:            e.reps_label?.trim() || (e.reps != null ? String(e.reps) : ''),
           duration_min:    ds > 0 ? String(Math.floor(ds / 60)) : '',
           duration_sec:    ds > 0 ? String(ds % 60)              : '',
           load_kg:         e.load_kg         != null ? String(e.load_kg)         : '',
@@ -1574,7 +1574,9 @@ export default function PersonalWorkout() {
             movement_name: e.movement_name,
             movement_id: resolveMovement(e.movement_name)?.id ?? null,
             sets:              e.sets ? parseInt(e.sets) : null,
-            reps:              e.reps && /^\d+$/.test(e.reps.trim()) ? parseInt(e.reps) : null,
+            // raw text always kept as typed (e.g. "60m", "21-15-9"); the
+            // server derives a best-effort numeric reps from it for volume calc
+            reps_label:        e.reps.trim() || null,
             duration_seconds:  durationToSeconds(e.duration_min, e.duration_sec),
             load_kg:           e.load_kg           ? parseFloat(e.load_kg)          : null,
             load_kg_to:        e.load_kg_to        ? parseFloat(e.load_kg_to)       : null,
@@ -1582,10 +1584,7 @@ export default function PersonalWorkout() {
             load_pct_1rm_to:   e.load_pct_1rm_to   ? parseInt(e.load_pct_1rm_to)    : null,
             rpe:               e.rpe               ? parseInt(e.rpe)               : null,
             rest_seconds:      e.rest_seconds      ? parseInt(e.rest_seconds)      : null,
-            notes: (() => {
-              const scheme = e.reps && !/^\d+$/.test(e.reps.trim()) ? e.reps.trim() : null
-              return scheme ? (e.notes ? `${scheme}\n${e.notes}` : scheme) : (e.notes || null)
-            })(),
+            notes: e.notes || null,
             position: ei,
           })),
         }

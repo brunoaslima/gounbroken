@@ -64,11 +64,20 @@ export function buildFormatLine(section: {
 
 // Main line only: sets × reps or duration. Extracted so it can be shown as a
 // highlighted prefix in front of the exercise name, separate from load/rest.
+// reps_label is the raw text the coach typed (e.g. "60m", "21-15-9") and is
+// always preferred over the numeric `reps` column, which only exists for
+// volume-calc purposes and may be null for non-numeric input.
 export function buildMainLine(ex: WorkoutExerciseData): string | null {
   const main: string[] = []
-  if (ex.sets && ex.reps)  main.push(`${ex.sets} × ${ex.reps}`)
-  else if (ex.sets)        main.push(`${ex.sets}`)
-  else if (ex.reps)        main.push(`${ex.reps}`)
+  const repsText = ex.reps_label?.trim() || (ex.reps != null ? String(ex.reps) : null)
+  const isScheme = !!repsText && repsText.includes('-')
+
+  if (isScheme) {
+    main.push(repsText!)
+    if (ex.sets) main.push(`${ex.sets}`)
+  } else if (ex.sets && repsText) main.push(`${ex.sets} × ${repsText}`)
+  else if (ex.sets)               main.push(`${ex.sets}`)
+  else if (repsText)              main.push(repsText)
 
   if (ex.duration_seconds) {
     const m = Math.floor(ex.duration_seconds / 60)

@@ -146,6 +146,26 @@ describe('buildPrescription', () => {
     const restLine = lines.find(l => l.startsWith('*REST') || l.startsWith('*DESCANSO') || l.toLowerCase().includes('rest'))
     expect(restLine).toBeTruthy()
   })
+
+  it('reps_label com texto livre (ex: "60m") aparece como digitado', () => {
+    const lines = buildPrescription(makeEx({ reps: null, reps_label: '60m' }))
+    expect(lines[0]).toBe('60m')
+  })
+
+  it('reps_label tem prioridade sobre reps numérico', () => {
+    const lines = buildPrescription(makeEx({ reps: 60, reps_label: '60 cal' }))
+    expect(lines[0]).toBe('60 cal')
+  })
+
+  it('reps_label com esquema (dash) combina com sets sem "×"', () => {
+    const lines = buildPrescription(makeEx({ sets: 3, reps_label: '21-15-9' }))
+    expect(lines[0]).toBe('21-15-9 · 3')
+  })
+
+  it('sets + reps_label texto livre combinam com "×"', () => {
+    const lines = buildPrescription(makeEx({ sets: 4, reps_label: '60m' }))
+    expect(lines[0]).toBe('4 × 60m')
+  })
 })
 
 // ── dayLabel / formatDateBR ────────────────────────────────────────────
