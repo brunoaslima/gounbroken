@@ -334,6 +334,8 @@ function PendingInviteCard({ memberId, teamName, onRespond }: PendingInviteCardP
 
 // ── CTA bottom label ──────────────────────────────────────────────────────────
 
+const FORMAT_SIZE: Record<string, number> = { individual: 1, pair: 2, team3: 3, team4: 4 }
+
 function ctaLabel(status: TeamStatus, slotsEmpty: number): string {
   switch (status) {
     case 'pending_members':  return `AGUARDANDO ATLETAS (${slotsEmpty} FALTANDO)`
@@ -441,7 +443,10 @@ export default function TeamManage() {
   }
 
   const isCaptain = user?.id === team.captain_user_id
-  const maxSize = competition?.team_max_size ?? 4
+  // Time sem divisão (legado) cai no team_max_size da competição; com
+  // divisão, o formato dela é quem manda no número de vagas (individual=1,
+  // pair=2, team3=3, team4=4) — não um valor global da competição.
+  const maxSize = division ? FORMAT_SIZE[division.format] ?? 4 : (competition?.team_max_size ?? 4)
 
   // If the captain's member row is missing (DB running old function version), synthesize it
   // so the UI always shows the captain as filled. All permission checks still use team.captain_user_id.
