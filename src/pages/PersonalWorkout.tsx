@@ -1290,11 +1290,11 @@ function DraftPreview({ sections, workoutNotes, studentNote, focus, workoutTags,
                 const isScheme = ex.reps && ex.reps.includes('-')
                 if (isScheme) {
                   main.push(ex.reps)
-                  if (ex.sets) main.push(`${ex.sets} ROUNDS`)
+                  if (ex.sets) main.push(`${ex.sets}`)
                 } else {
-                  if (ex.sets && ex.reps)    main.push(`${ex.sets} × ${ex.reps} REPS`)
-                  else if (ex.sets)          main.push(`${ex.sets} SETS`)
-                  else if (ex.reps)          main.push(`${ex.reps} REPS`)
+                  if (ex.sets && ex.reps)    main.push(`${ex.sets} × ${ex.reps}`)
+                  else if (ex.sets)          main.push(`${ex.sets}`)
+                  else if (ex.reps)          main.push(`${ex.reps}`)
                 }
                 const durDisplay = fmtDuration(ex.duration_min, ex.duration_sec)
                 if (durDisplay) main.push(durDisplay)

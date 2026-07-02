@@ -66,9 +66,9 @@ export function buildFormatLine(section: {
 // highlighted prefix in front of the exercise name, separate from load/rest.
 export function buildMainLine(ex: WorkoutExerciseData): string | null {
   const main: string[] = []
-  if (ex.sets && ex.reps)  main.push(`${ex.sets} × ${ex.reps} REPS`)
-  else if (ex.sets)        main.push(`${ex.sets} SETS`)
-  else if (ex.reps)        main.push(`${ex.reps} REPS`)
+  if (ex.sets && ex.reps)  main.push(`${ex.sets} × ${ex.reps}`)
+  else if (ex.sets)        main.push(`${ex.sets}`)
+  else if (ex.reps)        main.push(`${ex.reps}`)
 
   if (ex.duration_seconds) {
     const m = Math.floor(ex.duration_seconds / 60)

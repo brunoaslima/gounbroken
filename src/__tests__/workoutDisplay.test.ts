@@ -87,17 +87,17 @@ describe('buildPrescription', () => {
 
   it('sets × reps', () => {
     const lines = buildPrescription(makeEx({ sets: 4, reps: 6 }))
-    expect(lines[0]).toBe('4 × 6 REPS')
+    expect(lines[0]).toBe('4 × 6')
   })
 
   it('só sets (sem reps)', () => {
     const lines = buildPrescription(makeEx({ sets: 3 }))
-    expect(lines[0]).toBe('3 SETS')
+    expect(lines[0]).toBe('3')
   })
 
   it('só reps (sem sets)', () => {
     const lines = buildPrescription(makeEx({ reps: 10 }))
-    expect(lines[0]).toBe('10 REPS')
+    expect(lines[0]).toBe('10')
   })
 
   it('duração em segundos (< 60)', () => {
