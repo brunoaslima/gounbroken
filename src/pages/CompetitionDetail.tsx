@@ -517,20 +517,38 @@ export default function CompetitionDetail() {
             {divisions.length === 0 ? (
               <span className="font-mono" style={{ fontSize: 12, color: '#3D3D3B' }}>—</span>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 {divisions.map(d => {
                   const avail = availability.get(d.id)
                   const left = avail && avail.max_teams !== null ? Math.max(0, avail.max_teams - avail.taken) : null
                   return (
-                    <span key={d.id} className="font-mono font-bold uppercase" style={{ fontSize: 10, letterSpacing: '0.12em', color: '#D4FF3A' }}>
-                      {['individual','pair','team3','team4'].indexOf(d.format) >= 0
-                        ? { individual:'IND', pair:'PAIR', team3:'TEAM 3', team4:'TEAM 4' }[d.format as 'individual'|'pair'|'team3'|'team4']
-                        : d.format.toUpperCase()
-                      } · {d.composition.toUpperCase()} · {d.category.toUpperCase()}
+                    <span key={d.id} className="inline-flex items-center flex-wrap" style={{ gap: 6 }}>
+                      <span className="font-mono font-bold uppercase" style={{ fontSize: 10, letterSpacing: '0.12em', color: '#D4FF3A' }}>
+                        {['individual','pair','team3','team4'].indexOf(d.format) >= 0
+                          ? { individual:'IND', pair:'PAIR', team3:'TEAM 3', team4:'TEAM 4' }[d.format as 'individual'|'pair'|'team3'|'team4']
+                          : d.format.toUpperCase()
+                        } · {d.composition.toUpperCase()} · {d.category.toUpperCase()}
+                      </span>
                       {left !== null && (
-                        <span style={{ color: left === 0 ? '#FF3B30' : '#6B6B68' }}>
-                          {' '}· {left === 0 ? 'ESGOTADO' : `${left} VAGAS`}
-                        </span>
+                        left === 0 ? (
+                          <span
+                            className="font-mono font-black uppercase"
+                            style={{ fontSize: 8, letterSpacing: '0.12em', background: '#FF3B30', color: '#0A0A0A', padding: '2px 5px', lineHeight: 1.2 }}
+                          >
+                            ESGOTADO
+                          </span>
+                        ) : left <= 3 ? (
+                          <span
+                            className="font-mono font-black uppercase"
+                            style={{ fontSize: 8, letterSpacing: '0.12em', color: '#FF8A00', border: '1px solid rgba(255,138,0,0.35)', padding: '2px 5px', lineHeight: 1.2 }}
+                          >
+                            {left === 1 ? 'ÚLTIMA VAGA' : `ÚLTIMAS ${left} VAGAS`}
+                          </span>
+                        ) : (
+                          <span className="font-mono font-bold uppercase" style={{ fontSize: 9, letterSpacing: '0.12em', color: '#6B6B68' }}>
+                            {left} VAGAS
+                          </span>
+                        )
                       )}
                     </span>
                   )
