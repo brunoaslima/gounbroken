@@ -1298,7 +1298,7 @@ function DraftPreview({ sections, workoutNotes, studentNote, focus, workoutTags,
                 }
                 const durDisplay = fmtDuration(ex.duration_min, ex.duration_sec)
                 if (durDisplay) main.push(durDisplay)
-                if (main.length) lines.push(main.join(' · '))
+                const mainLine = main.length ? main.join(' · ') : null
                 const load: string[] = []
                 if (ex.load_kg && ex.load_kg_to)             load.push(`@ ${ex.load_kg}–${ex.load_kg_to}KG`)
                 else if (ex.load_kg)                         load.push(`@ ${ex.load_kg}KG`)
@@ -1314,9 +1314,16 @@ function DraftPreview({ sections, workoutNotes, studentNote, focus, workoutTags,
 
                 return (
                   <div key={ex.tempId}>
-                    {/* Exercise name */}
-                    <p className="text-soft-white font-bold text-[14px] leading-snug">
-                      {ex.movement_name || <span className="text-muted-gray/30">Unnamed exercise</span>}
+                    {/* Rep/duration count highlighted in front of the exercise name */}
+                    <p className="flex items-baseline gap-1.5 flex-wrap leading-snug">
+                      {mainLine && (
+                        <span className="text-lime font-black text-[13px] tracking-wide shrink-0">
+                          {mainLine}
+                        </span>
+                      )}
+                      <span className="text-soft-white font-bold text-[14px]">
+                        {ex.movement_name || <span className="text-muted-gray/30">Unnamed exercise</span>}
+                      </span>
                     </p>
                     {/* Prescription lines */}
                     {lines.map((line, i) => (
