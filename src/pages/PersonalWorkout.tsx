@@ -1591,17 +1591,15 @@ export default function PersonalWorkout() {
         }
       })
 
-      if (isEditMode && editWorkoutId) {
-        const { error: delErr } = await supabase.rpc('admin_delete_workout', { p_workout_id: editWorkoutId })
-        if (delErr) throw delErr
-      }
-
+      // delete (se editando) + insert em uma única transação — evita perder
+      // dados se a segunda etapa falhar, e evita erro em double-submit
       const { error } = await supabase.rpc('personal_save_workout', {
         p_athlete_id: athleteId,
         p_workout_date: date,
         p_focus: allFocus,
         p_notes: workoutNotes || null,
         p_sections: sectionsJson,
+        p_replace_workout_id: isEditMode ? editWorkoutId : null,
       })
 
       if (error) throw error
