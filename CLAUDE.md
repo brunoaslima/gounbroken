@@ -181,14 +181,26 @@ Retorne um relatório com:
 
 ```
 1. Usuário pede implementação
-2. Claude avalia: é tarefa trivial ou não-trivial?
-3. Se não-trivial:
-   a. Spawn Arquiteto + Security Engineer em PARALELO
+2. Claude LÊ docs/BUG_PATTERNS.md — checar se a tarefa se encaixa em algum
+   padrão já catalogado (campo genérico vs. derivado, schema de extensão,
+   remoção de enum, delete+recreate não-atômico, gate de permissão errado,
+   texto livre desviado, z-index de CTA fixo, erro engolido). Se bater,
+   aplicar a prevenção descrita ANTES de desenhar a solução.
+3. Claude avalia: é tarefa trivial ou não-trivial?
+4. Se não-trivial:
+   a. Spawn Arquiteto + Security Engineer em PARALELO — incluir no prompt de
+      ambos um lembrete explícito pra ler docs/BUG_PATTERNS.md primeiro
    b. Aguardar os dois retornarem
    c. Se APROVADO por ambos → implementar
    d. Se AJUSTES NECESSÁRIOS → incorporar ajustes, re-avaliar se precisa novo ciclo
    e. Se VULNERABILIDADES CRÍTICAS/ALTAS → corrigir abordagem antes de qualquer código
-4. Implementar
-5. Atualizar CHANGELOG
-6. Aguardar ordem de deploy
+5. Implementar
+6. Rodar o "Processo — antes de considerar um fix pronto" do final de
+   docs/BUG_PATTERNS.md (grep de campo antigo no repo inteiro, chamar a RPC
+   de verdade, checar transação atômica, checar feedback de erro na UI)
+7. Se um bug novo (não catalogado) foi encontrado e corrigido nesta sessão,
+   adicionar uma seção nova em docs/BUG_PATTERNS.md antes de finalizar —
+   o arquivo só é útil se continuar crescendo
+8. Atualizar CHANGELOG
+9. Aguardar ordem de deploy
 ```
