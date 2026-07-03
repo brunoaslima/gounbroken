@@ -36,6 +36,15 @@ if (!Array.isArray(movements) || movements.length === 0) throw new Error('moveme
 
 const ids = new Set()
 const names = new Set()
+// resolveMovement() in src/lib/exerciseCatalog.ts builds one flat map keyed by
+// lowercase display_name/alias across ALL movements — a name colliding with
+// another movement's alias silently overwrites it in that index.
+const nameIndex = new Set()
+
+function claimName(key, path) {
+  if (nameIndex.has(key)) throw new Error(`${path}: "${key}" collides with another movement's display_name/alias`)
+  nameIndex.add(key)
+}
 
 const slim = movements.map((m, i) => {
   const p = `movement[${i}]`
@@ -48,6 +57,7 @@ const slim = movements.map((m, i) => {
   const nameKey = displayName.toLowerCase()
   if (names.has(nameKey)) throw new Error(`${p}.display_name: duplicate "${displayName}"`)
   names.add(nameKey)
+  claimName(nameKey, `${p}.display_name`)
 
   const sections = assertStringArray(m.allowed_sections, `${p}.allowed_sections`)
   sections.forEach(s => { if (!VALID_SECTIONS.has(s)) throw new Error(`${p}: unknown section "${s}"`) })
@@ -56,13 +66,16 @@ const slim = movements.map((m, i) => {
     throw new Error(`${p}: invalid reporting_intensity_default "${m.reporting_intensity_default}"`)
   }
 
+  const aliases = assertStringArray(m.aliases ?? [], `${p}.aliases`)
+  aliases.forEach((alias, ai) => claimName(alias.toLowerCase(), `${p}.aliases[${ai}]`))
+
   return {
     id,
     name: displayName,
     equipment: assertCleanString(m.equipment, `${p}.equipment`),
     category: assertCleanString(m.category, `${p}.category`),
     sections,
-    aliases: assertStringArray(m.aliases ?? [], `${p}.aliases`),
+    aliases,
     buildUpFor: assertStringArray(m.useful_as_build_up_for ?? [], `${p}.useful_as_build_up_for`),
     primary: assertStringArray(m.primary_body_parts ?? [], `${p}.primary_body_parts`),
     secondary: assertStringArray(m.secondary_body_parts ?? [], `${p}.secondary_body_parts`),

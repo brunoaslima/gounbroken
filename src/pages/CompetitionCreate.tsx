@@ -247,7 +247,7 @@ export default function CompetitionCreate() {
     const competitionId = data as string
 
     if (divisions.length > 0) {
-      await supabase.from('competition_divisions').insert(
+      const { error: divErr } = await supabase.from('competition_divisions').insert(
         divisions.map(d => ({
           competition_id: competitionId,
           format: d.format,
@@ -256,6 +256,11 @@ export default function CompetitionCreate() {
           max_teams: d.maxTeams,
         }))
       )
+      if (divErr) {
+        setError(divErr.message)
+        setSaving(false)
+        return
+      }
     }
 
     navigate(`/athlete/competitions/${competitionId}`)

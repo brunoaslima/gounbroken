@@ -32,7 +32,7 @@ export default function CompetitionJoin() {
 
       {authLoading || (user && !error) ? (
         <>
-          <div className="w-6 h-6 border-2 border-lime border-t-transparent rounded-full animate-spin" />
+          <div className="w-6 h-6 border-2 animate-spin" style={{ borderColor: '#D4FF3A', borderTopColor: 'transparent' }} />
           <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#6B6B68]">
             Validando convite...
           </span>

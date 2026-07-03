@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { PrescribedWorkoutData, WorkoutFeedback } from '@/types'
-import { buildFormatLine, buildMainLine, buildPrescription, dayLabel, formatDateBR } from '@/lib/workoutDisplay'
+import { buildFormatLine, buildPrescriptionParts, dayLabel, formatDateBR } from '@/lib/workoutDisplay'
 
 // ── Free-text workout renderer ────────────────────────────────────────
 // Used when a section has notes but no structured exercises (imported/manual workouts)
@@ -471,9 +471,8 @@ export default function WorkoutCard({
                 {/* Exercises */}
                 <div className="space-y-3">
                   {section.exercises.map(ex => {
-                    const main = buildMainLine(ex)
-                    // remaining lines (load, rpe, rest) — main is rendered separately as a prefix
-                    const lines = buildPrescription(ex).slice(main ? 1 : 0)
+                    // main is rendered separately as a highlighted prefix; rest is load/rpe/rest lines
+                    const { main, rest: lines } = buildPrescriptionParts(ex)
                     return (
                       <div key={ex.id}>
                         {/* Rep/duration count highlighted in front of the exercise name */}

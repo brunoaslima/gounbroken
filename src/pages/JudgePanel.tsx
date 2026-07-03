@@ -6,6 +6,7 @@ import { useProfile } from '@/hooks/useProfile'
 import type { CompetitionWod, CompetitionTeam, CompetitionRole, CompetitionResult, CompetitionDivision } from '@/types'
 import { encodeScore, validateScoreFields, parseCapSeconds } from '@/lib/competitionScore'
 import type { ScoreFields, WodScoreType } from '@/lib/competitionScore'
+import StickyFooter from '@/components/StickyFooter'
 
 const FORMAT_SHORT: Record<string, string> = { individual: 'IND', pair: 'PAIR', team3: 'T3', team4: 'T4' }
 function divLabel(d: CompetitionDivision) {
@@ -302,7 +303,7 @@ export default function JudgePanel() {
         </div>
 
         {/* Bottom CTA — fixed so it's always visible regardless of keyboard/viewport */}
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#0A0A0A', borderTop: '1px solid #2A2A2A', padding: '14px 20px calc(14px + env(safe-area-inset-bottom, 0px))', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, zIndex: 50 }}>
+        <StickyFooter variant="fixed" style={{ paddingTop: 14, paddingLeft: 20, paddingRight: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           <button onClick={closeScoreForm} style={ghostBtnStyle}>CANCEL</button>
           <button
             onClick={handleSubmit}
@@ -318,7 +319,7 @@ export default function JudgePanel() {
           >
             {submitting ? 'ENVIANDO...' : 'CONFIRMAR'}
           </button>
-        </div>
+        </StickyFooter>
       </div>
     )
   }
