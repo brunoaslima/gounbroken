@@ -236,12 +236,18 @@ export default function CompetitionEdit() {
               03 · VAGAS POR DIVISÃO
             </div>
             {divisions.map(d => (
-              <FieldBlock key={d.id} label={formatDivisionLabel(d)}>
+              <div key={d.id} className="border-b border-[#2A2A2A]" style={{ padding: '16px 20px' }}>
+                <span
+                  className="font-mono font-bold uppercase inline-block transition-colors duration-150 hover:text-[#D4FF3A] hover:border-[#D4FF3A]"
+                  style={{ fontSize: 9, letterSpacing: '0.18em', color: '#6B6B68', border: '1px solid #2A2A2A', padding: '4px 8px', marginBottom: 8 }}
+                >
+                  {formatDivisionLabel(d)}
+                </span>
                 <SlotsStepper
                   value={divMaxTeams[d.id] ?? null}
                   onChange={v => setDivMaxTeams(prev => ({ ...prev, [d.id]: v }))}
                 />
-              </FieldBlock>
+              </div>
             ))}
           </>
         )}
