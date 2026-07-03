@@ -92,14 +92,14 @@ interface PublicProfile {
 
 // ─── Action humanization ──────────────────────────────────────────────────────
 const ACTION_LABELS: Record<string, string> = {
-  team_approved:          'Equipe aprovada',
-  team_rejected:          'Equipe rejeitada',
-  team_payment_confirmed: 'Pagto confirmado',
-  team_checked_in:        'Check-in realizado',
-  team_cancelled:         'Equipe cancelada',
-  wod_published:          'WOD publicado',
-  result_overridden:      'Resultado corrigido',
-  judge_invited:          'Judge convidado',
+  team_approved:          'Team approved',
+  team_rejected:          'Team rejected',
+  team_payment_confirmed: 'Payment confirmed',
+  team_checked_in:        'Check-in completed',
+  team_cancelled:         'Team cancelled',
+  wod_published:          'WOD published',
+  result_overridden:      'Result corrected',
+  judge_invited:          'Judge invited',
 }
 
 function humanizeAction(action: string) {
@@ -108,7 +108,7 @@ function humanizeAction(action: string) {
 
 function formatDate(iso: string) {
   const d = new Date(iso)
-  const months = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ']
+  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
   const day = String(d.getDate()).padStart(2, '0')
   const mon = months[d.getMonth()]
   const hh = String(d.getHours()).padStart(2, '0')
@@ -128,12 +128,12 @@ type Tab = typeof TABS[number]
 // 'payment_pending' é pseudo-chave: filtra por payment_status, não por status
 // (pagamento é eixo independente da aprovação — ver remove-pending-payment-status.sql)
 const TEAM_FILTERS = [
-  { key: 'all',              label: 'TODAS' },
-  { key: 'pending_approval', label: 'APROV. PENDENTE' },
-  { key: 'payment_pending',  label: 'PAGTO' },
-  { key: 'pending_members',  label: 'INCOMPLETAS' },
-  { key: 'approved',         label: 'OFICIAIS' },
-  { key: 'rejected',         label: 'REJEITADAS' },
+  { key: 'all',              label: 'ALL' },
+  { key: 'pending_approval', label: 'PENDING APPROVAL' },
+  { key: 'payment_pending',  label: 'PAYMENT' },
+  { key: 'pending_members',  label: 'INCOMPLETE' },
+  { key: 'approved',         label: 'OFFICIAL' },
+  { key: 'rejected',         label: 'REJECTED' },
 ] as const
 type TeamFilter = typeof TEAM_FILTERS[number]['key']
 
@@ -324,7 +324,7 @@ export default function CompetitionManage() {
         setProfiles(map)
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao carregar dados')
+      setError(e instanceof Error ? e.message : 'Failed to load data')
     } finally {
       setLoading(false)
     }
@@ -357,7 +357,7 @@ export default function CompetitionManage() {
       if (error) throw new Error(error.message)
       await load()
     } catch (e) {
-      setMutateError(e instanceof Error ? e.message : 'Erro')
+      setMutateError(e instanceof Error ? e.message : 'Error')
     } finally {
       setMutating(false)
     }
@@ -379,7 +379,7 @@ export default function CompetitionManage() {
       if (error) throw new Error(error.message)
       await load()
     } catch (e) {
-      setMutateError(e instanceof Error ? e.message : 'Erro')
+      setMutateError(e instanceof Error ? e.message : 'Error')
     } finally {
       setMutating(false)
     }
@@ -397,11 +397,11 @@ export default function CompetitionManage() {
         p_username: username,
       })
       if (error) throw new Error(error.message)
-      setInviteMsg({ ok: true, text: `Convite enviado para @${username}` })
+      setInviteMsg({ ok: true, text: `Invite sent to @${username}` })
       setInviteUsername('')
       await load()
     } catch (e) {
-      setInviteMsg({ ok: false, text: e instanceof Error ? e.message : 'Erro ao convidar' })
+      setInviteMsg({ ok: false, text: e instanceof Error ? e.message : 'Failed to invite' })
     } finally {
       setInviteLoading(false)
     }
@@ -411,7 +411,7 @@ export default function CompetitionManage() {
   async function handleOverride(resultId: string) {
     if (!overrideDisplay.trim() || !overrideReason.trim() || !selectedWod) return
     const scoreNumeric = parseDisplayScore(selectedWod.score_type as WodScoreType, overrideDisplay)
-    if (scoreNumeric === null) { setMutateError('Formato inválido para este tipo de score'); return }
+    if (scoreNumeric === null) { setMutateError('Invalid format for this score type'); return }
     setMutating(true)
     setMutateError(null)
     try {
@@ -427,7 +427,7 @@ export default function CompetitionManage() {
       setOverrideReason('')
       await load()
     } catch (e) {
-      setMutateError(e instanceof Error ? e.message : 'Erro')
+      setMutateError(e instanceof Error ? e.message : 'Error')
     } finally {
       setMutating(false)
     }
@@ -440,7 +440,7 @@ export default function CompetitionManage() {
     const validationError = validateScoreFields(enterFields, capSecs)
     if (validationError) { setEnterError(validationError); return }
     const encoded = encodeScore(enterFields)
-    if (!encoded) { setEnterError('Resultado inválido'); return }
+    if (!encoded) { setEnterError('Invalid result'); return }
     setMutating(true)
     setMutateError(null)
     setEnterError(null)
@@ -455,11 +455,11 @@ export default function CompetitionManage() {
       if (error) throw new Error(error.message)
       setEnterTeamId(null)
       setEnterFields({ type: selectedWod.score_type as WodScoreType })
-      setSavedMsg(`RESULTADO SALVO — ${teamName} · ${encoded.raw_result}`)
+      setSavedMsg(`RESULT SAVED — ${teamName} · ${encoded.raw_result}`)
       setTimeout(() => setSavedMsg(null), 4000)
       await load()
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Erro ao salvar'
+      const msg = e instanceof Error ? e.message : 'Failed to save'
       setEnterError(msg)
       setMutateError(msg)
     } finally {
@@ -615,7 +615,7 @@ export default function CompetitionManage() {
     return (
       <div style={{ minHeight: '100vh', background: '#0A0A0A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68' }}>
-          CARREGANDO...
+          LOADING...
         </span>
       </div>
     )
@@ -635,7 +635,7 @@ export default function CompetitionManage() {
     return (
       <div style={{ minHeight: '100vh', background: '#0A0A0A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#FF3B30' }}>
-          ACESSO NEGADO
+          ACCESS DENIED
         </span>
       </div>
     )
@@ -664,7 +664,7 @@ export default function CompetitionManage() {
           onClick={() => navigate(`/athlete/competitions/${comp.id}/edit`)}
           style={{ background: 'none', border: 'none', color: '#6B6B68', cursor: 'pointer', padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', flexShrink: 0 }}
         >
-          EDITAR
+          EDIT
         </button>
         <StatusPill status={comp.status} />
       </div>
@@ -715,7 +715,7 @@ export default function CompetitionManage() {
       {/* ── Content ──────────────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
 
-        {/* ════════ TAB 1: VISÃO GERAL ════════ */}
+        {/* ════════ TAB 1: OVERVIEW ════════ */}
         {activeTab === 'OVERVIEW' && (
           <div style={{ padding: 16, maxWidth: 1024, margin: '0 auto' }}>
 
@@ -752,7 +752,7 @@ export default function CompetitionManage() {
                         {comp.is_private && (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#FF8A00', border: '1px solid rgba(255,138,0,0.35)', padding: '4px 8px' }}>
                             <span style={{ width: 6, height: 6, background: '#FF8A00', display: 'inline-block' }} />
-                            PRIVADA
+                            PRIVATE
                           </span>
                         )}
                       </div>
@@ -824,11 +824,11 @@ export default function CompetitionManage() {
                     </div>
                   </div>
 
-                  {/* Link de convite (privada) */}
+                  {/* Invite link (private) */}
                   {comp.is_private && comp.invite_code && (
                     <div style={{ borderTop: '1px solid #1A1A1A', paddingTop: 12 }}>
                       <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 900, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#D4FF3A', marginBottom: 6 }}>
-                        LINK DE CONVITE · ACESSO PRIVADO
+                        INVITE LINK · PRIVATE ACCESS
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, border: '1px dashed #D4FF3A', padding: '10px 12px' }}>
                         <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.04em', color: '#A8A8A4', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -838,20 +838,20 @@ export default function CompetitionManage() {
                           onClick={copyInviteLink}
                           style={{ background: 'transparent', border: 0, padding: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase', color: inviteCopied ? '#D4FF3A' : '#6B6B68', cursor: 'pointer', flexShrink: 0 }}
                         >
-                          {inviteCopied ? 'COPIADO' : 'COPIAR'}
+                          {inviteCopied ? 'COPIED' : 'COPY'}
                         </button>
                       </div>
                     </div>
                   )}
 
-                  {/* Toggle privacidade */}
+                  {/* Privacy toggle */}
                   <div style={{ borderTop: '1px solid #1A1A1A', paddingTop: 12 }}>
                     {privacyConfirming ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                         <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, color: '#FF8A00', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
                           {comp.is_private
-                            ? 'TORNAR PÚBLICA? A COMPETIÇÃO APARECERÁ NA LISTAGEM PARA TODOS.'
-                            : 'TORNAR PRIVADA? ELA SAI DA LISTAGEM E O ACESSO PASSA A SER POR LINK.'}
+                            ? 'MAKE PUBLIC? THE COMPETITION WILL APPEAR IN THE LISTING FOR EVERYONE.'
+                            : 'MAKE PRIVATE? IT LEAVES THE LISTING AND ACCESS BECOMES LINK-ONLY.'}
                         </span>
                         <div style={{ display: 'flex', gap: 6 }}>
                           <button
@@ -859,13 +859,13 @@ export default function CompetitionManage() {
                             onClick={handleTogglePrivacy}
                             style={{ background: '#FF8A00', border: 'none', padding: '7px 14px', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#0A0A0A', cursor: 'pointer' }}
                           >
-                            {privacyChanging ? '...' : comp.is_private ? 'SIM, TORNAR PÚBLICA' : 'SIM, TORNAR PRIVADA'}
+                            {privacyChanging ? '...' : comp.is_private ? 'YES, MAKE PUBLIC' : 'YES, MAKE PRIVATE'}
                           </button>
                           <button
                             onClick={() => setPrivacyConfirming(false)}
                             style={{ background: 'none', border: '1px solid #2A2A2A', padding: '7px 14px', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68', cursor: 'pointer' }}
                           >
-                            VOLTAR
+                            BACK
                           </button>
                         </div>
                       </div>
@@ -874,12 +874,12 @@ export default function CompetitionManage() {
                         onClick={() => setPrivacyConfirming(true)}
                         style={{ background: 'none', border: 'none', padding: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#3D3D3B', cursor: 'pointer' }}
                       >
-                        {comp.is_private ? 'TORNAR PÚBLICA' : 'TORNAR PRIVADA'}
+                        {comp.is_private ? 'MAKE PUBLIC' : 'MAKE PRIVATE'}
                       </button>
                     )}
                   </div>
 
-                  {/* Cancelar competição */}
+                  {/* Cancel competition */}
                   {canCancel && (
                     <div style={{ borderTop: '1px solid #1A1A1A', paddingTop: 12 }}>
                       {cancelConfirming ? (
@@ -899,7 +899,7 @@ export default function CompetitionManage() {
                               onClick={() => setCancelConfirming(false)}
                               style={{ background: 'none', border: '1px solid #2A2A2A', padding: '7px 14px', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68', cursor: 'pointer' }}
                             >
-                              VOLTAR
+                              BACK
                             </button>
                           </div>
                         </div>
@@ -931,12 +931,12 @@ export default function CompetitionManage() {
                   color: '#FFB800',
                 },
                 {
-                  label: 'PAGTO PENDENTE',
+                  label: 'PENDING PAYMENT',
                   value: String(pendingPaymentTeams.length),
                   color: '#FFB800',
                 },
                 {
-                  label: 'WODS PUBLICADOS',
+                  label: 'WODS PUBLISHED',
                   value: `${publishedWods.length} / ${wods.length}`,
                   color: '#4DA3FF',
                 },
@@ -957,13 +957,13 @@ export default function CompetitionManage() {
               <div style={{ marginBottom: 24 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68' }}>
-                    VAGAS POR DIVISÃO
+                    SLOTS BY DIVISION
                   </span>
                   <button
                     onClick={() => navigate(`/athlete/competitions/${comp.id}/edit`)}
                     style={{ background: 'none', border: 'none', color: '#D4FF3A', cursor: 'pointer', padding: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}
                   >
-                    EDITAR
+                    EDIT
                   </button>
                 </div>
                 <div style={{ background: '#111111', border: '1px solid #2A2A2A' }}>
@@ -984,12 +984,12 @@ export default function CompetitionManage() {
                             </span>
                             {full && (
                               <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 900, letterSpacing: '0.12em', color: '#FF8A00' }}>
-                                ESGOTADO
+                                FULL
                               </span>
                             )}
                             {full && pending > 0 && (
                               <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: '#FFB800' }}>
-                                {pending} AGUARDANDO APROVAÇÃO
+                                {pending} AWAITING APPROVAL
                               </span>
                             )}
                           </div>
@@ -1009,12 +1009,12 @@ export default function CompetitionManage() {
             {/* Pending actions */}
             <div style={{ marginBottom: 24 }}>
               <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68', marginBottom: 12 }}>
-                ACOES PENDENTES
+                PENDING ACTIONS
               </div>
               <div style={{ background: '#111111', border: '1px solid #2A2A2A' }}>
                 {pendingApprovalTeams.length === 0 && pendingPaymentTeams.length === 0 && publishedWods.length === wods.length ? (
                   <div style={{ padding: '16px', color: '#3D3D3B', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                    Sem acoes pendentes
+                    No pending actions
                   </div>
                 ) : (
                   <>
@@ -1050,12 +1050,12 @@ export default function CompetitionManage() {
             {/* Recent activity */}
             <div>
               <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68', marginBottom: 12 }}>
-                ATIVIDADE RECENTE
+                RECENT ACTIVITY
               </div>
               <div style={{ background: '#111111', border: '1px solid #2A2A2A' }}>
                 {auditLog.slice(0, 4).length === 0 ? (
                   <div style={{ padding: '16px', color: '#3D3D3B', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                    Sem atividade registrada
+                    No activity recorded
                   </div>
                 ) : (
                   auditLog.slice(0, 4).map(entry => (
@@ -1067,7 +1067,7 @@ export default function CompetitionManage() {
           </div>
         )}
 
-        {/* ════════ TAB 2: EQUIPES ════════ */}
+        {/* ════════ TAB 2: TEAMS ════════ */}
         {activeTab === 'TEAMS' && (
           <div style={{ padding: 16, maxWidth: 1200, margin: '0 auto' }}>
 
@@ -1075,7 +1075,7 @@ export default function CompetitionManage() {
             {divisions.length > 0 && (
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
                 <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', color: '#3D3D3B', textTransform: 'uppercase', marginRight: 2 }}>DIV</span>
-                {[{ id: 'all', label: 'TODAS' }, ...divisions.map(d => ({ id: d.id, label: divisionLabel(d) }))].map(d => (
+                {[{ id: 'all', label: 'ALL' }, ...divisions.map(d => ({ id: d.id, label: divisionLabel(d) }))].map(d => (
                   <button
                     key={d.id}
                     onClick={() => setDivisionFilter(d.id)}
@@ -1122,7 +1122,7 @@ export default function CompetitionManage() {
               ))}
               <input
                 type='text'
-                placeholder='BUSCAR EQUIPE...'
+                placeholder='SEARCH TEAM...'
                 value={teamSearch}
                 onChange={e => setTeamSearch(e.target.value)}
                 style={{
@@ -1145,7 +1145,7 @@ export default function CompetitionManage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #2A2A2A' }}>
-                    {['#','EQUIPE + BOX','DIVISÃO','ATLETAS','STATUS','PAGTO','ACOES'].map(h => (
+                    {['#','TEAM + BOX','DIVISION','ATHLETES','STATUS','PAYMENT','ACTIONS'].map(h => (
                       <th key={h} style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68', padding: '8px 12px', textAlign: 'left', background: '#0D0D0D' }}>
                         {h}
                       </th>
@@ -1202,7 +1202,7 @@ export default function CompetitionManage() {
                             if (!canApprove && team.status === 'pending_approval') {
                               return (
                                 <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, color: '#FFB800', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                                  {pendingInviteCount} CONVITE{pendingInviteCount > 1 ? 'S' : ''} PENDENTE{pendingInviteCount > 1 ? 'S' : ''}
+                                  {pendingInviteCount} PENDING INVITE{pendingInviteCount > 1 ? 'S' : ''}
                                 </span>
                               )
                             }
@@ -1213,17 +1213,17 @@ export default function CompetitionManage() {
                               <input
                                 autoFocus
                                 type='text'
-                                placeholder='Motivo da rejeicao...'
+                                placeholder='Rejection reason...'
                                 value={rejectReason}
                                 onChange={e => setRejectReason(e.target.value)}
                                 style={{ background: '#0D0D0D', border: '1px solid #FF3B30', color: '#F5F5F0', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, padding: '4px 8px', outline: 'none', width: 180 }}
                               />
                               <div style={{ display: 'flex', gap: 4 }}>
                                 <Btn color='#FF3B30' disabled={!rejectReason.trim() || mutating} onClick={() => handleReject(team.id)}>
-                                  CONFIRMAR
+                                  CONFIRM
                                 </Btn>
                                 <Btn color='#6B6B68' onClick={() => { setRejectTeamId(null); setRejectReason('') }}>
-                                  CANCELAR
+                                  CANCEL
                                 </Btn>
                               </div>
                             </div>
@@ -1232,16 +1232,16 @@ export default function CompetitionManage() {
                               {team.status === 'pending_approval' && (
                                 <>
                                   <Btn color='#D4FF3A' disabled={mutating || members.some(m => m.status === 'invited')} onClick={() => teamAction(team.id, 'approve')}>
-                                    APROVAR
+                                    APPROVE
                                   </Btn>
                                   <Btn color='#FF3B30' disabled={mutating} onClick={() => { setRejectTeamId(team.id); setRejectReason('') }}>
-                                    REJEITAR
+                                    REJECT
                                   </Btn>
                                 </>
                               )}
                               {team.payment_status === 'pending' && (
                                 <Btn color='#6B6B68' disabled={mutating} onClick={() => teamAction(team.id, 'confirm_payment')}>
-                                  CONFIRMAR PAGTO
+                                  CONFIRM PAYMENT
                                 </Btn>
                               )}
                               {team.status === 'approved' && (
@@ -1254,7 +1254,7 @@ export default function CompetitionManage() {
                                   {cancelTeamId === team.id ? (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                       <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, color: '#FFB800', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                                        CONFIRMAR CANCELAMENTO?
+                                        CONFIRM CANCELLATION?
                                       </span>
                                       <div style={{ display: 'flex', gap: 4 }}>
                                         <Btn color='#FF3B30' disabled={mutating} onClick={async () => { await teamAction(team.id, 'cancel'); setCancelTeamId(null) }}>
@@ -1267,14 +1267,14 @@ export default function CompetitionManage() {
                                     </div>
                                   ) : (
                                     <Btn color='#6B6B68' disabled={mutating} onClick={() => setCancelTeamId(team.id)}>
-                                      CANCELAR
+                                      CANCEL
                                     </Btn>
                                   )}
                                 </>
                               )}
                               {team.status === 'rejected' && (
                                 <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#3D3D3B', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                                  rejeitada
+                                  rejected
                                 </span>
                               )}
                             </div>
@@ -1285,12 +1285,12 @@ export default function CompetitionManage() {
                         <tr key={`${team.id}-members`} style={{ borderBottom: '1px solid #1A1A1A', background: '#0D0D0D' }}>
                           <td colSpan={7} style={{ padding: '10px 16px 16px 48px' }}>
                             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', color: '#6B6B68', textTransform: 'uppercase', marginBottom: 8 }}>
-                              ATLETAS
+                              ATHLETES
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                               {members.filter(m => m.user_id || m.invited_email).map(m => {
                                 const p = m.user_id ? profiles[m.user_id] : null
-                                const name = p?.name ?? m.invited_email ?? 'Aguardando'
+                                const name = p?.name ?? m.invited_email ?? 'Pending'
                                 const handle = p?.username ? `@${p.username}` : null
                                 const isCap = m.user_id === team.captain_user_id
                                 return (
@@ -1305,7 +1305,7 @@ export default function CompetitionManage() {
                                     )}
                                     {isCap && (
                                       <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, color: '#D4FF3A', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-                                        CAPITAO
+                                        CAPTAIN
                                       </span>
                                     )}
                                     <StatusPill status={m.status} />
@@ -1314,7 +1314,7 @@ export default function CompetitionManage() {
                               })}
                               {members.filter(m => m.user_id || m.invited_email).length === 0 && (
                                 <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#3D3D3B', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                                  NENHUM ATLETA
+                                  NO ATHLETES
                                 </span>
                               )}
                             </div>
@@ -1327,7 +1327,7 @@ export default function CompetitionManage() {
                   {filteredTeams.length === 0 && (
                     <tr>
                       <td colSpan={7} style={{ padding: '24px 12px', textAlign: 'center', color: '#3D3D3B', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                        NENHUMA EQUIPE ENCONTRADA
+                        NO TEAMS FOUND
                       </td>
                     </tr>
                   )}
@@ -1335,7 +1335,7 @@ export default function CompetitionManage() {
               </table>
             </div>
             <div style={{ marginTop: 12, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#3D3D3B', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-              MOSTRANDO {filteredTeams.length} DE {teams.length}
+              SHOWING {filteredTeams.length} OF {teams.length}
             </div>
           </div>
         )}
@@ -1346,18 +1346,18 @@ export default function CompetitionManage() {
             <div style={{ marginBottom: 16 }}>
               {!showWodForm ? (
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <Btn color='#D4FF3A' onClick={() => setShowWodForm(true)}>+ CRIAR WOD</Btn>
+                  <Btn color='#D4FF3A' onClick={() => setShowWodForm(true)}>+ CREATE WOD</Btn>
                 </div>
               ) : (
                 <div style={{ background: '#111111', border: '1px solid #2A2A2A', padding: 20, marginBottom: 8 }}>
                   <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#D4FF3A', marginBottom: 16 }}>
-                    NOVO WOD
+                    NEW WOD
                   </div>
 
-                  {/* Nome */}
+                  {/* Name */}
                   <div style={{ marginBottom: 12 }}>
                     <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#6B6B68', marginBottom: 6 }}>
-                      NOME <span style={{ color: '#D4FF3A' }}>*</span>
+                      NAME <span style={{ color: '#D4FF3A' }}>*</span>
                     </div>
                     <input
                       value={wodName}
@@ -1368,7 +1368,7 @@ export default function CompetitionManage() {
                     />
                   </div>
 
-                  {/* Descrição */}
+                  {/* Description */}
                   <div style={{ marginBottom: 12 }}>
                     <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#6B6B68', marginBottom: 6 }}>DESCRIPTION</div>
                     <textarea
@@ -1383,7 +1383,7 @@ export default function CompetitionManage() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
                     {/* Score type */}
                     <div>
-                      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#6B6B68', marginBottom: 6 }}>TIPO DE SCORE</div>
+                      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#6B6B68', marginBottom: 6 }}>SCORE TYPE</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         {([
                           { v: 'time', l: 'FOR TIME' },
@@ -1422,7 +1422,7 @@ export default function CompetitionManage() {
                         style={{ width: '100%', background: '#0A0A0A', border: '1px solid #2A2A2A', color: '#F5F5F0', fontFamily: 'inherit', fontSize: 13, padding: '8px 12px', outline: 'none', boxSizing: 'border-box' }}
                       />
                       <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#3D3D3B', marginTop: 6 }}>
-                        SCORE ORDER: {wodScoreType === 'time' ? 'MENOR TEMPO = 1º' : 'MAIOR VALOR = 1º'}
+                        SCORE ORDER: {wodScoreType === 'time' ? 'LOWEST TIME = 1ST' : 'HIGHEST VALUE = 1ST'}
                       </div>
                     </div>
                   </div>
@@ -1440,13 +1440,13 @@ export default function CompetitionManage() {
                         cursor: wodName.trim() ? 'pointer' : 'not-allowed',
                       }}
                     >
-                      {wodSaving ? 'SALVANDO...' : 'CRIAR WOD'}
+                      {wodSaving ? 'SAVING...' : 'CREATE WOD'}
                     </button>
                     <button
                       onClick={() => { setShowWodForm(false); setWodName(''); setWodDesc(''); setWodCap('') }}
                       style={{ background: 'none', border: '1px solid #2A2A2A', padding: '10px 16px', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68', cursor: 'pointer' }}
                     >
-                      CANCELAR
+                      CANCEL
                     </button>
                   </div>
                 </div>
@@ -1484,18 +1484,18 @@ export default function CompetitionManage() {
                         <StatusPill status={wod.status} />
                         {canPublish && (
                           <Btn color='#D4FF3A' disabled={mutating || isEditing} onClick={() => publishWod(wod.id)}>
-                            PUBLICAR
+                            PUBLISH
                           </Btn>
                         )}
                         {wod.status === 'published' && (
                           despublicarConfirmId === wod.id ? (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
                               <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, fontWeight: 700, color: '#FF3B30', letterSpacing: '0.12em', textTransform: 'uppercase', textAlign: 'right' }}>
-                                DESPUBLICAR?
+                                UNPUBLISH?
                               </span>
                               <div style={{ display: 'flex', gap: 4 }}>
                                 <Btn color='#FF3B30' disabled={mutating} onClick={() => { supabase.rpc('update_wod_status', { p_wod_id: wod.id, p_status: 'draft' }).then(() => { setDespublicarConfirmId(null); load() }) }}>
-                                  SIM
+                                  YES
                                 </Btn>
                                 <Btn color='#6B6B68' onClick={() => setDespublicarConfirmId(null)}>
                                   NO
@@ -1504,7 +1504,7 @@ export default function CompetitionManage() {
                             </div>
                           ) : (
                             <Btn color='#6B6B68' disabled={mutating || isEditing} onClick={() => setDespublicarConfirmId(wod.id)}>
-                              DESPUBLICAR
+                              UNPUBLISH
                             </Btn>
                           )
                         )}
@@ -1513,7 +1513,7 @@ export default function CompetitionManage() {
                           disabled={mutating}
                           onClick={() => isEditing ? cancelEditWod() : openEditWod(wod)}
                         >
-                          {isEditing ? 'CANCELAR' : 'EDITAR'}
+                          {isEditing ? 'CANCEL' : 'EDIT'}
                         </Btn>
                       </div>
                     </div>
@@ -1522,11 +1522,11 @@ export default function CompetitionManage() {
                     {isEditing && (
                       <div style={{ borderTop: '1px solid #2A2A2A', padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
                         <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#D4FF3A' }}>
-                          EDITANDO WOD {String(idx + 1).padStart(2, '0')}
+                          EDITING WOD {String(idx + 1).padStart(2, '0')}
                         </div>
 
                         <div>
-                          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#6B6B68', marginBottom: 6 }}>NOME</div>
+                          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#6B6B68', marginBottom: 6 }}>NAME</div>
                           <input
                             value={editWodName}
                             onChange={e => setEditWodName(e.target.value)}
@@ -1547,7 +1547,7 @@ export default function CompetitionManage() {
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                           <div>
-                            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#6B6B68', marginBottom: 6 }}>TIPO DE SCORE</div>
+                            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#6B6B68', marginBottom: 6 }}>SCORE TYPE</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                               {([
                                 { v: 'time', l: 'FOR TIME' },
@@ -1584,7 +1584,7 @@ export default function CompetitionManage() {
                               style={{ width: '100%', background: '#0A0A0A', border: '1px solid #2A2A2A', color: '#F5F5F0', fontFamily: 'inherit', fontSize: 13, padding: '8px 12px', outline: 'none', boxSizing: 'border-box' }}
                             />
                             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#3D3D3B', marginTop: 6 }}>
-                              SCORE ORDER: {editWodScoreType === 'time' ? 'MENOR TEMPO = 1º' : 'MAIOR VALOR = 1º'}
+                              SCORE ORDER: {editWodScoreType === 'time' ? 'LOWEST TIME = 1ST' : 'HIGHEST VALUE = 1ST'}
                             </div>
 
                             <div style={{ marginTop: 16 }}>
@@ -1627,13 +1627,13 @@ export default function CompetitionManage() {
                               cursor: editWodName.trim() ? 'pointer' : 'not-allowed',
                             }}
                           >
-                            {editWodSaving ? 'SALVANDO...' : 'SALVAR'}
+                            {editWodSaving ? 'SAVING...' : 'SAVE'}
                           </button>
                           <button
                             onClick={cancelEditWod}
                             style={{ background: 'none', border: '1px solid #2A2A2A', padding: '10px 16px', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68', cursor: 'pointer' }}
                           >
-                            CANCELAR
+                            CANCEL
                           </button>
                         </div>
                       </div>
@@ -1643,7 +1643,7 @@ export default function CompetitionManage() {
               })}
               {wods.length === 0 && (
                 <div style={{ padding: 32, textAlign: 'center', color: '#3D3D3B', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                  NENHUM WOD CADASTRADO
+                  NO WODS YET
                 </div>
               )}
             </div>
@@ -1658,7 +1658,7 @@ export default function CompetitionManage() {
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
               {!showInviteForm && (
                 <Btn color='#D4FF3A' onClick={() => { setShowInviteForm(true); setInviteMsg(null) }}>
-                  CONVIDAR JUDGE
+                  INVITE JUDGE
                 </Btn>
               )}
             </div>
@@ -1667,7 +1667,7 @@ export default function CompetitionManage() {
             {showInviteForm && (
               <div style={{ background: '#111111', border: '1px solid #2A2A2A', padding: 16, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68' }}>
-                  CONVIDAR POR USERNAME
+                  INVITE BY USERNAME
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                   <input
@@ -1679,10 +1679,10 @@ export default function CompetitionManage() {
                     style={{ background: '#0D0D0D', border: '1px solid #2A2A2A', color: '#F5F5F0', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, padding: '6px 10px', outline: 'none', width: 220 }}
                   />
                   <Btn color='#D4FF3A' disabled={!inviteUsername.trim() || inviteLoading} onClick={handleInviteJudge}>
-                    {inviteLoading ? 'ENVIANDO...' : 'ENVIAR CONVITE'}
+                    {inviteLoading ? 'SENDING...' : 'SEND INVITE'}
                   </Btn>
                   <Btn color='#6B6B68' onClick={() => { setShowInviteForm(false); setInviteUsername(''); setInviteMsg(null) }}>
-                    CANCELAR
+                    CANCEL
                   </Btn>
                 </div>
                 {inviteMsg && (
@@ -1764,14 +1764,14 @@ export default function CompetitionManage() {
 
               {judgeRoles.length === 0 && pendingInvites.length === 0 && (
                 <div style={{ padding: 32, textAlign: 'center', color: '#3D3D3B', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                  NENHUM JUDGE CADASTRADO
+                  NO JUDGES YET
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* ════════ TAB 5: RESULTADOS ════════ */}
+        {/* ════════ TAB 5: RESULTS ════════ */}
         {activeTab === 'RESULTS' && (
           <div style={{ padding: 16, maxWidth: 1000, margin: '0 auto' }}>
 
@@ -1802,7 +1802,7 @@ export default function CompetitionManage() {
             {/* Division filter chips */}
             {divisions.length > 0 && (
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-                {[{ id: 'all', label: 'TODAS' }, ...divisions.map(d => ({ id: d.id, label: divisionLabel(d) }))].map(opt => (
+                {[{ id: 'all', label: 'ALL' }, ...divisions.map(d => ({ id: d.id, label: divisionLabel(d) }))].map(opt => (
                   <button
                     key={opt.id}
                     onClick={() => { setResultDivisionFilter(opt.id); setEnterTeamId(null) }}
@@ -1836,14 +1836,14 @@ export default function CompetitionManage() {
 
             {!selectedWod ? (
               <div style={{ padding: 32, textAlign: 'center', color: '#3D3D3B', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                SELECIONE UM WOD
+                SELECT A WOD
               </div>
             ) : (
               <>
                 {/* Summary row */}
                 <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
                   <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#6B6B68', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                    {sortedWodResults.length} com resultado / {resultFilteredApproved.length} total · {teamsWithoutResult.length} sem resultado
+                    {sortedWodResults.length} with result / {resultFilteredApproved.length} total · {teamsWithoutResult.length} without result
                   </span>
                   {selectedWod.status !== 'published' && (
                     <Btn color='#D4FF3A' disabled={mutating} onClick={() => publishWod(selectedWod.id)}>
@@ -1856,7 +1856,7 @@ export default function CompetitionManage() {
                 {teamsWithoutResult.length > 0 && (
                   <div style={{ background: '#FFB80012', border: '1px solid #FFB80033', padding: '10px 14px', marginBottom: 12 }}>
                     <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, color: '#FFB800', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                      {teamsWithoutResult.length} equipe(s) sem resultado. Publicar deixa elas com 0 pts.
+                      {teamsWithoutResult.length} team(s) without a result. Publishing leaves them with 0 pts.
                     </span>
                   </div>
                 )}
@@ -1866,7 +1866,7 @@ export default function CompetitionManage() {
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid #2A2A2A' }}>
-                        {['#','EQUIPE','RESULTADO','POSICAO','PONTOS','ACOES'].map(h => (
+                        {['#','TEAM','RESULT','POSITION','POINTS','ACTIONS'].map(h => (
                           <th key={h} style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68', padding: '8px 12px', textAlign: 'left', background: '#0D0D0D' }}>
                             {h}
                           </th>
@@ -1911,21 +1911,21 @@ export default function CompetitionManage() {
                                   <input
                                     autoFocus
                                     type='text'
-                                    placeholder='Novo resultado...'
+                                    placeholder='New result...'
                                     value={overrideDisplay}
                                     onChange={e => setOverrideDisplay(e.target.value)}
                                     style={{ background: '#0D0D0D', border: '1px solid #4DA3FF', color: '#F5F5F0', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, padding: '4px 8px', outline: 'none', width: 140, borderRadius: 0 }}
                                   />
                                   <input
                                     type='text'
-                                    placeholder='Motivo...'
+                                    placeholder='Reason...'
                                     value={overrideReason}
                                     onChange={e => setOverrideReason(e.target.value)}
                                     style={{ background: '#0D0D0D', border: '1px solid #2A2A2A', color: '#F5F5F0', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, padding: '4px 8px', outline: 'none', width: 140, borderRadius: 0 }}
                                   />
                                   <div style={{ display: 'flex', gap: 4 }}>
                                     <Btn color='#4DA3FF' disabled={!overrideDisplay.trim() || !overrideReason.trim() || mutating} onClick={() => handleOverride(res.id)}>
-                                      SALVAR
+                                      SAVE
                                     </Btn>
                                     <Btn color='#6B6B68' onClick={() => { setOverrideResultId(null); setOverrideDisplay(''); setOverrideReason('') }}>
                                       CANCEL
@@ -1934,7 +1934,7 @@ export default function CompetitionManage() {
                                 </div>
                               ) : (
                                 <Btn color='#6B6B68' onClick={() => { setOverrideResultId(res.id); setOverrideDisplay(res.raw_result ?? (displayVal !== '—' ? displayVal : '')) }}>
-                                  CORRIGIR
+                                  CORRECT
                                 </Btn>
                               )}
                             </td>
@@ -1959,7 +1959,7 @@ export default function CompetitionManage() {
                             <td style={{ padding: '8px 12px' }}>
                               <div style={{ display: 'flex', gap: 4 }}>
                                 <Btn color='#D4FF3A' disabled={mutating || !!validateScoreFields(enterFields, parseCapSeconds(selectedWod.cap))} onClick={() => handleSubmitResult(team.id, team.name)}>
-                                  SALVAR
+                                  SAVE
                                 </Btn>
                                 <Btn color='#6B6B68' onClick={() => { setEnterTeamId(null); setEnterError(null) }}>
                                   CANCEL
@@ -1971,7 +1971,7 @@ export default function CompetitionManage() {
                           <tr key={team.id} style={{ borderBottom: '1px solid #1A1A1A', background: '#0D0D0D' }}>
                             <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 11, color: '#3D3D3B' }}>—</td>
                             <td style={{ padding: '12px', fontWeight: 700, fontSize: 13, color: '#6B6B68' }}>{team.name}</td>
-                            <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#3D3D3B', letterSpacing: '0.12em' }}>SEM RESULTADO</td>
+                            <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#3D3D3B', letterSpacing: '0.12em' }}>NO RESULT</td>
                             <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3D3D3B' }}>—</td>
                             <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3D3D3B' }}>0</td>
                             <td style={{ padding: '12px' }}>
@@ -1981,7 +1981,7 @@ export default function CompetitionManage() {
                                 setEnterError(null)
                                 setOverrideResultId(null)
                               }}>
-                                INSERIR
+                                ENTER
                               </Btn>
                             </td>
                           </tr>
@@ -1990,7 +1990,7 @@ export default function CompetitionManage() {
                       {resultFilteredApproved.length === 0 && (
                         <tr>
                           <td colSpan={6} style={{ padding: '24px 12px', textAlign: 'center', color: '#3D3D3B', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                            NENHUMA EQUIPE APROVADA
+                            NO APPROVED TEAMS
                           </td>
                         </tr>
                       )}
@@ -2009,7 +2009,7 @@ export default function CompetitionManage() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #2A2A2A' }}>
-                    {['QUANDO','QUEM','ACAO + ALVO','MUDANCA + MOTIVO'].map(h => (
+                    {['WHEN','WHO','ACTION + TARGET','CHANGE + REASON'].map(h => (
                       <th key={h} style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68', padding: '8px 12px', textAlign: 'left', background: '#0D0D0D' }}>
                         {h}
                       </th>
@@ -2023,7 +2023,7 @@ export default function CompetitionManage() {
                   {auditLog.length === 0 && (
                     <tr>
                       <td colSpan={4} style={{ padding: '24px 12px', textAlign: 'center', color: '#3D3D3B', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                        SEM REGISTROS
+                        NO RECORDS
                       </td>
                     </tr>
                   )}
@@ -2109,7 +2109,7 @@ function ScoreInput({
             </div>
             <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 18, fontWeight: 700, color: '#F5F5F0', marginTop: 14 }}>:</span>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-              <span style={LABEL_SCORE}>SEG</span>
+              <span style={LABEL_SCORE}>SEC</span>
               <input
                 type='number'
                 min={0}
@@ -2250,12 +2250,12 @@ function ActionItem({ color, text, onClick, cta }: { color: string; text: string
 const ROLE_LABELS: Record<string, string> = {
   head_judge: 'HEAD JUDGE',
   judge:      'JUDGE',
-  athlete:    'ATLETA',
+  athlete:    'ATHLETE',
   admin:      'ADMIN',
 }
 
 function AuditRow({ entry, profiles, roles, full }: { entry: CompetitionAuditLog; profiles: Record<string, PublicProfile>; roles: CompetitionRole[]; full?: boolean }) {
-  const who = entry.changed_by ? (profiles[entry.changed_by]?.name ?? 'Sistema') : 'Sistema'
+  const who = entry.changed_by ? (profiles[entry.changed_by]?.name ?? 'System') : 'System'
   const compRole = entry.changed_by ? roles.find(r => r.user_id === entry.changed_by) : null
   const roleLabel = compRole
     ? ROLE_LABELS[compRole.role]

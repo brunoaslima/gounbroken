@@ -184,7 +184,7 @@ export default function CompetitionEdit() {
           />
         </FieldBlock>
 
-        <FieldBlock label="Local / Venue">
+        <FieldBlock label="Venue">
           <FocusInput
             type="text"
             placeholder="Ex: CF Pinheiros · SP"
@@ -226,14 +226,14 @@ export default function CompetitionEdit() {
           </span>
         </FieldBlock>
 
-        {/* Section: Vagas por divisão */}
+        {/* Section: Slots by division */}
         {divisions.length > 0 && (
           <>
             <div
               className="font-mono font-bold uppercase border-b border-[#2A2A2A]"
               style={{ fontSize: 9, letterSpacing: '0.18em', color: '#D4FF3A', padding: '10px 20px', background: '#0D0D0D', marginTop: 8 }}
             >
-              03 · VAGAS POR DIVISÃO
+              03 · SLOTS BY DIVISION
             </div>
             {divisions.map(d => (
               <div key={d.id} className="border-b border-[#2A2A2A]" style={{ padding: '16px 20px' }}>

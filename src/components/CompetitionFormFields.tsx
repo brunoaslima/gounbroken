@@ -161,7 +161,7 @@ export function SlotsStepper({ value, onChange }: { value: number | null; onChan
         <button type="button" onClick={inc} style={btnStyle}>+</button>
       </div>
       <span className="font-mono block mt-1.5" style={{ fontSize: 9, letterSpacing: '0.12em', color: '#3D3D3B' }}>
-        {value === null ? 'ILIMITADO · TOQUE + PARA DEFINIR LIMITE' : `${value} VAGA${value === 1 ? '' : 'S'} NESTA DIVISÃO`}
+        {value === null ? 'UNLIMITED · TAP + TO SET A LIMIT' : `${value} SLOT${value === 1 ? '' : 'S'} IN THIS DIVISION`}
       </span>
     </div>
   )
