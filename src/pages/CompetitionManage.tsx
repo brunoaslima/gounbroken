@@ -1990,7 +1990,7 @@ export default function CompetitionManage() {
                                 setEnterError(null)
                                 setOverrideResultId(null)
                               }}>
-                                SUBMIT
+                                ADD RESULT
                               </Btn>
                             </td>
                           </tr>
