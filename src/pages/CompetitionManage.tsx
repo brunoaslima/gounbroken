@@ -6,9 +6,9 @@ import { useProfile } from '@/hooks/useProfile'
 import {
   encodeScore,
   decodeScore,
+  scoreNumericToFields,
   validateScoreFields,
   parseCapSeconds,
-  parseDisplayScore,
   type WodScoreType,
   type ScoreFields,
 } from '@/lib/competitionScore'
@@ -234,8 +234,9 @@ export default function CompetitionManage() {
   // ── Results tab state ──
   const [selectedWodId, setSelectedWodId] = useState<string | null>(null)
   const [overrideResultId, setOverrideResultId] = useState<string | null>(null)
-  const [overrideDisplay, setOverrideDisplay] = useState('')
+  const [overrideFields, setOverrideFields] = useState<ScoreFields>({ type: 'time' })
   const [overrideReason, setOverrideReason] = useState('')
+  const [overrideError, setOverrideError] = useState<string | null>(null)
   const [enterTeamId, setEnterTeamId] = useState<string | null>(null)
   const [enterFields, setEnterFields] = useState<ScoreFields>({ type: 'time' })
   const [enterError, setEnterError] = useState<string | null>(null)
@@ -415,21 +416,21 @@ export default function CompetitionManage() {
 
   // ─── Override result ─────────────────────────────────────────────────────────
   async function handleOverride(resultId: string) {
-    if (!overrideDisplay.trim() || !overrideReason.trim() || !selectedWod) return
-    const scoreNumeric = parseDisplayScore(selectedWod.score_type as WodScoreType, overrideDisplay)
-    if (scoreNumeric === null) { setMutateError('Invalid format for this score type'); return }
+    if (!overrideReason.trim() || !selectedWod) return
+    const encoded = encodeScore(overrideFields)
+    if (!encoded) { setOverrideError('Invalid result'); return }
     setMutating(true)
     setMutateError(null)
+    setOverrideError(null)
     try {
       const { error } = await supabase.rpc('override_competition_result', {
         p_result_id: resultId,
-        p_raw_result: overrideDisplay.trim(),
-        p_score_numeric: scoreNumeric,
+        p_raw_result: encoded.raw_result,
+        p_score_numeric: encoded.score_numeric,
         p_reason: overrideReason.trim(),
       })
       if (error) throw new Error(error.message)
       setOverrideResultId(null)
-      setOverrideDisplay('')
       setOverrideReason('')
       await load()
     } catch (e) {
@@ -1917,13 +1918,12 @@ export default function CompetitionManage() {
                             <td style={{ padding: '12px' }}>
                               {isEditing ? (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                  <input
-                                    autoFocus
-                                    type='text'
-                                    placeholder='New result...'
-                                    value={overrideDisplay}
-                                    onChange={e => setOverrideDisplay(e.target.value)}
-                                    style={{ background: '#0D0D0D', border: '1px solid #4DA3FF', color: '#F5F5F0', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, padding: '4px 8px', outline: 'none', width: 140, borderRadius: 0 }}
+                                  <ScoreInput
+                                    type={selectedWod.score_type as WodScoreType}
+                                    fields={overrideFields}
+                                    capSeconds={parseCapSeconds(selectedWod.cap)}
+                                    onChange={f => { setOverrideFields(f); setOverrideError(null) }}
+                                    error={overrideError}
                                   />
                                   <input
                                     type='text'
@@ -1933,16 +1933,24 @@ export default function CompetitionManage() {
                                     style={{ background: '#0D0D0D', border: '1px solid #2A2A2A', color: '#F5F5F0', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, padding: '4px 8px', outline: 'none', width: 140, borderRadius: 0 }}
                                   />
                                   <div style={{ display: 'flex', gap: 4 }}>
-                                    <Btn color='#4DA3FF' disabled={!overrideDisplay.trim() || !overrideReason.trim() || mutating} onClick={() => handleOverride(res.id)}>
+                                    <Btn color='#4DA3FF' disabled={!overrideReason.trim() || mutating || !!validateScoreFields(overrideFields, parseCapSeconds(selectedWod.cap))} onClick={() => handleOverride(res.id)}>
                                       SAVE
                                     </Btn>
-                                    <Btn color='#6B6B68' onClick={() => { setOverrideResultId(null); setOverrideDisplay(''); setOverrideReason('') }}>
+                                    <Btn color='#6B6B68' onClick={() => { setOverrideResultId(null); setOverrideReason(''); setOverrideError(null) }}>
                                       CANCEL
                                     </Btn>
                                   </div>
                                 </div>
                               ) : (
-                                <Btn color='#6B6B68' onClick={() => { setOverrideResultId(res.id); setOverrideDisplay(res.raw_result ?? (displayVal !== '—' ? displayVal : '')) }}>
+                                <Btn color='#6B6B68' onClick={() => {
+                                  setOverrideResultId(res.id)
+                                  setOverrideFields(
+                                    res.score_numeric != null
+                                      ? scoreNumericToFields(selectedWod.score_type as WodScoreType, res.score_numeric)
+                                      : { type: selectedWod.score_type as WodScoreType }
+                                  )
+                                  setOverrideError(null)
+                                }}>
                                   CORRECT
                                 </Btn>
                               )}
