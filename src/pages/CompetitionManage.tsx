@@ -1171,7 +1171,7 @@ export default function CompetitionManage() {
                       <tr
                         key={team.id}
                         onClick={() => setExpandedTeamId(isExpanded ? null : team.id)}
-                        style={{ borderBottom: isExpanded ? 'none' : '1px solid #1A1A1A', cursor: 'pointer', background: isExpanded ? '#111111' : 'transparent' }}
+                        style={{ borderBottom: isExpanded ? 'none' : '1px solid #1A1A1A', cursor: 'pointer', background: isExpanded ? '#111111' : 'transparent', borderLeft: isExpanded ? '2px solid #D4FF3A' : '2px solid transparent' }}
                       >
                         <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 11, color: '#3D3D3B' }}>
                           {pad2(idx)}
@@ -1289,7 +1289,7 @@ export default function CompetitionManage() {
                         </td>
                       </tr>
                       {isExpanded && (
-                        <tr key={`${team.id}-members`} style={{ borderBottom: '1px solid #1A1A1A', background: '#0D0D0D' }}>
+                        <tr key={`${team.id}-members`} style={{ borderBottom: '1px solid #1A1A1A', background: '#0D0D0D', borderLeft: '2px solid #D4FF3A' }}>
                           <td colSpan={7} style={{ padding: '10px 16px 16px 48px' }}>
                             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', color: '#6B6B68', textTransform: 'uppercase', marginBottom: 8 }}>
                               ATHLETES
@@ -1871,49 +1871,6 @@ export default function CompetitionManage() {
                   </div>
                 )}
 
-                {/* Correction panel — its own mini table, doesn't reshape the results table below */}
-                {overrideResultId && (() => {
-                  const res = results.find(r => r.id === overrideResultId)
-                  const team = res ? teams.find(t => t.id === res.team_id) : null
-                  if (!res) return null
-                  return (
-                    <div style={{ border: '1px solid #4DA3FF44', marginBottom: 12 }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.4fr auto', borderBottom: '1px solid #4DA3FF33', background: '#0D0D0D' }}>
-                        {['TEAM','RESULT','REASON','ACTIONS'].map(h => (
-                          <span key={h} style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#4DA3FF', padding: '8px 12px' }}>
-                            {h}
-                          </span>
-                        ))}
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.4fr auto', alignItems: 'center', gap: 12, padding: '12px' }}>
-                        <span style={{ fontWeight: 700, fontSize: 13 }}>{team?.name ?? res.team_id}</span>
-                        <ScoreInput
-                          type={selectedWod.score_type as WodScoreType}
-                          fields={overrideFields}
-                          capSeconds={parseCapSeconds(selectedWod.cap)}
-                          onChange={f => { setOverrideFields(f); setOverrideError(null) }}
-                          error={overrideError}
-                        />
-                        <input
-                          autoFocus
-                          type='text'
-                          placeholder='Reason...'
-                          value={overrideReason}
-                          onChange={e => setOverrideReason(e.target.value)}
-                          style={{ background: '#0D0D0D', border: '1px solid #2A2A2A', color: '#F5F5F0', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, padding: '6px 8px', outline: 'none', width: '100%', maxWidth: 220, borderRadius: 0, boxSizing: 'border-box' }}
-                        />
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          <Btn color='#4DA3FF' disabled={!overrideReason.trim() || mutating || !!validateScoreFields(overrideFields, parseCapSeconds(selectedWod.cap))} onClick={() => handleOverride(res.id)}>
-                            SAVE
-                          </Btn>
-                          <Btn color='#6B6B68' onClick={() => { setOverrideResultId(null); setOverrideReason(''); setOverrideError(null) }}>
-                            CANCEL
-                          </Btn>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })()}
 
                 {/* Results table */}
                 <div style={{ overflowX: 'auto' }}>
@@ -1960,13 +1917,14 @@ export default function CompetitionManage() {
                               {points}
                             </td>
                             <td style={{ padding: '12px' }}>
-                              <Btn color='#6B6B68' disabled={overrideResultId !== null} onClick={() => {
+                              <Btn color='#6B6B68' onClick={() => {
                                 setOverrideResultId(res.id)
                                 setOverrideFields(
                                   res.score_numeric != null
                                     ? scoreNumericToFields(selectedWod.score_type as WodScoreType, res.score_numeric)
                                     : { type: selectedWod.score_type as WodScoreType }
                                 )
+                                setOverrideReason('')
                                 setOverrideError(null)
                               }}>
                                 CORRECT
@@ -2068,6 +2026,83 @@ export default function CompetitionManage() {
         )}
 
       </div>
+
+      {/* ─── Correction modal ──────────────────────────────────────────────────── */}
+      {overrideResultId && selectedWod && (() => {
+        const res = results.find(r => r.id === overrideResultId)
+        const team = res ? teams.find(t => t.id === res.team_id) : null
+        if (!res) return null
+        const currentVal = res.score_numeric != null
+          ? decodeScore(selectedWod.score_type as WodScoreType, res.score_numeric)
+          : '—'
+        const closeModal = () => { setOverrideResultId(null); setOverrideReason(''); setOverrideError(null) }
+        return (
+          <div
+            style={{ position: 'absolute', inset: 0, zIndex: 10, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            onClick={closeModal}
+          >
+            <div
+              style={{ background: '#111111', border: '1px solid #2A2A2A', width: 440, maxWidth: '90vw' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid #1A1A1A', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#D4FF3A' }}>
+                    CORRIGIR RESULTADO
+                  </div>
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#555', marginTop: 4, letterSpacing: '0.1em' }}>
+                    {team?.name ?? res.team_id} · {selectedWod.name}
+                  </div>
+                </div>
+                <button onClick={closeModal} style={{ background: 'none', border: 'none', color: '#555', fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: 0 }}>
+                  ×
+                </button>
+              </div>
+
+              <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div>
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68', marginBottom: 8 }}>
+                    NOVO RESULTADO
+                  </div>
+                  <ScoreInput
+                    type={selectedWod.score_type as WodScoreType}
+                    fields={overrideFields}
+                    capSeconds={parseCapSeconds(selectedWod.cap)}
+                    onChange={f => { setOverrideFields(f); setOverrideError(null) }}
+                    error={overrideError}
+                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#555', letterSpacing: '0.1em', textTransform: 'uppercase' }}>ATUAL</span>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#555', textDecoration: 'line-through' }}>{currentVal}</span>
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68', marginBottom: 8 }}>
+                    MOTIVO DA CORREÇÃO
+                  </div>
+                  <textarea
+                    autoFocus
+                    placeholder='Ex: Erro de contagem confirmado pelo juiz...'
+                    value={overrideReason}
+                    onChange={e => setOverrideReason(e.target.value)}
+                    style={{ background: '#0D0D0D', border: '1px solid #2A2A2A', color: '#F5F5F0', fontFamily: 'Space Grotesk, sans-serif', fontSize: 12, padding: '10px 12px', outline: 'none', width: '100%', resize: 'none', height: 72, boxSizing: 'border-box', borderRadius: 0 }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ padding: '14px 20px', borderTop: '1px solid #1A1A1A', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <Btn color='#6B6B68' onClick={closeModal}>
+                  CANCELAR
+                </Btn>
+                <Btn color='#4DA3FF' disabled={!overrideReason.trim() || mutating || !!validateScoreFields(overrideFields, parseCapSeconds(selectedWod.cap))} onClick={() => handleOverride(res.id)}>
+                  {mutating ? 'SALVANDO...' : 'SALVAR'}
+                </Btn>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
