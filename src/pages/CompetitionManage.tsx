@@ -1907,31 +1907,31 @@ export default function CompetitionManage() {
                               {team?.name ?? res.team_id}
                             </td>
                             <td colSpan={3} style={{ padding: '8px 12px' }}>
-                              <ScoreInput
-                                type={selectedWod.score_type as WodScoreType}
-                                fields={overrideFields}
-                                capSeconds={parseCapSeconds(selectedWod.cap)}
-                                onChange={f => { setOverrideFields(f); setOverrideError(null) }}
-                                error={overrideError}
-                              />
-                            </td>
-                            <td style={{ padding: '8px 12px' }}>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
+                                <ScoreInput
+                                  type={selectedWod.score_type as WodScoreType}
+                                  fields={overrideFields}
+                                  capSeconds={parseCapSeconds(selectedWod.cap)}
+                                  onChange={f => { setOverrideFields(f); setOverrideError(null) }}
+                                  error={overrideError}
+                                />
                                 <input
                                   type='text'
                                   placeholder='Reason...'
                                   value={overrideReason}
                                   onChange={e => setOverrideReason(e.target.value)}
-                                  style={{ background: '#0D0D0D', border: '1px solid #2A2A2A', color: '#F5F5F0', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, padding: '4px 8px', outline: 'none', width: 140, borderRadius: 0 }}
+                                  style={{ background: '#0D0D0D', border: '1px solid #2A2A2A', color: '#F5F5F0', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, padding: '6px 8px', outline: 'none', width: 180, borderRadius: 0 }}
                                 />
-                                <div style={{ display: 'flex', gap: 4 }}>
-                                  <Btn color='#4DA3FF' disabled={!overrideReason.trim() || mutating || !!validateScoreFields(overrideFields, parseCapSeconds(selectedWod.cap))} onClick={() => handleOverride(res.id)}>
-                                    SAVE
-                                  </Btn>
-                                  <Btn color='#6B6B68' onClick={() => { setOverrideResultId(null); setOverrideReason(''); setOverrideError(null) }}>
-                                    CANCEL
-                                  </Btn>
-                                </div>
+                              </div>
+                            </td>
+                            <td style={{ padding: '8px 12px' }}>
+                              <div style={{ display: 'flex', gap: 4 }}>
+                                <Btn color='#4DA3FF' disabled={!overrideReason.trim() || mutating || !!validateScoreFields(overrideFields, parseCapSeconds(selectedWod.cap))} onClick={() => handleOverride(res.id)}>
+                                  SAVE
+                                </Btn>
+                                <Btn color='#6B6B68' onClick={() => { setOverrideResultId(null); setOverrideReason(''); setOverrideError(null) }}>
+                                  CANCEL
+                                </Btn>
                               </div>
                             </td>
                           </tr>
