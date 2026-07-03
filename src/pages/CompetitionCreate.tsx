@@ -103,6 +103,7 @@ export default function CompetitionCreate() {
         }))
       )
       if (divErr) {
+        await supabase.from('competitions').delete().eq('id', competitionId)
         setError(divErr.message)
         setSaving(false)
         return

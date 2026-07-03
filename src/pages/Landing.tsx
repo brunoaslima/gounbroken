@@ -397,7 +397,7 @@ export default function Landing() {
   const go = (path: string) => navigate(path)
 
   return (
-    <div style={{ fontFamily: "'Space Grotesk', sans-serif", background: '#0A0A0A', color: '#F5F5F0', minHeight: '100vh' }}>
+    <div className="landing-root" style={{ fontFamily: "'Space Grotesk', sans-serif", background: '#0A0A0A', color: '#F5F5F0', minHeight: '100vh' }}>
 
       {/* NAV */}
       <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 32px', borderBottom: '1px solid #2A2A2A', position: 'sticky', top: 0, background: 'rgba(10,10,10,0.92)', backdropFilter: 'blur(6px)', zIndex: 40 }}>
@@ -627,7 +627,7 @@ export default function Landing() {
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.15} }
         @keyframes landing-marquee { from { transform: translateX(0) } to { transform: translateX(-50%) } }
         @media (prefers-reduced-motion: reduce) {
-          * { animation-play-state: paused !important; }
+          .landing-root * { animation-play-state: paused !important; }
         }
       `}</style>
     </div>

@@ -58,6 +58,9 @@ export function encodeScore(fields: ScoreFields): EncodedScore | null {
 // Inverse of encodeScore — used to pre-fill the structured score inputs
 // when correcting an existing result, instead of exposing raw free text.
 export function scoreNumericToFields(type: WodScoreType, score_numeric: number): ScoreFields {
+  if (score_numeric == null || !isFinite(score_numeric)) {
+    return { type, minutes: 0, seconds: 0, reps: 0, kg: 0, rounds: 0, partialReps: 0 }
+  }
   switch (type) {
     case 'time': {
       const total = Math.round(score_numeric)

@@ -2048,7 +2048,7 @@ export default function CompetitionManage() {
               <div style={{ padding: '16px 20px', borderBottom: '1px solid #1A1A1A', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                 <div>
                   <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#D4FF3A' }}>
-                    CORRIGIR RESULTADO
+                    CORRECT RESULT
                   </div>
                   <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#555', marginTop: 4, letterSpacing: '0.1em' }}>
                     {team?.name ?? res.team_id} · {selectedWod.name}
@@ -2062,7 +2062,7 @@ export default function CompetitionManage() {
               <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div>
                   <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68', marginBottom: 8 }}>
-                    NOVO RESULTADO
+                    NEW RESULT
                   </div>
                   <ScoreInput
                     type={selectedWod.score_type as WodScoreType}
@@ -2072,18 +2072,18 @@ export default function CompetitionManage() {
                     error={overrideError}
                   />
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#555', letterSpacing: '0.1em', textTransform: 'uppercase' }}>ATUAL</span>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: '#555', letterSpacing: '0.1em', textTransform: 'uppercase' }}>CURRENT</span>
                     <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#555', textDecoration: 'line-through' }}>{currentVal}</span>
                   </div>
                 </div>
 
                 <div>
                   <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68', marginBottom: 8 }}>
-                    MOTIVO DA CORREÇÃO
+                    REASON FOR CORRECTION
                   </div>
                   <textarea
                     autoFocus
-                    placeholder='Ex: Erro de contagem confirmado pelo juiz...'
+                    placeholder='e.g. Judge-confirmed counting error...'
                     value={overrideReason}
                     onChange={e => setOverrideReason(e.target.value)}
                     style={{ background: '#0D0D0D', border: '1px solid #2A2A2A', color: '#F5F5F0', fontFamily: 'Space Grotesk, sans-serif', fontSize: 12, padding: '10px 12px', outline: 'none', width: '100%', resize: 'none', height: 72, boxSizing: 'border-box', borderRadius: 0 }}
@@ -2093,10 +2093,10 @@ export default function CompetitionManage() {
 
               <div style={{ padding: '14px 20px', borderTop: '1px solid #1A1A1A', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                 <Btn color='#6B6B68' onClick={closeModal}>
-                  CANCELAR
+                  CANCEL
                 </Btn>
                 <Btn color='#4DA3FF' disabled={!overrideReason.trim() || mutating || !!validateScoreFields(overrideFields, parseCapSeconds(selectedWod.cap))} onClick={() => handleOverride(res.id)}>
-                  {mutating ? 'SALVANDO...' : 'SALVAR'}
+                  {mutating ? 'SAVING...' : 'SAVE'}
                 </Btn>
               </div>
             </div>

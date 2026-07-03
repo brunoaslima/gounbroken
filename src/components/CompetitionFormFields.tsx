@@ -7,8 +7,8 @@ export function FieldBlock({ label, required, children }: { label: string; requi
   return (
     <div className="border-b border-[#2A2A2A]" style={{ padding: '16px 20px' }}>
       <span
-        className="font-mono font-bold uppercase block"
-        style={{ fontSize: 9, letterSpacing: '0.18em', color: '#6B6B68', marginBottom: 8 }}
+        className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] block"
+        style={{ color: '#6B6B68', marginBottom: 8 }}
       >
         {label}{required && <span style={{ color: '#D4FF3A', marginLeft: 4 }}>*</span>}
       </span>

@@ -83,7 +83,7 @@ export default function CompetitionEdit() {
       p_description: description.trim(),
       p_venue: venue.trim(),
       p_start_date: startDate,
-      p_registration_deadline: new Date(deadline + 'T23:59:59').toISOString(),
+      p_registration_deadline: deadline,
       p_divisions: divisions.map(d => ({ id: d.id, max_teams: divMaxTeams[d.id] ?? null })),
     })
 
@@ -108,14 +108,14 @@ export default function CompetitionEdit() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: '#0A0A0A', color: '#F5F5F0' }}>
         <span className="font-mono font-bold uppercase" style={{ fontSize: 11, letterSpacing: '0.14em', color: '#FF3B30' }}>
-          ACESSO NEGADO
+          ACCESS DENIED
         </span>
         <button
           onClick={() => navigate(-1)}
           className="font-mono font-bold uppercase"
           style={{ fontSize: 10, letterSpacing: '0.14em', color: '#6B6B68' }}
         >
-          ← VOLTAR
+          ← BACK
         </button>
       </div>
     )
