@@ -852,12 +852,12 @@ function AddExerciseSheet({ sectionType, focuses, prs, catalog, onAdd, onClose }
             return (
               <React.Fragment key={name}>
                 {focusMatchCount > 0 && i === 0 && (
-                  <p className="text-muted-gray/40 text-[10px] font-bold uppercase tracking-widest pt-1 pb-0.5">
+                  <p className="text-muted-gray/40 font-mono font-bold uppercase tracking-[0.14em] text-[10px] pt-1 pb-0.5">
                     Matches your focus
                   </p>
                 )}
                 {focusMatchCount > 0 && i === focusMatchCount && (
-                  <p className="text-muted-gray/40 text-[10px] font-bold uppercase tracking-widest pt-3 pb-0.5">
+                  <p className="text-muted-gray/40 font-mono font-bold uppercase tracking-[0.14em] text-[10px] pt-3 pb-0.5">
                     All movements
                   </p>
                 )}

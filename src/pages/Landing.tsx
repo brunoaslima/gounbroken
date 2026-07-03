@@ -92,6 +92,19 @@ function useCountUp(target: number, active: boolean) {
   return val
 }
 
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const onChange = () => setReduced(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+  return reduced
+}
+
 function useTypeOn(text: string, speed = 40) {
   const [n, setN] = useState(0)
   useEffect(() => {
@@ -148,9 +161,11 @@ function StatCard({ num, label, color, live, last }: { num: number; label: strin
     return () => io.disconnect()
   }, [])
 
+  const reducedMotion = usePrefersReducedMotion()
+
   // after the count-up, the number keeps ticking — alive, not a static stat
   useEffect(() => {
-    if (!active || !live) return
+    if (!active || !live || reducedMotion) return
     let t: ReturnType<typeof setTimeout>
     const loop = () => {
       t = setTimeout(() => {
@@ -162,7 +177,7 @@ function StatCard({ num, label, color, live, last }: { num: number; label: strin
     }
     const start = setTimeout(loop, 1600)
     return () => { clearTimeout(t); clearTimeout(start) }
-  }, [active, live])
+  }, [active, live, reducedMotion])
 
   return (
     <div ref={ref} style={{ padding: '36px 32px', borderRight: last ? undefined : '1px solid #2A2A2A', textAlign: 'center' }}>
@@ -210,8 +225,10 @@ function ScriptedBoard() {
 
   const commit = (next: BoardRow[]) => { rowsRef.current = next; setRows(next) }
   const later = (fn: () => void, ms: number) => { timeoutsRef.current.push(setTimeout(fn, ms)) }
+  const reducedMotion = usePrefersReducedMotion()
 
   useEffect(() => {
+    if (reducedMotion) return
     let idx = 0
     const iv = setInterval(() => {
       if (idx >= BOARD_SCRIPT.length) {
@@ -244,11 +261,12 @@ function ScriptedBoard() {
     }, 4000)
     const timeouts = timeoutsRef.current
     return () => { clearInterval(iv); timeouts.forEach(clearTimeout) }
-  }, [])
+  }, [reducedMotion])
 
   // FLIP: rows slide to their new position
   const orderKey = rows.map(r => r.team).join('|')
   useLayoutEffect(() => {
+    if (reducedMotion) return
     const tops = new Map<string, number>()
     rowRefs.current.forEach((el, team) => { if (el?.isConnected) tops.set(team, el.offsetTop) })
     tops.forEach((top, team) => {
@@ -260,12 +278,12 @@ function ScriptedBoard() {
       el.style.transition = 'none'
       el.style.transform = `translateY(${delta}px)`
       void el.offsetHeight
-      el.style.transition = 'transform 400ms cubic-bezier(0.2,0.8,0.2,1)'
+      el.style.transition = 'background 0.25s, transform 400ms cubic-bezier(0.2,0.8,0.2,1)'
       el.style.transform = ''
     })
     prevTopsRef.current = tops
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderKey])
+  }, [orderKey, reducedMotion])
 
   const maxPts = Math.max(...rows.map(r => r.pts))
 
@@ -273,8 +291,8 @@ function ScriptedBoard() {
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 32px', background: '#D4FF3A', color: '#0A0A0A' }}>
         <span style={{ width: 8, height: 8, background: '#0A0A0A', display: 'inline-block', animation: 'blink 1.4s ease-in-out infinite' }} />
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 800, letterSpacing: '0.16em' }}>COMPETITION DAY</span>
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: 'rgba(0,0,0,0.55)', marginLeft: 'auto' }}>
+        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em' }}>COMPETITION DAY</span>
+        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: 'rgba(0,0,0,0.55)', marginLeft: 'auto' }}>
           OPEN BOX CHAMPIONSHIP 2026 · {status}
         </span>
       </div>
@@ -345,38 +363,41 @@ export default function Landing() {
   const [journeyHover, setJourneyHover] = useState<number | null>(null)
   const [ctaWord, setCtaWord] = useState(0)
   const [ctaInvert, setCtaInvert] = useState(false)
+  const reducedMotion = usePrefersReducedMotion()
 
   // percentile marker climbs tiers in dry steps once the H1 finishes typing
   useEffect(() => {
     if (!h1Done) return
+    if (reducedMotion) { setMarkerStep(2); return }
     const t1 = setTimeout(() => setMarkerStep(1), 1100)
     const t2 = setTimeout(() => setMarkerStep(2), 2200)
     return () => { clearTimeout(t1); clearTimeout(t2) }
-  }, [h1Done])
+  }, [h1Done, reducedMotion])
 
   // journey cards cycle; hover steals and pauses the cycle
   useEffect(() => {
-    if (journeyHover !== null) return
+    if (journeyHover !== null || reducedMotion) return
     const iv = setInterval(() => setJourneyActive(a => (a + 1) % JOURNEY.length), 3500)
     return () => clearInterval(iv)
-  }, [journeyHover])
+  }, [journeyHover, reducedMotion])
 
   // CTA slot word: dry cut with an 80ms inverted flash
   useEffect(() => {
+    if (reducedMotion) return
     const iv = setInterval(() => {
       setCtaWord(w => (w + 1) % CTA_WORDS.length)
       setCtaInvert(true)
       setTimeout(() => setCtaInvert(false), 80)
     }, 2500)
     return () => clearInterval(iv)
-  }, [])
+  }, [reducedMotion])
 
   const journeyCurrent = journeyHover ?? journeyActive
   const marker = MARKER_STEPS[markerStep]
   const go = (path: string) => navigate(path)
 
   return (
-    <div style={{ fontFamily: "'Space Grotesk', sans-serif", background: '#0A0A0A', color: '#F5F5F0', minHeight: '100vh' }}>
+    <div className="landing-root" style={{ fontFamily: "'Space Grotesk', sans-serif", background: '#0A0A0A', color: '#F5F5F0', minHeight: '100vh' }}>
 
       {/* NAV */}
       <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 32px', borderBottom: '1px solid #2A2A2A', position: 'sticky', top: 0, background: 'rgba(10,10,10,0.92)', backdropFilter: 'blur(6px)', zIndex: 40 }}>
@@ -395,7 +416,7 @@ export default function Landing() {
 
       {/* HERO */}
       <section style={{ padding: '64px 32px 56px', borderBottom: '1px solid #2A2A2A', textAlign: 'center' }}>
-        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: '0.24em', color: '#4DA3FF', marginBottom: 26 }}>
+        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: '#4DA3FF', marginBottom: 26 }}>
           FROM FIRST PR TO COMPETITION FLOOR
         </div>
         <h1 style={{ fontSize: 'clamp(48px,7vw,100px)', fontWeight: 700, lineHeight: 0.95, letterSpacing: '-0.035em', margin: '0 0 18px', whiteSpace: 'pre-line', minHeight: '1.9em' }}>
@@ -458,7 +479,7 @@ export default function Landing() {
               <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 84, fontWeight: 800, lineHeight: 1, color: active ? s.color : '#2A2A2A', transition: 'color 120ms linear' }}>
                 {s.num}
               </div>
-              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 800, letterSpacing: '0.2em', color: s.color, margin: '18px 0 12px' }}>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: s.color, margin: '18px 0 12px' }}>
                 {s.label}
               </div>
               <h3 style={{ fontSize: 19, fontWeight: 700, margin: '0 0 11px' }}>{s.title}</h3>
@@ -506,7 +527,7 @@ export default function Landing() {
       {/* COACH & ORGANIZER */}
       <Section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #2A2A2A' }}>
         <div style={{ padding: '44px 32px', borderRight: '1px solid #2A2A2A' }}>
-          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 800, letterSpacing: '0.2em', color: '#4DA3FF', marginBottom: 16 }}>COACH</div>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: '#4DA3FF', marginBottom: 16 }}>COACH</div>
           <h3 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 12px', letterSpacing: '-0.01em' }}>Program 40 athletes from one screen.</h3>
           <p style={{ fontSize: 13.5, lineHeight: 1.65, color: '#6B6B68', margin: '0 0 20px' }}>
             Prescribe sessions, athletes log them, and every curve lands back on your dashboard.
@@ -518,7 +539,7 @@ export default function Landing() {
           </div>
         </div>
         <div style={{ padding: '44px 32px' }}>
-          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 800, letterSpacing: '0.2em', color: '#FF8A00', marginBottom: 16 }}>ORGANIZER</div>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: '#FF8A00', marginBottom: 16 }}>ORGANIZER</div>
           <h3 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 12px', letterSpacing: '-0.01em' }}>Run a throwdown without spreadsheets.</h3>
           <p style={{ fontSize: 13.5, lineHeight: 1.65, color: '#6B6B68', margin: '0 0 20px' }}>
             Divisions, teams, judges and a public live board: the whole event in one place.
@@ -550,7 +571,7 @@ export default function Landing() {
       {/* FAQ */}
       <Section id="faq" style={{ display: 'grid', gridTemplateColumns: '280px 1fr', borderBottom: '1px solid #2A2A2A' }}>
         <div style={{ padding: '44px 32px', borderRight: '1px solid #2A2A2A' }}>
-          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.22em', color: '#D4FF3A', marginBottom: 14 }}>FAQ</div>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: '#D4FF3A', marginBottom: 14 }}>FAQ</div>
           <h2 style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1, margin: 0 }}>Good<br />to know.</h2>
         </div>
         <div>
@@ -576,7 +597,7 @@ export default function Landing() {
 
       {/* CTA FINAL */}
       <section style={{ background: '#D4FF3A', color: '#0A0A0A', padding: '80px 32px', textAlign: 'center' }}>
-        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 800, letterSpacing: '0.2em', marginBottom: 20 }}>FROM FIRST PR TO PODIUM</div>
+        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', marginBottom: 20 }}>FROM FIRST PR TO PODIUM</div>
         <h2 style={{ fontSize: 'clamp(40px,6vw,74px)', fontWeight: 700, lineHeight: 0.92, letterSpacing: '-0.03em', margin: '0 0 30px' }}>
           Start your{' '}
           <span style={{ display: 'inline-block', minWidth: '5.5ch', textAlign: 'left', background: ctaInvert ? '#0A0A0A' : 'transparent', color: ctaInvert ? '#D4FF3A' : '#0A0A0A' }}>
@@ -597,7 +618,7 @@ export default function Landing() {
         <button onClick={() => go('/landing')} style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 15, background: 'transparent', border: 'none', color: '#F5F5F0', cursor: 'pointer' }}>
           GO<span style={{ width: 15, height: 4, background: '#D4FF3A', display: 'inline-block' }} />UNBROKEN
         </button>
-        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, fontWeight: 700, letterSpacing: '0.16em', color: '#3D3D3B' }}>
+        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: '#3D3D3B' }}>
           © 2026 · STRENGTH · SCORES · SINCE 2026
         </div>
       </footer>
@@ -605,6 +626,9 @@ export default function Landing() {
       <style>{`
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.15} }
         @keyframes landing-marquee { from { transform: translateX(0) } to { transform: translateX(-50%) } }
+        @media (prefers-reduced-motion: reduce) {
+          .landing-root * { animation-play-state: paused !important; }
+        }
       `}</style>
     </div>
   )

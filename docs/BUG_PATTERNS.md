@@ -417,6 +417,38 @@ iOS Safari — precisou de 4 tentativas em commits separados até fechar de vez
 
 ---
 
+## 19. Nome de parâmetro do `supabase.rpc()` diverge da assinatura da função
+
+**O padrão:** o frontend chama `supabase.rpc('minha_funcao', { p_algo: valor })`
+com um nome de parâmetro que não bate com o nome real na assinatura SQL da
+função (`p_algo` no client vs `p_outro_nome` na função). PostgREST resolve
+RPCs por assinatura nomeada — se nenhum overload bate com o conjunto exato de
+nomes de parâmetro enviados, a chamada falha com `Could not find the function
+public.minha_funcao(...) in the schema cache`, mesmo que uma função com esse
+nome exista e o número/tipo de argumentos esteja certo.
+
+**Por que se repete:** o TypeScript não valida o payload de `supabase.rpc()`
+contra a assinatura real do Postgres — é só um objeto solto. Um rename de
+parâmetro na função SQL (ou um typo no client escrito de cabeça, sem copiar
+do `CREATE FUNCTION`) não gera erro de compilação nem quebra em `tsc`; só
+aparece em runtime, quando o usuário aciona aquele fluxo específico.
+
+**Onde já mordeu:** `override_competition_result` — a função usa
+`p_score_numeric`, o client chamava com `p_value`. Toda correção de
+resultado em `CompetitionManage.tsx` falhava com erro de schema cache,
+sem nenhum aviso em tempo de build.
+
+**Como evitar:**
+- Ao escrever ou revisar uma chamada `supabase.rpc(nome, params)`, abrir o
+  `CREATE OR REPLACE FUNCTION` correspondente e conferir os nomes de
+  parâmetro um a um — não confiar em memória do nome usado em outra RPC
+  parecida.
+- Se o erro for exatamente "Could not find the function ... in the schema
+  cache", checar primeiro divergência de nome de parâmetro antes de suspeitar
+  de cache do PostgREST desatualizado (que é bem mais raro na prática).
+
+---
+
 ## Processo — antes de considerar um fix "pronto"
 
 1. `grep -rn` pelo campo/valor antigo no repo INTEIRO, não só nos arquivos que

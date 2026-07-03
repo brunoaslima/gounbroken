@@ -62,6 +62,12 @@ export function buildFormatLine(section: {
 
 // ── Exercise prescription lines ────────────────────────────────────────
 
+function formatMinSec(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60)
+  const s = totalSeconds % 60
+  return m > 0 && s === 0 ? `${m}:00` : m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `${s}s`
+}
+
 // Main line only: sets × reps or duration. Extracted so it can be shown as a
 // highlighted prefix in front of the exercise name, separate from load/rest.
 // reps_label is the raw text the coach typed (e.g. "60m", "21-15-9") and is
@@ -79,19 +85,15 @@ export function buildMainLine(ex: WorkoutExerciseData): string | null {
   else if (ex.sets)               main.push(`${ex.sets}`)
   else if (repsText)              main.push(repsText)
 
-  if (ex.duration_seconds) {
-    const m = Math.floor(ex.duration_seconds / 60)
-    const s = ex.duration_seconds % 60
-    main.push(m > 0 && s === 0 ? `${m}:00` : m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `${s}s`)
-  }
+  if (ex.duration_seconds) main.push(formatMinSec(ex.duration_seconds))
+
   return main.length ? main.join(' · ') : null
 }
 
-export function buildPrescription(ex: WorkoutExerciseData): string[] {
-  const lines: string[] = []
-
-  const main = buildMainLine(ex)
-  if (main) lines.push(main)
+// Structured result so callers don't have to re-derive the main-line-is-lines[0]
+// contract via slicing (fragile if the line order ever changes).
+export function buildPrescriptionParts(ex: WorkoutExerciseData): { main: string | null; rest: string[] } {
+  const rest: string[] = []
 
   // Load line
   const load: string[] = []
@@ -100,17 +102,17 @@ export function buildPrescription(ex: WorkoutExerciseData): string[] {
   if (ex.load_pct_1rm && ex.load_pct_1rm_to) load.push(`@ ${ex.load_pct_1rm}%–${ex.load_pct_1rm_to}% 1RM`)
   else if (ex.load_pct_1rm)                   load.push(`@ ${ex.load_pct_1rm}% 1RM`)
   if (ex.rpe)                                 load.push(`RPE ${ex.rpe}/10`)
-  if (load.length) lines.push(load.join(' · '))
+  if (load.length) rest.push(load.join(' · '))
 
   // Rest
-  if (ex.rest_seconds) {
-    const m = Math.floor(ex.rest_seconds / 60)
-    const s = ex.rest_seconds % 60
-    const restStr = m > 0 && s === 0 ? `${m}:00` : m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `${s}s`
-    lines.push(`*REST ${restStr} BETWEEN SETS`)
-  }
+  if (ex.rest_seconds) rest.push(`*REST ${formatMinSec(ex.rest_seconds)} BETWEEN SETS`)
 
-  return lines
+  return { main: buildMainLine(ex), rest }
+}
+
+export function buildPrescription(ex: WorkoutExerciseData): string[] {
+  const { main, rest } = buildPrescriptionParts(ex)
+  return main ? [main, ...rest] : rest
 }
 
 // ── Date helpers ───────────────────────────────────────────────────────

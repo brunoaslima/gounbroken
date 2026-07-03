@@ -21,6 +21,7 @@ import CompetitionList from '@/pages/CompetitionList'
 import CompetitionDetail from '@/pages/CompetitionDetail'
 import CompetitionCreate from '@/pages/CompetitionCreate'
 import CompetitionManage from '@/pages/CompetitionManage'
+import CompetitionEdit from '@/pages/CompetitionEdit'
 import TeamCreate from '@/pages/TeamCreate'
 import TeamManage from '@/pages/TeamManage'
 import JudgePanel from '@/pages/JudgePanel'
@@ -133,6 +134,7 @@ export default function App() {
         <Route path="/athlete/competitions/new"              element={<RequireRole roles={['admin']}><TabLayout><CompetitionCreate /></TabLayout></RequireRole>} />
         <Route path="/athlete/competitions/:id"              element={<RequireAuth><TabLayout><CompetitionDetail /></TabLayout></RequireAuth>} />
         <Route path="/athlete/competitions/:id/manage"       element={<RequireAuth><TabLayout><CompetitionManage /></TabLayout></RequireAuth>} />
+        <Route path="/athlete/competitions/:id/edit"         element={<RequireAuth><TabLayout><CompetitionEdit /></TabLayout></RequireAuth>} />
         <Route path="/athlete/competitions/:id/team/new"     element={<RequireAuth><TabLayout><TeamCreate /></TabLayout></RequireAuth>} />
         <Route path="/athlete/competitions/:id/team/:teamId" element={<RequireAuth><TabLayout><TeamManage /></TabLayout></RequireAuth>} />
         <Route path="/athlete/competitions/:id/judge"        element={<RequireAuth><TabLayout><JudgePanel /></TabLayout></RequireAuth>} />
