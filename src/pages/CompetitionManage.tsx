@@ -1898,7 +1898,44 @@ export default function CompetitionManage() {
                         const displayVal = res.score_numeric != null
                           ? decodeScore(selectedWod.score_type as WodScoreType, res.score_numeric)
                           : '—'
-                        return (
+                        return isEditing ? (
+                          <tr key={res.id} style={{ borderBottom: '1px solid #1A1A1A', background: '#0D0D0D' }}>
+                            <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 11, color: '#3D3D3B' }}>
+                              {String(divRank).padStart(2, '0')}
+                            </td>
+                            <td style={{ padding: '8px 12px', fontWeight: 700, fontSize: 13 }}>
+                              {team?.name ?? res.team_id}
+                            </td>
+                            <td colSpan={3} style={{ padding: '8px 12px' }}>
+                              <ScoreInput
+                                type={selectedWod.score_type as WodScoreType}
+                                fields={overrideFields}
+                                capSeconds={parseCapSeconds(selectedWod.cap)}
+                                onChange={f => { setOverrideFields(f); setOverrideError(null) }}
+                                error={overrideError}
+                              />
+                            </td>
+                            <td style={{ padding: '8px 12px' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                <input
+                                  type='text'
+                                  placeholder='Reason...'
+                                  value={overrideReason}
+                                  onChange={e => setOverrideReason(e.target.value)}
+                                  style={{ background: '#0D0D0D', border: '1px solid #2A2A2A', color: '#F5F5F0', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, padding: '4px 8px', outline: 'none', width: 140, borderRadius: 0 }}
+                                />
+                                <div style={{ display: 'flex', gap: 4 }}>
+                                  <Btn color='#4DA3FF' disabled={!overrideReason.trim() || mutating || !!validateScoreFields(overrideFields, parseCapSeconds(selectedWod.cap))} onClick={() => handleOverride(res.id)}>
+                                    SAVE
+                                  </Btn>
+                                  <Btn color='#6B6B68' onClick={() => { setOverrideResultId(null); setOverrideReason(''); setOverrideError(null) }}>
+                                    CANCEL
+                                  </Btn>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
                           <tr key={res.id} style={{ borderBottom: '1px solid #1A1A1A' }}>
                             <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 11, color: '#3D3D3B' }}>
                               {String(divRank).padStart(2, '0')}
@@ -1916,44 +1953,17 @@ export default function CompetitionManage() {
                               {points}
                             </td>
                             <td style={{ padding: '12px' }}>
-                              {isEditing ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                  <ScoreInput
-                                    type={selectedWod.score_type as WodScoreType}
-                                    fields={overrideFields}
-                                    capSeconds={parseCapSeconds(selectedWod.cap)}
-                                    onChange={f => { setOverrideFields(f); setOverrideError(null) }}
-                                    error={overrideError}
-                                  />
-                                  <input
-                                    type='text'
-                                    placeholder='Reason...'
-                                    value={overrideReason}
-                                    onChange={e => setOverrideReason(e.target.value)}
-                                    style={{ background: '#0D0D0D', border: '1px solid #2A2A2A', color: '#F5F5F0', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, padding: '4px 8px', outline: 'none', width: 140, borderRadius: 0 }}
-                                  />
-                                  <div style={{ display: 'flex', gap: 4 }}>
-                                    <Btn color='#4DA3FF' disabled={!overrideReason.trim() || mutating || !!validateScoreFields(overrideFields, parseCapSeconds(selectedWod.cap))} onClick={() => handleOverride(res.id)}>
-                                      SAVE
-                                    </Btn>
-                                    <Btn color='#6B6B68' onClick={() => { setOverrideResultId(null); setOverrideReason(''); setOverrideError(null) }}>
-                                      CANCEL
-                                    </Btn>
-                                  </div>
-                                </div>
-                              ) : (
-                                <Btn color='#6B6B68' onClick={() => {
-                                  setOverrideResultId(res.id)
-                                  setOverrideFields(
-                                    res.score_numeric != null
-                                      ? scoreNumericToFields(selectedWod.score_type as WodScoreType, res.score_numeric)
-                                      : { type: selectedWod.score_type as WodScoreType }
-                                  )
-                                  setOverrideError(null)
-                                }}>
-                                  CORRECT
-                                </Btn>
-                              )}
+                              <Btn color='#6B6B68' onClick={() => {
+                                setOverrideResultId(res.id)
+                                setOverrideFields(
+                                  res.score_numeric != null
+                                    ? scoreNumericToFields(selectedWod.score_type as WodScoreType, res.score_numeric)
+                                    : { type: selectedWod.score_type as WodScoreType }
+                                )
+                                setOverrideError(null)
+                              }}>
+                                CORRECT
+                              </Btn>
                             </td>
                           </tr>
                         )
