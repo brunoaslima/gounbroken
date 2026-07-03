@@ -1873,7 +1873,15 @@ export default function CompetitionManage() {
 
                 {/* Results table */}
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                    <colgroup>
+                      {(overrideResultId
+                        ? [40, 160, 260, 220, 150]
+                        : [40, undefined, 100, 90, 90, 100]
+                      ).map((w, i) => (
+                        <col key={i} style={w ? { width: w } : undefined} />
+                      ))}
+                    </colgroup>
                     <thead>
                       <tr style={{ borderBottom: '1px solid #2A2A2A' }}>
                         {(overrideResultId
