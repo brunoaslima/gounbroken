@@ -26,6 +26,12 @@ import type {
 
 const FORMAT_SIZE: Record<string, number> = { individual: 1, pair: 2, team3: 3, team4: 4 }
 const FORMAT_LABEL: Record<string, string> = { individual: 'IND', pair: 'PAIR', team3: 'TEAM 3', team4: 'TEAM 4' }
+const SCORE_LABEL: Record<string, string> = {
+  time:             'FOR TIME',
+  reps:             'AMRAP · REPS',
+  weight:           'MAX LOAD · KG',
+  rounds_plus_reps: 'ROUNDS + REPS',
+}
 
 function divisionLabel(d: CompetitionDivision) {
   return `${FORMAT_LABEL[d.format]} · ${d.composition.toUpperCase()} · ${d.category.toUpperCase()}`
@@ -1288,14 +1294,17 @@ export default function CompetitionManage() {
                               ATHLETES
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                              {members.filter(m => m.user_id || m.invited_email).map(m => {
+                              {members
+                                .filter(m => m.user_id || m.invited_email)
+                                .sort((a, b) => (a.user_id === team.captain_user_id ? -1 : b.user_id === team.captain_user_id ? 1 : 0))
+                                .map(m => {
                                 const p = m.user_id ? profiles[m.user_id] : null
                                 const name = p?.name ?? m.invited_email ?? 'Pending'
                                 const handle = p?.username ? `@${p.username}` : null
                                 const isCap = m.user_id === team.captain_user_id
                                 return (
                                   <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                    <span style={{ fontSize: 13, color: '#F5F5F0', fontWeight: isCap ? 700 : 400, minWidth: 160 }}>
+                                    <span style={{ fontSize: 13, fontFamily: 'Space Grotesk, sans-serif', color: '#F5F5F0', fontWeight: 600, minWidth: 160 }}>
                                       {name}
                                     </span>
                                     {handle && (
@@ -1457,7 +1466,7 @@ export default function CompetitionManage() {
                 const wodResultCount = results.filter(r => r.wod_id === wod.id).length
                 const progress = approvedTeams.length > 0 ? (wodResultCount / approvedTeams.length) * 100 : 0
                 const canPublish = wod.status === 'submitted' || wod.status === 'draft'
-                const meta = [wod.score_type, wod.cap ? `CAP ${wod.cap}` : null, wod.description].filter(Boolean).join(' · ')
+                const meta = [SCORE_LABEL[wod.score_type] ?? wod.score_type, wod.cap ? `CAP ${wod.cap}` : null, wod.description].filter(Boolean).join(' · ')
                 const isEditing = editingWodId === wod.id
                 return (
                   <div key={wod.id} style={{ background: '#111111', border: `1px solid ${isEditing ? '#D4FF3A33' : '#2A2A2A'}` }}>
