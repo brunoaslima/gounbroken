@@ -1876,8 +1876,11 @@ export default function CompetitionManage() {
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid #2A2A2A' }}>
-                        {['#','TEAM','RESULT','POSITION','POINTS','ACTIONS'].map(h => (
-                          <th key={h} style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68', padding: '8px 12px', textAlign: 'left', background: '#0D0D0D' }}>
+                        {(overrideResultId
+                          ? ['#','TEAM','RESULT','REASON','ACTIONS']
+                          : ['#','TEAM','RESULT','POSITION','POINTS','ACTIONS']
+                        ).map(h => (
+                          <th key={h} style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: h === 'REASON' ? '#4DA3FF' : '#6B6B68', padding: '8px 12px', textAlign: 'left', background: '#0D0D0D' }}>
                             {h}
                           </th>
                         ))}
@@ -1898,31 +1901,33 @@ export default function CompetitionManage() {
                         const displayVal = res.score_numeric != null
                           ? decodeScore(selectedWod.score_type as WodScoreType, res.score_numeric)
                           : '—'
+                        const anyEditing = overrideResultId !== null
                         return isEditing ? (
-                          <tr key={res.id} style={{ borderBottom: '1px solid #1A1A1A', background: '#0D0D0D' }}>
+                          <tr key={res.id} style={{ borderBottom: '1px solid #4DA3FF33', background: '#0D0D0D' }}>
                             <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 11, color: '#3D3D3B' }}>
                               {String(divRank).padStart(2, '0')}
                             </td>
                             <td style={{ padding: '8px 12px', fontWeight: 700, fontSize: 13 }}>
                               {team?.name ?? res.team_id}
                             </td>
-                            <td colSpan={3} style={{ padding: '8px 12px' }}>
-                              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
-                                <ScoreInput
-                                  type={selectedWod.score_type as WodScoreType}
-                                  fields={overrideFields}
-                                  capSeconds={parseCapSeconds(selectedWod.cap)}
-                                  onChange={f => { setOverrideFields(f); setOverrideError(null) }}
-                                  error={overrideError}
-                                />
-                                <input
-                                  type='text'
-                                  placeholder='Reason...'
-                                  value={overrideReason}
-                                  onChange={e => setOverrideReason(e.target.value)}
-                                  style={{ background: '#0D0D0D', border: '1px solid #2A2A2A', color: '#F5F5F0', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, padding: '6px 8px', outline: 'none', width: 180, borderRadius: 0 }}
-                                />
-                              </div>
+                            <td style={{ padding: '8px 12px' }}>
+                              <ScoreInput
+                                type={selectedWod.score_type as WodScoreType}
+                                fields={overrideFields}
+                                capSeconds={parseCapSeconds(selectedWod.cap)}
+                                onChange={f => { setOverrideFields(f); setOverrideError(null) }}
+                                error={overrideError}
+                              />
+                            </td>
+                            <td style={{ padding: '8px 12px' }}>
+                              <input
+                                autoFocus
+                                type='text'
+                                placeholder='Reason...'
+                                value={overrideReason}
+                                onChange={e => setOverrideReason(e.target.value)}
+                                style={{ background: '#0D0D0D', border: '1px solid #2A2A2A', color: '#F5F5F0', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, padding: '6px 8px', outline: 'none', width: 160, borderRadius: 0 }}
+                              />
                             </td>
                             <td style={{ padding: '8px 12px' }}>
                               <div style={{ display: 'flex', gap: 4 }}>
@@ -1946,14 +1951,20 @@ export default function CompetitionManage() {
                             <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#F5F5F0' }}>
                               {displayVal}
                             </td>
-                            <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#6B6B68' }}>
-                              {divRank}°
-                            </td>
-                            <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 700, color: '#D4FF3A' }}>
-                              {points}
-                            </td>
+                            {anyEditing ? (
+                              <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3D3D3B' }}>—</td>
+                            ) : (
+                              <>
+                                <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#6B6B68' }}>
+                                  {divRank}°
+                                </td>
+                                <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 700, color: '#D4FF3A' }}>
+                                  {points}
+                                </td>
+                              </>
+                            )}
                             <td style={{ padding: '12px' }}>
-                              <Btn color='#6B6B68' onClick={() => {
+                              <Btn color='#6B6B68' disabled={anyEditing} onClick={() => {
                                 setOverrideResultId(res.id)
                                 setOverrideFields(
                                   res.score_numeric != null
@@ -1968,7 +1979,7 @@ export default function CompetitionManage() {
                           </tr>
                         )
                       })}
-                      {teamsWithoutResult.map(team => {
+                      {!overrideResultId && teamsWithoutResult.map(team => {
                         const isEntering = enterTeamId === team.id
                         return isEntering ? (
                           <tr key={team.id} style={{ borderBottom: '1px solid #1A1A1A', background: '#0D0D0D' }}>
@@ -2016,7 +2027,7 @@ export default function CompetitionManage() {
                       })}
                       {resultFilteredApproved.length === 0 && (
                         <tr>
-                          <td colSpan={6} style={{ padding: '24px 12px', textAlign: 'center', color: '#3D3D3B', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                          <td colSpan={overrideResultId ? 5 : 6} style={{ padding: '24px 12px', textAlign: 'center', color: '#3D3D3B', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
                             NO APPROVED TEAMS
                           </td>
                         </tr>
