@@ -17,6 +17,7 @@ import {
   searchMatches,
 } from '@/lib/exerciseCatalog'
 import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
+import StickyFooter from '@/components/StickyFooter'
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -2040,7 +2041,12 @@ export default function PersonalWorkout() {
       )}
 
       {/* Save button */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-8 pt-3 bg-gradient-to-t from-graphite via-graphite/95 to-transparent">
+      <StickyFooter
+        variant="fixed"
+        bare
+        className="px-4 pt-3 bg-gradient-to-t from-graphite via-graphite/95 to-transparent"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 32px)' }}
+      >
         {saveError && (
           <p className="text-warning text-xs font-semibold text-center mb-2">{saveError}</p>
         )}
@@ -2051,7 +2057,7 @@ export default function PersonalWorkout() {
           {saving && <div className="w-5 h-5 border-2 border-graphite/40 border-t-graphite rounded-full animate-spin" />}
           {saving ? 'Saving…' : isEditMode ? 'Save changes' : 'Save workout'}
         </button>
-      </div>
+      </StickyFooter>
     </div>
   )
 }

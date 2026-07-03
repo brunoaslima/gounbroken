@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { useProfile } from '@/hooks/useProfile'
 import { useCompetition } from '@/hooks/useCompetition'
+import StickyFooter from '@/components/StickyFooter'
 import type { CompetitionStatus, DivisionAvailability, TeamStatus } from '@/types'
 
 // ─── types (leaderboard final) ───────────────────────────────────────────────
@@ -1058,10 +1059,7 @@ export default function CompetitionDetail() {
           return a && a.max_teams !== null && a.taken >= a.max_teams
         })
         return (
-          <div
-            className="sticky bottom-0 z-40 border-t border-[#2A2A2A]"
-            style={{ padding: '14px 20px 24px', background: '#0A0A0A' }}
-          >
+          <StickyFooter style={{ paddingTop: 14, paddingLeft: 20, paddingRight: 20 }}>
             <button
               onClick={() => !allFull && navigate(`/athlete/competitions/${id}/team/new`)}
               disabled={allFull}
@@ -1078,7 +1076,7 @@ export default function CompetitionDetail() {
             >
               {allFull ? 'INSCRIÇÕES ESGOTADAS' : 'CREATE TEAM → BECOME CAPTAIN'}
             </button>
-          </div>
+          </StickyFooter>
         )
       })()}
 

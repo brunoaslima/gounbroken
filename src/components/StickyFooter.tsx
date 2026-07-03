@@ -18,13 +18,19 @@ interface StickyFooterProps {
    * and get hidden behind BottomNav again.
    */
   variant?: 'in-flow' | 'fixed'
+  /** Skip the default solid bg + top border, e.g. when the page supplies
+   * its own background (gradient fade) via className. Position/z-index/
+   * safe-area padding — the part that actually matters for the bug this
+   * component exists to prevent — still apply either way. */
+  bare?: boolean
 }
 
-export default function StickyFooter({ children, className = '', style, variant = 'in-flow' }: StickyFooterProps) {
+export default function StickyFooter({ children, className = '', style, variant = 'in-flow', bare = false }: StickyFooterProps) {
   const positionClass = variant === 'fixed' ? 'fixed bottom-0 left-0 right-0 z-50' : 'sticky bottom-0 z-40'
+  const skinClass = bare ? '' : 'border-t border-[#2A2A2A] bg-[#0A0A0A]'
   return (
     <div
-      className={`${positionClass} border-t border-[#2A2A2A] bg-[#0A0A0A] ${className}`}
+      className={`${positionClass} ${skinClass} ${className}`}
       style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 16px)', ...style }}
     >
       {children}
