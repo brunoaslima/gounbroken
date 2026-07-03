@@ -43,7 +43,6 @@ const STATUS_COLORS: Record<StatusKey, { dot: string; text: string; label: strin
   closed:             { dot: '#6B6B68', text: '#6B6B68', label: 'FINISHED' },
   finished:           { dot: '#6B6B68', text: '#6B6B68', label: 'FINALIZED' },
   approved:           { dot: '#D4FF3A', text: '#D4FF3A', label: 'APPROVED' },
-  pending_payment:    { dot: '#FFB800', text: '#FFB800', label: 'PENDING PAYMENT' },
   pending_approval:   { dot: '#4DA3FF', text: '#4DA3FF', label: 'PENDING APPROVAL' },
   pending_members:    { dot: '#6B6B68', text: '#6B6B68', label: 'INCOMPLETE' },
   rejected:           { dot: '#FF3B30', text: '#FF3B30', label: 'REJECTED' },

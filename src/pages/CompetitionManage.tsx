@@ -43,7 +43,6 @@ const STATUS_CFG: Record<string, { dot: string; text: string; label: string }> =
   submitted:          { dot: '#FFB800', text: '#FFB800', label: 'UNDER REVIEW' },
   published:          { dot: '#D4FF3A', text: '#D4FF3A', label: 'PUBLISHED' },
   approved:           { dot: '#D4FF3A', text: '#D4FF3A', label: 'APPROVED' },
-  pending_payment:    { dot: '#FFB800', text: '#FFB800', label: 'PEND. PAYMENT' },
   pending_approval:   { dot: '#4DA3FF', text: '#4DA3FF', label: 'PEND. APPROVAL' },
   pending_members:    { dot: '#6B6B68', text: '#6B6B68', label: 'INCOMPLETE' },
   rejected:           { dot: '#FF3B30', text: '#FF3B30', label: 'REJECTED' },
@@ -126,10 +125,12 @@ const TABS = ['OVERVIEW', 'TEAMS', 'WODS', 'JUDGES', 'RESULTS', 'AUDIT LOG'] as 
 type Tab = typeof TABS[number]
 
 // ─── Team filter chips ────────────────────────────────────────────────────────
+// 'payment_pending' é pseudo-chave: filtra por payment_status, não por status
+// (pagamento é eixo independente da aprovação — ver remove-pending-payment-status.sql)
 const TEAM_FILTERS = [
   { key: 'all',              label: 'TODAS' },
   { key: 'pending_approval', label: 'APROV. PENDENTE' },
-  { key: 'pending_payment',  label: 'PAGTO' },
+  { key: 'payment_pending',  label: 'PAGTO' },
   { key: 'pending_members',  label: 'INCOMPLETAS' },
   { key: 'approved',         label: 'OFICIAIS' },
   { key: 'rejected',         label: 'REJEITADAS' },
@@ -579,14 +580,15 @@ export default function CompetitionManage() {
   // ─── Derived values ───────────────────────────────────────────────────────────
   const approvedTeams = teams.filter(t => t.status === 'approved')
   const pendingApprovalTeams = teams.filter(t => t.status === 'pending_approval')
-  const pendingPaymentTeams = teams.filter(t => t.status === 'pending_payment')
+  const pendingPaymentTeams = teams.filter(t => t.payment_status === 'pending')
   const publishedWods = wods.filter(w => w.status === 'published')
 
   const divisionById = Object.fromEntries(divisions.map(d => [d.id, d]))
 
   const filteredTeams = teams
     .filter(t => {
-      if (teamFilter !== 'all' && t.status !== teamFilter) return false
+      if (teamFilter === 'payment_pending') { if (t.payment_status !== 'pending') return false }
+      else if (teamFilter !== 'all' && t.status !== teamFilter) return false
       if (divisionFilter !== 'all' && t.division_id !== divisionFilter) return false
       if (teamSearch && !t.name.toLowerCase().includes(teamSearch.toLowerCase())) return false
       return true
@@ -966,7 +968,7 @@ export default function CompetitionManage() {
                 <div style={{ background: '#111111', border: '1px solid #2A2A2A' }}>
                   {divisions.map((d, i) => {
                     const taken = teams.filter(t => t.division_id === d.id && !['rejected', 'cancelled'].includes(t.status)).length
-                    const pending = teams.filter(t => t.division_id === d.id && ['pending_members', 'pending_payment', 'pending_approval'].includes(t.status)).length
+                    const pending = teams.filter(t => t.division_id === d.id && ['pending_members', 'pending_approval'].includes(t.status)).length
                     const full = d.max_teams !== null && taken >= d.max_teams
                     const saving = savingSlotsId === d.id
                     const pct = d.max_teams ? Math.min(100, Math.round((taken / d.max_teams) * 100)) : 0
@@ -1249,7 +1251,7 @@ export default function CompetitionManage() {
                                   </Btn>
                                 </>
                               )}
-                              {team.status === 'pending_payment' && (
+                              {team.payment_status === 'pending' && (
                                 <Btn color='#6B6B68' disabled={mutating} onClick={() => teamAction(team.id, 'confirm_payment')}>
                                   CONFIRMAR PAGTO
                                 </Btn>

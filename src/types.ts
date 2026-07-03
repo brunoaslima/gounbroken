@@ -151,7 +151,7 @@ export interface DivisionAvailability {
 export type CompetitionStatus = 'draft' | 'open' | 'closed' | 'in_progress' | 'finished' | 'cancelled'
 export type ScoreType = 'time' | 'reps' | 'weight' | 'rounds_plus_reps'
 export type ScoreOrder = 'asc' | 'desc'
-export type TeamStatus = 'pending_members' | 'pending_payment' | 'pending_approval' | 'approved' | 'rejected' | 'cancelled'
+export type TeamStatus = 'pending_members' | 'pending_approval' | 'approved' | 'rejected' | 'cancelled'
 export type PaymentStatus = 'not_required' | 'pending' | 'paid' | 'failed' | 'refunded' | 'manually_confirmed'
 
 export interface Competition {
