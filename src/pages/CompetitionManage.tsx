@@ -1871,24 +1871,57 @@ export default function CompetitionManage() {
                   </div>
                 )}
 
+                {/* Correction panel — its own mini table, doesn't reshape the results table below */}
+                {overrideResultId && (() => {
+                  const res = results.find(r => r.id === overrideResultId)
+                  const team = res ? teams.find(t => t.id === res.team_id) : null
+                  if (!res) return null
+                  return (
+                    <div style={{ border: '1px solid #4DA3FF44', marginBottom: 12 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.4fr auto', borderBottom: '1px solid #4DA3FF33', background: '#0D0D0D' }}>
+                        {['TEAM','RESULT','REASON','ACTIONS'].map(h => (
+                          <span key={h} style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#4DA3FF', padding: '8px 12px' }}>
+                            {h}
+                          </span>
+                        ))}
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.4fr auto', alignItems: 'center', gap: 12, padding: '12px' }}>
+                        <span style={{ fontWeight: 700, fontSize: 13 }}>{team?.name ?? res.team_id}</span>
+                        <ScoreInput
+                          type={selectedWod.score_type as WodScoreType}
+                          fields={overrideFields}
+                          capSeconds={parseCapSeconds(selectedWod.cap)}
+                          onChange={f => { setOverrideFields(f); setOverrideError(null) }}
+                          error={overrideError}
+                        />
+                        <input
+                          autoFocus
+                          type='text'
+                          placeholder='Reason...'
+                          value={overrideReason}
+                          onChange={e => setOverrideReason(e.target.value)}
+                          style={{ background: '#0D0D0D', border: '1px solid #2A2A2A', color: '#F5F5F0', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, padding: '6px 8px', outline: 'none', width: '100%', maxWidth: 220, borderRadius: 0, boxSizing: 'border-box' }}
+                        />
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <Btn color='#4DA3FF' disabled={!overrideReason.trim() || mutating || !!validateScoreFields(overrideFields, parseCapSeconds(selectedWod.cap))} onClick={() => handleOverride(res.id)}>
+                            SAVE
+                          </Btn>
+                          <Btn color='#6B6B68' onClick={() => { setOverrideResultId(null); setOverrideReason(''); setOverrideError(null) }}>
+                            CANCEL
+                          </Btn>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+
                 {/* Results table */}
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-                    <colgroup>
-                      {(overrideResultId
-                        ? [40, 160, 260, 220, 150]
-                        : [40, undefined, 100, 90, 90, 100]
-                      ).map((w, i) => (
-                        <col key={i} style={w ? { width: w } : undefined} />
-                      ))}
-                    </colgroup>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid #2A2A2A' }}>
-                        {(overrideResultId
-                          ? ['#','TEAM','RESULT','REASON','ACTIONS']
-                          : ['#','TEAM','RESULT','POSITION','POINTS','ACTIONS']
-                        ).map(h => (
-                          <th key={h} style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: h === 'REASON' ? '#4DA3FF' : '#6B6B68', padding: '8px 12px', textAlign: 'left', background: '#0D0D0D' }}>
+                        {['#','TEAM','RESULT','POSITION','POINTS','ACTIONS'].map(h => (
+                          <th key={h} style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68', padding: '8px 12px', textAlign: 'left', background: '#0D0D0D' }}>
                             {h}
                           </th>
                         ))}
@@ -1909,46 +1942,7 @@ export default function CompetitionManage() {
                         const displayVal = res.score_numeric != null
                           ? decodeScore(selectedWod.score_type as WodScoreType, res.score_numeric)
                           : '—'
-                        const anyEditing = overrideResultId !== null
-                        return isEditing ? (
-                          <tr key={res.id} style={{ borderBottom: '1px solid #4DA3FF33', background: '#0D0D0D' }}>
-                            <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 11, color: '#3D3D3B' }}>
-                              {String(divRank).padStart(2, '0')}
-                            </td>
-                            <td style={{ padding: '8px 12px', fontWeight: 700, fontSize: 13 }}>
-                              {team?.name ?? res.team_id}
-                            </td>
-                            <td style={{ padding: '8px 12px' }}>
-                              <ScoreInput
-                                type={selectedWod.score_type as WodScoreType}
-                                fields={overrideFields}
-                                capSeconds={parseCapSeconds(selectedWod.cap)}
-                                onChange={f => { setOverrideFields(f); setOverrideError(null) }}
-                                error={overrideError}
-                              />
-                            </td>
-                            <td style={{ padding: '8px 12px' }}>
-                              <input
-                                autoFocus
-                                type='text'
-                                placeholder='Reason...'
-                                value={overrideReason}
-                                onChange={e => setOverrideReason(e.target.value)}
-                                style={{ background: '#0D0D0D', border: '1px solid #2A2A2A', color: '#F5F5F0', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, padding: '6px 8px', outline: 'none', width: 160, borderRadius: 0 }}
-                              />
-                            </td>
-                            <td style={{ padding: '8px 12px' }}>
-                              <div style={{ display: 'flex', gap: 4 }}>
-                                <Btn color='#4DA3FF' disabled={!overrideReason.trim() || mutating || !!validateScoreFields(overrideFields, parseCapSeconds(selectedWod.cap))} onClick={() => handleOverride(res.id)}>
-                                  SAVE
-                                </Btn>
-                                <Btn color='#6B6B68' onClick={() => { setOverrideResultId(null); setOverrideReason(''); setOverrideError(null) }}>
-                                  CANCEL
-                                </Btn>
-                              </div>
-                            </td>
-                          </tr>
-                        ) : (
+                        return (
                           <tr key={res.id} style={{ borderBottom: '1px solid #1A1A1A' }}>
                             <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 11, color: '#3D3D3B' }}>
                               {String(divRank).padStart(2, '0')}
@@ -1959,20 +1953,14 @@ export default function CompetitionManage() {
                             <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#F5F5F0' }}>
                               {displayVal}
                             </td>
-                            {anyEditing ? (
-                              <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#3D3D3B' }}>—</td>
-                            ) : (
-                              <>
-                                <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#6B6B68' }}>
-                                  {divRank}°
-                                </td>
-                                <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 700, color: '#D4FF3A' }}>
-                                  {points}
-                                </td>
-                              </>
-                            )}
+                            <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#6B6B68' }}>
+                              {divRank}°
+                            </td>
+                            <td style={{ padding: '12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 700, color: '#D4FF3A' }}>
+                              {points}
+                            </td>
                             <td style={{ padding: '12px' }}>
-                              <Btn color='#6B6B68' disabled={anyEditing} onClick={() => {
+                              <Btn color='#6B6B68' disabled={overrideResultId !== null} onClick={() => {
                                 setOverrideResultId(res.id)
                                 setOverrideFields(
                                   res.score_numeric != null
@@ -1987,7 +1975,7 @@ export default function CompetitionManage() {
                           </tr>
                         )
                       })}
-                      {!overrideResultId && teamsWithoutResult.map(team => {
+                      {teamsWithoutResult.map(team => {
                         const isEntering = enterTeamId === team.id
                         return isEntering ? (
                           <tr key={team.id} style={{ borderBottom: '1px solid #1A1A1A', background: '#0D0D0D' }}>
@@ -2035,7 +2023,7 @@ export default function CompetitionManage() {
                       })}
                       {resultFilteredApproved.length === 0 && (
                         <tr>
-                          <td colSpan={overrideResultId ? 5 : 6} style={{ padding: '24px 12px', textAlign: 'center', color: '#3D3D3B', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                          <td colSpan={6} style={{ padding: '24px 12px', textAlign: 'center', color: '#3D3D3B', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
                             NO APPROVED TEAMS
                           </td>
                         </tr>
