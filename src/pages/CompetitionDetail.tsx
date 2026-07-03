@@ -872,6 +872,23 @@ export default function CompetitionDetail() {
             </button>
           )}
 
+          {isHeadJudgeOrAdmin && (
+            <button
+              onClick={() => navigate(`/athlete/competitions/${id}/edit`)}
+              className="w-full flex items-center justify-center font-mono font-black uppercase"
+              style={{
+                fontSize: 11,
+                letterSpacing: '0.14em',
+                padding: '14px 20px',
+                border: '1px solid #2A2A2A',
+                color: '#6B6B68',
+                background: 'transparent',
+              }}
+            >
+              EDIT COMPETITION
+            </button>
+          )}
+
           {isJudgeAny && (
             <button
               onClick={() => navigate(`/athlete/competitions/${id}/judge`)}

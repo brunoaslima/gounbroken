@@ -170,7 +170,6 @@ export default function CompetitionManage() {
   const [privacyConfirming, setPrivacyConfirming] = useState(false)
   const [privacyChanging, setPrivacyChanging] = useState(false)
   const [inviteCopied, setInviteCopied] = useState(false)
-  const [savingSlotsId, setSavingSlotsId] = useState<string | null>(null)
 
   async function handleTogglePrivacy() {
     if (!comp || privacyChanging) return
@@ -183,18 +182,6 @@ export default function CompetitionManage() {
     setPrivacyConfirming(false)
     if (rpcErr) { setError(rpcErr.message); return }
     setComp({ ...comp, is_private: !comp.is_private, invite_code: (data as string | null) ?? comp.invite_code })
-  }
-
-  async function handleUpdateMaxTeams(divisionId: string, next: number | null) {
-    if (savingSlotsId) return
-    setSavingSlotsId(divisionId)
-    const { error: updErr } = await supabase
-      .from('competition_divisions')
-      .update({ max_teams: next })
-      .eq('id', divisionId)
-    setSavingSlotsId(null)
-    if (updErr) { setError(updErr.message); return }
-    setDivisions(prev => prev.map(d => d.id === divisionId ? { ...d, max_teams: next } : d))
   }
 
   function copyInviteLink() {
@@ -673,6 +660,12 @@ export default function CompetitionManage() {
             {comp.name}
           </span>
         </div>
+        <button
+          onClick={() => navigate(`/athlete/competitions/${comp.id}/edit`)}
+          style={{ background: 'none', border: 'none', color: '#6B6B68', cursor: 'pointer', padding: '4px 8px', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', flexShrink: 0 }}
+        >
+          EDITAR
+        </button>
         <StatusPill status={comp.status} />
       </div>
 
@@ -962,15 +955,22 @@ export default function CompetitionManage() {
             {/* Vagas por divisão */}
             {divisions.length > 0 && (
               <div style={{ marginBottom: 24 }}>
-                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68', marginBottom: 12 }}>
-                  VAGAS POR DIVISÃO
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68' }}>
+                    VAGAS POR DIVISÃO
+                  </span>
+                  <button
+                    onClick={() => navigate(`/athlete/competitions/${comp.id}/edit`)}
+                    style={{ background: 'none', border: 'none', color: '#D4FF3A', cursor: 'pointer', padding: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}
+                  >
+                    EDITAR
+                  </button>
                 </div>
                 <div style={{ background: '#111111', border: '1px solid #2A2A2A' }}>
                   {divisions.map((d, i) => {
                     const taken = teams.filter(t => t.division_id === d.id && !['rejected', 'cancelled'].includes(t.status)).length
                     const pending = teams.filter(t => t.division_id === d.id && ['pending_members', 'pending_approval'].includes(t.status)).length
                     const full = d.max_teams !== null && taken >= d.max_teams
-                    const saving = savingSlotsId === d.id
                     const pct = d.max_teams ? Math.min(100, Math.round((taken / d.max_teams) * 100)) : 0
                     return (
                       <div key={d.id} style={{ padding: '12px 16px', borderTop: i > 0 ? '1px solid #1A1A1A' : 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -992,18 +992,6 @@ export default function CompetitionManage() {
                                 {pending} AGUARDANDO APROVAÇÃO
                               </span>
                             )}
-                            <div style={{ display: 'flex', alignItems: 'stretch', gap: 1, background: '#2A2A2A' }}>
-                              <button
-                                disabled={saving}
-                                onClick={() => handleUpdateMaxTeams(d.id, d.max_teams === null ? null : d.max_teams <= 1 ? null : d.max_teams - 1)}
-                                style={{ width: 26, background: '#1A1A1A', border: 'none', color: '#F5F5F0', fontSize: 13, cursor: 'pointer', padding: '3px 0' }}
-                              >−</button>
-                              <button
-                                disabled={saving}
-                                onClick={() => handleUpdateMaxTeams(d.id, d.max_teams === null ? Math.max(taken, 10) : Math.min(999, d.max_teams + 1))}
-                                style={{ width: 26, background: '#1A1A1A', border: 'none', color: '#F5F5F0', fontSize: 13, cursor: 'pointer', padding: '3px 0' }}
-                              >+</button>
-                            </div>
                           </div>
                         </div>
                         {d.max_teams !== null && (
