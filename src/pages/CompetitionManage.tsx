@@ -424,7 +424,7 @@ export default function CompetitionManage() {
       const { error } = await supabase.rpc('override_competition_result', {
         p_result_id: resultId,
         p_raw_result: overrideDisplay.trim(),
-        p_value: scoreNumeric,
+        p_score_numeric: scoreNumeric,
         p_reason: overrideReason.trim(),
       })
       if (error) throw new Error(error.message)
