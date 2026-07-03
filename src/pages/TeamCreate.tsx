@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import StickyFooter from '@/components/StickyFooter'
 import type { CompetitionDivision, DivisionAvailability, DivisionFormat } from '@/types'
 
 const FORMAT_LABELS: Record<DivisionFormat, string> = {
@@ -265,8 +266,7 @@ export default function TeamCreate() {
         )}
       </div>
 
-      {/* Sticky bottom CTA — z-40: above BottomNav (z-30), below sheets/popovers (z-50) */}
-      <div className="sticky bottom-0 z-40 px-5 py-4 bg-[#0A0A0A] border-t border-[#2A2A2A] flex-shrink-0">
+      <StickyFooter className="px-5 py-4 flex-shrink-0">
         <button
           onClick={handleSubmit}
           disabled={!canSubmit}
@@ -275,7 +275,7 @@ export default function TeamCreate() {
         >
           {submitting ? 'CREATING...' : 'CREATE TEAM →'}
         </button>
-      </div>
+      </StickyFooter>
     </div>
   )
 }

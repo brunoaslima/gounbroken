@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import type { Competition, CompetitionDivision, CompetitionTeam, CompetitionTeamMember, DivisionFormat, TeamStatus } from '@/types'
 import DivisionBadge from '@/components/DivisionBadge'
+import StickyFooter from '@/components/StickyFooter'
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
 
@@ -725,7 +726,7 @@ export default function TeamManage() {
 
       {/* Sticky bottom CTA — hidden when approved */}
       {showCta && (
-        <div className="sticky bottom-0 z-40 px-5 py-4 bg-[#0A0A0A] border-t border-[#2A2A2A] flex-shrink-0">
+        <StickyFooter className="px-5 py-4 flex-shrink-0">
           <button
             disabled
             className="w-full font-mono font-black uppercase text-[12px] text-[#3D3D3B] border border-[#2A2A2A] py-4 flex items-center justify-center cursor-not-allowed"
@@ -733,7 +734,7 @@ export default function TeamManage() {
           >
             {ctaLabel(team.status, slotsEmpty)}
           </button>
-        </div>
+        </StickyFooter>
       )}
 
       {/* Invite sheet */}
