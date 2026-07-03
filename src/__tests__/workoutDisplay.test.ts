@@ -87,17 +87,17 @@ describe('buildPrescription', () => {
 
   it('sets × reps', () => {
     const lines = buildPrescription(makeEx({ sets: 4, reps: 6 }))
-    expect(lines[0]).toBe('4 × 6 REPS')
+    expect(lines[0]).toBe('4 × 6')
   })
 
   it('só sets (sem reps)', () => {
     const lines = buildPrescription(makeEx({ sets: 3 }))
-    expect(lines[0]).toBe('3 SETS')
+    expect(lines[0]).toBe('3')
   })
 
   it('só reps (sem sets)', () => {
     const lines = buildPrescription(makeEx({ reps: 10 }))
-    expect(lines[0]).toBe('10 REPS')
+    expect(lines[0]).toBe('10')
   })
 
   it('duração em segundos (< 60)', () => {
@@ -145,6 +145,26 @@ describe('buildPrescription', () => {
     const lines = buildPrescription(makeEx({ sets: 3, reps: 5, rest_seconds: 45 }))
     const restLine = lines.find(l => l.startsWith('*REST') || l.startsWith('*DESCANSO') || l.toLowerCase().includes('rest'))
     expect(restLine).toBeTruthy()
+  })
+
+  it('reps_label com texto livre (ex: "60m") aparece como digitado', () => {
+    const lines = buildPrescription(makeEx({ reps: null, reps_label: '60m' }))
+    expect(lines[0]).toBe('60m')
+  })
+
+  it('reps_label tem prioridade sobre reps numérico', () => {
+    const lines = buildPrescription(makeEx({ reps: 60, reps_label: '60 cal' }))
+    expect(lines[0]).toBe('60 cal')
+  })
+
+  it('reps_label com esquema (dash) combina com sets sem "×"', () => {
+    const lines = buildPrescription(makeEx({ sets: 3, reps_label: '21-15-9' }))
+    expect(lines[0]).toBe('21-15-9 · 3')
+  })
+
+  it('sets + reps_label texto livre combinam com "×"', () => {
+    const lines = buildPrescription(makeEx({ sets: 4, reps_label: '60m' }))
+    expect(lines[0]).toBe('4 × 60m')
   })
 })
 

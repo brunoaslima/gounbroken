@@ -48,8 +48,13 @@ export interface Profile {
 export interface WorkoutExerciseData {
   id: string
   movement_name: string
+  movement_id?: string | null
   sets: number | null
   reps: number | null
+  // exact raw text the coach typed (e.g. "60m", "60 cal", "21-15-9") — always
+  // used for display; `reps` above is a best-effort leading integer kept
+  // only for volume calculations (see WrappedReport.computeVolume)
+  reps_label?: string | null
   duration_seconds: number | null
   load_kg: number | null
   load_kg_to: number | null
@@ -133,13 +138,20 @@ export interface CompetitionDivision {
   format: DivisionFormat
   composition: DivisionComposition
   category: string
+  max_teams: number | null
   created_at: string
+}
+
+export interface DivisionAvailability {
+  division_id: string
+  max_teams: number | null
+  taken: number
 }
 
 export type CompetitionStatus = 'draft' | 'open' | 'closed' | 'in_progress' | 'finished' | 'cancelled'
 export type ScoreType = 'time' | 'reps' | 'weight' | 'rounds_plus_reps'
 export type ScoreOrder = 'asc' | 'desc'
-export type TeamStatus = 'pending_members' | 'pending_payment' | 'pending_approval' | 'approved' | 'rejected' | 'cancelled'
+export type TeamStatus = 'pending_members' | 'pending_approval' | 'approved' | 'rejected' | 'cancelled'
 export type PaymentStatus = 'not_required' | 'pending' | 'paid' | 'failed' | 'refunded' | 'manually_confirmed'
 
 export interface Competition {
@@ -154,6 +166,8 @@ export interface Competition {
   status: CompetitionStatus
   created_by: string | null
   public_slug: string | null
+  is_private: boolean
+  invite_code: string | null
   created_at: string
   updated_at: string
 }

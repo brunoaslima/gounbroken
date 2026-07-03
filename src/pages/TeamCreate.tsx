@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
-import type { CompetitionDivision, DivisionFormat } from '@/types'
+import StickyFooter from '@/components/StickyFooter'
+import type { CompetitionDivision, DivisionAvailability, DivisionFormat } from '@/types'
 
 const FORMAT_LABELS: Record<DivisionFormat, string> = {
   individual: 'IND',
@@ -17,11 +18,20 @@ export default function TeamCreate() {
   const [competitionName, setCompetitionName] = useState('')
   const [teamMaxSize, setTeamMaxSize] = useState(4)
   const [divisions, setDivisions] = useState<CompetitionDivision[]>([])
+  const [availability, setAvailability] = useState<Map<string, DivisionAvailability>>(new Map())
   const [selectedDivisionId, setSelectedDivisionId] = useState<string | null>(null)
   const [teamName, setTeamName] = useState('')
   const [box, setBox] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const loadAvailability = useCallback(async () => {
+    if (!competitionId) return
+    const { data } = await supabase.rpc('get_division_availability', { p_competition_id: competitionId })
+    if (data) {
+      setAvailability(new Map((data as DivisionAvailability[]).map(a => [a.division_id, a])))
+    }
+  }, [competitionId])
 
   useEffect(() => {
     if (!competitionId) return
@@ -35,7 +45,19 @@ export default function TeamCreate() {
       }
       setDivisions((divRes.data ?? []) as CompetitionDivision[])
     })
-  }, [competitionId])
+    loadAvailability()
+  }, [competitionId, loadAvailability])
+
+  function slotsLeft(divisionId: string): number | null {
+    const a = availability.get(divisionId)
+    if (!a || a.max_teams === null) return null
+    return Math.max(0, a.max_teams - a.taken)
+  }
+
+  function isFull(divisionId: string): boolean {
+    const left = slotsLeft(divisionId)
+    return left !== null && left <= 0
+  }
 
   async function handleSubmit() {
     if (!teamName.trim() || !competitionId || submitting) return
@@ -49,7 +71,13 @@ export default function TeamCreate() {
     })
     setSubmitting(false)
     if (rpcErr) {
-      setError(rpcErr.message)
+      if (rpcErr.message.includes('Division is full')) {
+        setError('DIVISÃO ESGOTADA · AS VAGAS ACABARAM ENQUANTO VOCÊ PREENCHIA. ESCOLHA OUTRA DIVISÃO.')
+        setSelectedDivisionId(null)
+        loadAvailability()
+      } else {
+        setError(rpcErr.message)
+      }
       return
     }
     const teamId = typeof data === 'string' ? data : (data as { id: string } | null)?.id ?? String(data)
@@ -57,6 +85,8 @@ export default function TeamCreate() {
   }
 
   const hasDivisions = divisions.length > 0
+  // divisão obrigatória quando a competição tem divisões (o servidor também valida)
+  const canSubmit = !!teamName.trim() && !submitting && (!hasDivisions || selectedDivisionId !== null)
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex flex-col" style={{ maxWidth: 480, margin: '0 auto' }}>
@@ -142,39 +172,69 @@ export default function TeamCreate() {
             </label>
             {divisions.map(div => {
               const selected = selectedDivisionId === div.id
+              const full = isFull(div.id)
+              const left = slotsLeft(div.id)
+              const avail = availability.get(div.id)
               return (
                 <button
                   key={div.id}
                   type="button"
-                  onClick={() => setSelectedDivisionId(div.id)}
+                  disabled={full}
+                  onClick={() => !full && setSelectedDivisionId(div.id)}
                   className="flex items-center justify-between text-left"
                   style={{
                     border: selected ? '1px solid #D4FF3A' : '1px solid #2A2A2A',
                     background: selected ? '#111111' : 'transparent',
                     padding: '12px 14px',
-                    cursor: 'pointer',
+                    cursor: full ? 'not-allowed' : 'pointer',
+                    opacity: full ? 0.45 : 1,
                   }}
                 >
-                  <span
-                    className="font-mono font-bold uppercase"
-                    style={{ fontSize: 11, letterSpacing: '0.12em', color: selected ? '#D4FF3A' : '#F5F5F0' }}
-                  >
-                    {FORMAT_LABELS[div.format]} · {div.composition.toUpperCase()} · {div.category.toUpperCase()}
+                  <span className="flex flex-col" style={{ gap: 3 }}>
+                    <span
+                      className="font-mono font-bold uppercase"
+                      style={{ fontSize: 11, letterSpacing: '0.12em', color: selected ? '#D4FF3A' : '#F5F5F0' }}
+                    >
+                      {FORMAT_LABELS[div.format]} · {div.composition.toUpperCase()} · {div.category.toUpperCase()}
+                    </span>
+                    {full && avail ? (
+                      <span className="font-mono font-bold uppercase" style={{ fontSize: 9, letterSpacing: '0.12em', color: '#6B6B68' }}>
+                        {avail.taken}/{avail.max_teams} EQUIPES
+                      </span>
+                    ) : left !== null ? (
+                      <span
+                        className="font-mono font-bold uppercase"
+                        style={{ fontSize: 9, letterSpacing: '0.12em', color: left <= 3 ? '#FF8A00' : '#6B6B68' }}
+                      >
+                        {left <= 3
+                          ? left === 1 ? 'ÚLTIMA VAGA' : `ÚLTIMAS ${left} VAGAS`
+                          : `${left} VAGAS RESTANTES`}
+                      </span>
+                    ) : null}
                   </span>
-                  <div
-                    style={{
-                      width: 16, height: 16, flexShrink: 0,
-                      border: selected ? '1px solid #D4FF3A' : '1px solid #3D3D3B',
-                      background: selected ? '#D4FF3A' : 'transparent',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}
-                  >
-                    {selected && (
-                      <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                        <path d="M2 6l3.5 3.5L10 3" stroke="#0A0A0A" strokeWidth="1.8" strokeLinecap="square" />
-                      </svg>
-                    )}
-                  </div>
+                  {full ? (
+                    <span
+                      className="font-mono font-black uppercase flex-shrink-0"
+                      style={{ fontSize: 9, letterSpacing: '0.12em', background: '#FF3B30', color: '#0A0A0A', padding: '3px 6px' }}
+                    >
+                      ESGOTADO
+                    </span>
+                  ) : (
+                    <div
+                      style={{
+                        width: 16, height: 16, flexShrink: 0,
+                        border: selected ? '1px solid #D4FF3A' : '1px solid #3D3D3B',
+                        background: selected ? '#D4FF3A' : 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      {selected && (
+                        <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                          <path d="M2 6l3.5 3.5L10 3" stroke="#0A0A0A" strokeWidth="1.8" strokeLinecap="square" />
+                        </svg>
+                      )}
+                    </div>
+                  )}
                 </button>
               )
             })}
@@ -206,17 +266,16 @@ export default function TeamCreate() {
         )}
       </div>
 
-      {/* Sticky bottom CTA */}
-      <div className="sticky bottom-0 px-5 py-4 bg-[#0A0A0A] border-t border-[#2A2A2A] flex-shrink-0">
+      <StickyFooter className="px-5 py-4 flex-shrink-0">
         <button
           onClick={handleSubmit}
-          disabled={!teamName.trim() || submitting}
+          disabled={!canSubmit}
           className="w-full font-mono font-black uppercase text-[13px] text-[#0A0A0A] bg-[#D4FF3A] py-4 flex items-center justify-center transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
           style={{ letterSpacing: '0.16em' }}
         >
           {submitting ? 'CREATING...' : 'CREATE TEAM →'}
         </button>
-      </div>
+      </StickyFooter>
     </div>
   )
 }

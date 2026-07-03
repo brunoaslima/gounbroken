@@ -43,7 +43,6 @@ const STATUS_COLORS: Record<StatusKey, { dot: string; text: string; label: strin
   closed:             { dot: '#6B6B68', text: '#6B6B68', label: 'FINISHED' },
   finished:           { dot: '#6B6B68', text: '#6B6B68', label: 'FINALIZED' },
   approved:           { dot: '#D4FF3A', text: '#D4FF3A', label: 'APPROVED' },
-  pending_payment:    { dot: '#FFB800', text: '#FFB800', label: 'PENDING PAYMENT' },
   pending_approval:   { dot: '#4DA3FF', text: '#4DA3FF', label: 'PENDING APPROVAL' },
   pending_members:    { dot: '#6B6B68', text: '#6B6B68', label: 'INCOMPLETE' },
   rejected:           { dot: '#FF3B30', text: '#FF3B30', label: 'REJECTED' },
@@ -159,6 +158,15 @@ function CompRow({ comp, dim, onClick }: { comp: CompetitionRow; dim?: boolean; 
       {/* right badges */}
       <div className="flex flex-col items-end" style={{ gap: 6 }}>
         <StatusPill status={comp.status} />
+        {comp.is_private && (
+          <span
+            className="inline-flex items-center gap-1 font-mono font-black uppercase"
+            style={{ fontSize: 9, letterSpacing: '0.14em', color: '#FF8A00', border: '1px solid rgba(255,138,0,0.35)', padding: '3px 5px' }}
+          >
+            <span style={{ width: 5, height: 5, background: '#FF8A00', display: 'inline-block' }} />
+            PRIVADA
+          </span>
+        )}
         {comp.myRole === 'head_judge' && (
           <span
             className="font-mono font-black uppercase"

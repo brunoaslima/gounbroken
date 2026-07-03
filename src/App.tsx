@@ -30,6 +30,7 @@ import BottomNav from '@/components/BottomNav'
 import SideNav from '@/components/SideNav'
 import TermsAcceptance from '@/pages/TermsAcceptance'
 import CompetitionPublic from '@/pages/CompetitionPublic'
+import CompetitionJoin from '@/pages/CompetitionJoin'
 import Landing from '@/pages/Landing'
 import Timer from '@/pages/Timer'
 import { CURRENT_TERMS_VERSION } from '@/lib/terms'
@@ -103,6 +104,7 @@ export default function App() {
         <Route path="/"                  element={<Navigate to="/home" replace />} />
         <Route path="/home"              element={<LandingOrLogin />} />
         <Route path="/competition/:slug" element={<CompetitionPublic />} />
+        <Route path="/comp/:code"        element={<CompetitionJoin />} />
         <Route path="/invite/:code"      element={<Invite />} />
         <Route path="/login"             element={<Login />} />
         <Route path="/onboarding"        element={<RequireAuthNoProfile><Onboarding /></RequireAuthNoProfile>} />

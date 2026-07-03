@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import type { Competition, CompetitionDivision, CompetitionTeam, CompetitionTeamMember, DivisionFormat, TeamStatus } from '@/types'
 import DivisionBadge from '@/components/DivisionBadge'
+import StickyFooter from '@/components/StickyFooter'
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
 
@@ -29,7 +30,6 @@ function Avatar({ initials, accent }: { initials: string; accent?: boolean }) {
 
 const STATUS_LABELS: Record<string, string> = {
   pending_members:  'AWAITING ATHLETES',
-  pending_payment:  'AWAITING PAYMENT',
   pending_approval: 'AWAITING APPROVAL',
   approved:         'APPROVED',
   rejected:         'REJEITADO',
@@ -43,12 +43,42 @@ const STATUS_COLORS: Record<string, string> = {
   approved:         '#D4FF3A',
   accepted:         '#D4FF3A',
   pending_members:  '#FFB800',
-  pending_payment:  '#FFB800',
   pending_approval: '#4DA3FF',
   invited:          '#4DA3FF',
   rejected:         '#FF3B30',
   removed:          '#FF3B30',
   cancelled:        '#FF3B30',
+}
+
+// payment_status é eixo independente do status de aprovação — badge separado
+const PAYMENT_LABELS: Record<string, string> = {
+  pending:            'AGUARDANDO PAGAMENTO',
+  failed:             'PAGAMENTO FALHOU',
+  paid:               'PAGO',
+  manually_confirmed: 'PAGO',
+  refunded:           'REEMBOLSADO',
+}
+
+function PaymentPill({ paymentStatus }: { paymentStatus: string }) {
+  if (paymentStatus === 'not_required') return null
+  const label = PAYMENT_LABELS[paymentStatus]
+  if (!label) return null
+  const color = paymentStatus === 'pending' ? '#FFB800' : paymentStatus === 'failed' ? '#FF3B30' : '#D4FF3A'
+  return (
+    <span
+      className="font-mono font-bold text-[9px]"
+      style={{
+        letterSpacing: '0.14em',
+        color,
+        border: `1px solid ${color}`,
+        padding: '3px 6px',
+        whiteSpace: 'nowrap',
+        opacity: 0.9,
+      }}
+    >
+      {label}
+    </span>
+  )
 }
 
 function StatusPill({ status }: { status: string }) {
@@ -334,10 +364,11 @@ function PendingInviteCard({ memberId, teamName, onRespond }: PendingInviteCardP
 
 // ── CTA bottom label ──────────────────────────────────────────────────────────
 
+const FORMAT_SIZE: Record<string, number> = { individual: 1, pair: 2, team3: 3, team4: 4 }
+
 function ctaLabel(status: TeamStatus, slotsEmpty: number): string {
   switch (status) {
     case 'pending_members':  return `AGUARDANDO ATLETAS (${slotsEmpty} FALTANDO)`
-    case 'pending_payment':  return 'AGUARDANDO PAGAMENTO'
     case 'pending_approval': return 'AWAITING HEAD JUDGE APPROVAL'
     case 'rejected':         return 'EQUIPE REJEITADA'
     case 'cancelled':        return 'EQUIPE CANCELADA'
@@ -441,7 +472,10 @@ export default function TeamManage() {
   }
 
   const isCaptain = user?.id === team.captain_user_id
-  const maxSize = competition?.team_max_size ?? 4
+  // Time sem divisão (legado) cai no team_max_size da competição; com
+  // divisão, o formato dela é quem manda no número de vagas (individual=1,
+  // pair=2, team3=3, team4=4) — não um valor global da competição.
+  const maxSize = division ? FORMAT_SIZE[division.format] ?? 4 : (competition?.team_max_size ?? 4)
 
   // If the captain's member row is missing (DB running old function version), synthesize it
   // so the UI always shows the captain as filled. All permission checks still use team.captain_user_id.
@@ -467,7 +501,7 @@ export default function TeamManage() {
 
   const activeMembers = effectiveMembers.filter(m => !['rejected', 'removed'].includes(m.status))
   const slotsEmpty = Math.max(0, maxSize - activeMembers.length)
-  const canInvite = isCaptain && slotsEmpty > 0 && ['pending_members', 'pending_payment'].includes(team.status)
+  const canInvite = isCaptain && slotsEmpty > 0 && team.status === 'pending_members'
 
   // Pending invite for current user (non-captain viewing this team page via invite link)
   const myInvite = user
@@ -557,6 +591,7 @@ export default function TeamManage() {
           </h1>
           <div className="flex gap-2 flex-wrap items-center">
             <StatusPill status={team.status} />
+            <PaymentPill paymentStatus={team.payment_status} />
             <span
               className="font-mono font-semibold text-[10px] text-[#A8A8A4]"
               style={{ letterSpacing: '0.12em' }}
@@ -720,7 +755,7 @@ export default function TeamManage() {
 
       {/* Sticky bottom CTA — hidden when approved */}
       {showCta && (
-        <div className="sticky bottom-0 px-5 py-4 bg-[#0A0A0A] border-t border-[#2A2A2A] flex-shrink-0">
+        <StickyFooter className="px-5 py-4 flex-shrink-0">
           <button
             disabled
             className="w-full font-mono font-black uppercase text-[12px] text-[#3D3D3B] border border-[#2A2A2A] py-4 flex items-center justify-center cursor-not-allowed"
@@ -728,7 +763,7 @@ export default function TeamManage() {
           >
             {ctaLabel(team.status, slotsEmpty)}
           </button>
-        </div>
+        </StickyFooter>
       )}
 
       {/* Invite sheet */}

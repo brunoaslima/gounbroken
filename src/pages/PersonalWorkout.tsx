@@ -10,6 +10,14 @@ import {
   getSuggestions,
   isWeighted,
 } from '@/lib/exerciseLibrary'
+import {
+  type ExerciseCatalog,
+  getCatalogSuggestions,
+  resolveMovement,
+  searchMatches,
+} from '@/lib/exerciseCatalog'
+import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
+import StickyFooter from '@/components/StickyFooter'
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -498,8 +506,8 @@ function workoutToDraft(workout: PrescribedWorkoutData): DraftSection[] {
         return {
           tempId: uid(),
           movement_name: e.movement_name,
-          sets:            e.sets     != null ? String(e.sets)     : '',
-          reps:            e.reps     != null ? String(e.reps)     : '',
+          sets:            e.sets != null ? String(e.sets) : '',
+          reps:            e.reps_label?.trim() || (e.reps != null ? String(e.reps) : ''),
           duration_min:    ds > 0 ? String(Math.floor(ds / 60)) : '',
           duration_sec:    ds > 0 ? String(ds % 60)              : '',
           load_kg:         e.load_kg         != null ? String(e.load_kg)         : '',
@@ -561,15 +569,23 @@ function PRBadge({ kg }: { kg: number }) {
 
 // ── Exercise row ─────────────────────────────────────────────────────
 
-function ExerciseRow({ ex, prs, onChange, onDelete, dragHandleProps }: {
+function ExerciseRow({ ex, prs, expanded, autoFocus, onToggle, onChange, onDelete, dragHandleProps }: {
   ex: DraftExercise
   prs: AthletePR[]
+  expanded: boolean
+  autoFocus?: boolean
+  onToggle: () => void
   onChange: (updated: DraftExercise) => void
   onDelete: () => void
   dragHandleProps?: React.HTMLAttributes<HTMLSpanElement>
 }) {
-  const [expanded, setExpanded] = useState(false)
+  const repsInputRef = useRef<HTMLInputElement>(null)
   const weighted = isWeighted(ex.movement_name)
+
+  useEffect(() => {
+    if (expanded && autoFocus) repsInputRef.current?.focus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded])
 
   const pr1rm = prs.find(
     p => p.movement_name.toLowerCase() === ex.movement_name.toLowerCase() && p.reps === 1
@@ -622,7 +638,7 @@ function ExerciseRow({ ex, prs, onChange, onDelete, dragHandleProps }: {
         </span>
         <button
           className="flex-1 flex items-center gap-3 pr-3 py-3 text-left"
-          onClick={() => setExpanded(e => !e)}
+          onClick={onToggle}
         >
           <div className="w-1.5 h-1.5 rounded-full bg-lime/60 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
@@ -657,7 +673,7 @@ function ExerciseRow({ ex, prs, onChange, onDelete, dragHandleProps }: {
             </div>
             <div>
               <p className="text-[10px] text-muted-gray/50 uppercase tracking-wider mb-1">Reps / Scheme</p>
-              <input type="text" value={ex.reps} onChange={e => field('reps', e.target.value)}
+              <input ref={repsInputRef} type="text" value={ex.reps} onChange={e => field('reps', e.target.value)}
                 placeholder="ex: 10 ou 21-15-9" className={inp} />
             </div>
             <div>
@@ -775,10 +791,11 @@ function ExerciseRow({ ex, prs, onChange, onDelete, dragHandleProps }: {
 
 // ── Add exercise sheet ───────────────────────────────────────────────
 
-function AddExerciseSheet({ sectionType, focuses, prs, onAdd, onClose }: {
+function AddExerciseSheet({ sectionType, focuses, prs, catalog, onAdd, onClose }: {
   sectionType: SectionType
   focuses: TrainingFocus[]
   prs: AthletePR[]
+  catalog: ExerciseCatalog | null
   onAdd: (name: string) => void
   onClose: () => void
 }) {
@@ -787,10 +804,17 @@ function AddExerciseSheet({ sectionType, focuses, prs, onAdd, onClose }: {
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
-  const suggestions = getSuggestions(sectionType, focuses)
-  const filtered = search
-    ? suggestions.filter(s => s.toLowerCase().includes(search.toLowerCase()))
-    : suggestions
+  // catálogo (415 movimentos, ranking por foco); lista legada só enquanto o chunk carrega
+  const catalogSuggestions = catalog ? getCatalogSuggestions(catalog, sectionType, focuses) : null
+  const filtered = catalogSuggestions
+    ? (search
+        ? catalogSuggestions.filter(s => searchMatches(s.movement, search))
+        : catalogSuggestions)
+    : getSuggestions(sectionType, focuses)
+        .filter(s => !search || s.toLowerCase().includes(search.toLowerCase()))
+        .map(name => ({ movement: { name } as { name: string }, focusMatch: false }))
+
+  const focusMatchCount = filtered.filter(s => s.focusMatch).length
 
   const hasPR = (name: string) =>
     prs.some(p => p.movement_name.toLowerCase() === name.toLowerCase())
@@ -823,16 +847,31 @@ function AddExerciseSheet({ sectionType, focuses, prs, onAdd, onClose }: {
               No suggestions. Use "+ Create" to add one.
             </p>
           )}
-          {filtered.map(name => (
-            <button key={name}
-              onClick={() => { onAdd(name); onClose() }}
-              className="w-full flex items-center justify-between gap-2 px-4 py-3 rounded-xl bg-card border border-white/5 text-left active:border-lime/20 transition-colors">
-              <span className="text-soft-white text-sm">{name}</span>
-              {hasPR(name) && (
-                <PRBadge kg={prs.find(p => p.movement_name.toLowerCase() === name.toLowerCase() && p.reps === 1)?.max_weight ?? 0} />
-              )}
-            </button>
-          ))}
+          {filtered.map((s, i) => {
+            const name = s.movement.name
+            return (
+              <React.Fragment key={name}>
+                {focusMatchCount > 0 && i === 0 && (
+                  <p className="text-muted-gray/40 text-[10px] font-bold uppercase tracking-widest pt-1 pb-0.5">
+                    Matches your focus
+                  </p>
+                )}
+                {focusMatchCount > 0 && i === focusMatchCount && (
+                  <p className="text-muted-gray/40 text-[10px] font-bold uppercase tracking-widest pt-3 pb-0.5">
+                    All movements
+                  </p>
+                )}
+                <button
+                  onClick={() => { onAdd(name); onClose() }}
+                  className="w-full flex items-center justify-between gap-2 px-4 py-3 rounded-xl bg-card border border-white/5 text-left active:border-lime/20 transition-colors">
+                  <span className="text-soft-white text-sm">{name}</span>
+                  {hasPR(name) && (
+                    <PRBadge kg={prs.find(p => p.movement_name.toLowerCase() === name.toLowerCase() && p.reps === 1)?.max_weight ?? 0} />
+                  )}
+                </button>
+              </React.Fragment>
+            )
+          })}
         </div>
 
         {/* Search input — anchored at bottom so it stays near the keyboard */}
@@ -847,7 +886,7 @@ function AddExerciseSheet({ sectionType, focuses, prs, onAdd, onClose }: {
               autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
               className="flex-1 bg-card border border-white/10 rounded-2xl px-4 py-3 text-soft-white placeholder-muted-gray/30 text-sm focus:outline-none focus:border-lime/40 transition-colors"
             />
-            {search.trim() && !filtered.some(f => f.toLowerCase() === search.toLowerCase()) && (
+            {search.trim() && !filtered.some(f => f.movement.name.toLowerCase() === search.toLowerCase()) && (
               <button onClick={addCustom}
                 className="shrink-0 bg-lime/15 border border-lime/30 text-lime text-xs font-bold px-3 py-2 rounded-xl">
                 + Create
@@ -1252,15 +1291,15 @@ function DraftPreview({ sections, workoutNotes, studentNote, focus, workoutTags,
                 const isScheme = ex.reps && ex.reps.includes('-')
                 if (isScheme) {
                   main.push(ex.reps)
-                  if (ex.sets) main.push(`${ex.sets} ROUNDS`)
+                  if (ex.sets) main.push(`${ex.sets}`)
                 } else {
-                  if (ex.sets && ex.reps)    main.push(`${ex.sets} × ${ex.reps} REPS`)
-                  else if (ex.sets)          main.push(`${ex.sets} SETS`)
-                  else if (ex.reps)          main.push(`${ex.reps} REPS`)
+                  if (ex.sets && ex.reps)    main.push(`${ex.sets} × ${ex.reps}`)
+                  else if (ex.sets)          main.push(`${ex.sets}`)
+                  else if (ex.reps)          main.push(`${ex.reps}`)
                 }
                 const durDisplay = fmtDuration(ex.duration_min, ex.duration_sec)
                 if (durDisplay) main.push(durDisplay)
-                if (main.length) lines.push(main.join(' · '))
+                const mainLine = main.length ? main.join(' · ') : null
                 const load: string[] = []
                 if (ex.load_kg && ex.load_kg_to)             load.push(`@ ${ex.load_kg}–${ex.load_kg_to}KG`)
                 else if (ex.load_kg)                         load.push(`@ ${ex.load_kg}KG`)
@@ -1276,9 +1315,16 @@ function DraftPreview({ sections, workoutNotes, studentNote, focus, workoutTags,
 
                 return (
                   <div key={ex.tempId}>
-                    {/* Exercise name */}
-                    <p className="text-soft-white font-bold text-[14px] leading-snug">
-                      {ex.movement_name || <span className="text-muted-gray/30">Unnamed exercise</span>}
+                    {/* Rep/duration count highlighted in front of the exercise name */}
+                    <p className="flex items-baseline gap-1.5 flex-wrap leading-snug">
+                      {mainLine && (
+                        <span className="text-lime font-black text-[13px] tracking-wide shrink-0">
+                          {mainLine}
+                        </span>
+                      )}
+                      <span className="text-soft-white font-bold text-[14px]">
+                        {ex.movement_name || <span className="text-muted-gray/30">Unnamed exercise</span>}
+                      </span>
                     </p>
                     {/* Prescription lines */}
                     {lines.map((line, i) => (
@@ -1323,6 +1369,7 @@ export default function PersonalWorkout() {
   const [params] = useSearchParams()
   const navigate  = useNavigate()
   const location  = useLocation()
+  const catalog   = useExerciseCatalog()
 
   const athleteId    = params.get('a') ?? ''
   const workoutDate  = params.get('d') ?? ''
@@ -1339,6 +1386,7 @@ export default function PersonalWorkout() {
   const [workoutNotes, setWorkoutNotes] = useState('')
   const [studentNote, setStudentNote]   = useState('')
   const [saving, setSaving]             = useState(false)
+  const [saveError, setSaveError]       = useState<string | null>(null)
   const [loading, setLoading]           = useState(true)
   const [date, setDate]                 = useState(editWorkout?.workout_date ?? workoutDate)
   const [showDatePicker, setShowDatePicker] = useState(false)
@@ -1347,6 +1395,10 @@ export default function PersonalWorkout() {
   // Sheet state
   const [addExSheet, setAddExSheet] = useState<{ sectionTempId: string; sectionType: SectionType } | null>(null)
   const [addSectionOpen, setAddSectionOpen] = useState(false)
+  // Accordion: só um exercício expandido por vez, em todo o treino
+  const [expandedExId, setExpandedExId] = useState<string | null>(null)
+  // Recém-adicionado abre expandido e com o campo de reps focado, sem precisar clicar de novo
+  const [focusExId, setFocusExId] = useState<string | null>(null)
 
   // Drag state for section reordering
   const [dragSectionIndex, setDragSectionIndex] = useState<number | null>(null)
@@ -1448,11 +1500,14 @@ export default function PersonalWorkout() {
   }
 
   function addExercise(sectionTempId: string, name: string) {
+    const ex = emptyExercise(name)
     setSections(prev => prev.map(s =>
       s.tempId === sectionTempId
-        ? { ...s, exercises: [...s.exercises, emptyExercise(name)] }
+        ? { ...s, exercises: [...s.exercises, ex] }
         : s
     ))
+    setExpandedExId(ex.tempId)
+    setFocusExId(ex.tempId)
   }
 
   function updateExercise(sectionTempId: string, ex: DraftExercise) {
@@ -1487,6 +1542,7 @@ export default function PersonalWorkout() {
       return
     }
     setSaving(true)
+    setSaveError(null)
     try {
       const allFocus = [...focus, ...workoutTags.map(t => t.toLowerCase().replace(' ', '_'))]
 
@@ -1517,8 +1573,11 @@ export default function PersonalWorkout() {
           modality_tags: s.modality_tags.length > 0 ? s.modality_tags : null,
           exercises: s.exercises.map((e, ei) => ({
             movement_name: e.movement_name,
+            movement_id: resolveMovement(e.movement_name)?.id ?? null,
             sets:              e.sets ? parseInt(e.sets) : null,
-            reps:              e.reps && /^\d+$/.test(e.reps.trim()) ? parseInt(e.reps) : null,
+            // raw text always kept as typed (e.g. "60m", "21-15-9"); the
+            // server derives a best-effort numeric reps from it for volume calc
+            reps_label:        e.reps.trim() || null,
             duration_seconds:  durationToSeconds(e.duration_min, e.duration_sec),
             load_kg:           e.load_kg           ? parseFloat(e.load_kg)          : null,
             load_kg_to:        e.load_kg_to        ? parseFloat(e.load_kg_to)       : null,
@@ -1526,26 +1585,21 @@ export default function PersonalWorkout() {
             load_pct_1rm_to:   e.load_pct_1rm_to   ? parseInt(e.load_pct_1rm_to)    : null,
             rpe:               e.rpe               ? parseInt(e.rpe)               : null,
             rest_seconds:      e.rest_seconds      ? parseInt(e.rest_seconds)      : null,
-            notes: (() => {
-              const scheme = e.reps && !/^\d+$/.test(e.reps.trim()) ? e.reps.trim() : null
-              return scheme ? (e.notes ? `${scheme}\n${e.notes}` : scheme) : (e.notes || null)
-            })(),
+            notes: e.notes || null,
             position: ei,
           })),
         }
       })
 
-      if (isEditMode && editWorkoutId) {
-        const { error: delErr } = await supabase.rpc('admin_delete_workout', { p_workout_id: editWorkoutId })
-        if (delErr) throw delErr
-      }
-
+      // delete (se editando) + insert em uma única transação — evita perder
+      // dados se a segunda etapa falhar, e evita erro em double-submit
       const { error } = await supabase.rpc('personal_save_workout', {
         p_athlete_id: athleteId,
         p_workout_date: date,
         p_focus: allFocus,
         p_notes: workoutNotes || null,
         p_sections: sectionsJson,
+        p_replace_workout_id: isEditMode ? editWorkoutId : null,
       })
 
       if (error) throw error
@@ -1563,6 +1617,7 @@ export default function PersonalWorkout() {
       navigate(-1)
     } catch (err) {
       console.error(err)
+      setSaveError(err instanceof Error ? err.message : 'Failed to save workout')
     } finally {
       setSaving(false)
     }
@@ -1593,6 +1648,7 @@ export default function PersonalWorkout() {
           sectionType={addExSheet.sectionType}
           focuses={focus}
           prs={prs}
+          catalog={catalog}
           onAdd={name => addExercise(addExSheet.sectionTempId, name)}
           onClose={() => setAddExSheet(null)}
         />
@@ -1884,6 +1940,9 @@ export default function PersonalWorkout() {
                       <ExerciseRow
                         ex={ex}
                         prs={prs}
+                        expanded={ex.tempId === expandedExId}
+                        autoFocus={ex.tempId === focusExId}
+                        onToggle={() => setExpandedExId(prev => prev === ex.tempId ? null : ex.tempId)}
                         onChange={updated => updateExercise(section.tempId, updated)}
                         onDelete={() => removeExercise(section.tempId, ex.tempId)}
                         dragHandleProps={{
@@ -1982,7 +2041,15 @@ export default function PersonalWorkout() {
       )}
 
       {/* Save button */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-8 pt-3 bg-gradient-to-t from-graphite via-graphite/95 to-transparent">
+      <StickyFooter
+        variant="fixed"
+        bare
+        className="px-4 pt-3 bg-gradient-to-t from-graphite via-graphite/95 to-transparent"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 32px)' }}
+      >
+        {saveError && (
+          <p className="text-warning text-xs font-semibold text-center mb-2">{saveError}</p>
+        )}
         <button
           onClick={handleSave}
           disabled={saving || sections.length === 0}
@@ -1990,7 +2057,7 @@ export default function PersonalWorkout() {
           {saving && <div className="w-5 h-5 border-2 border-graphite/40 border-t-graphite rounded-full animate-spin" />}
           {saving ? 'Saving…' : isEditMode ? 'Save changes' : 'Save workout'}
         </button>
-      </div>
+      </StickyFooter>
     </div>
   )
 }

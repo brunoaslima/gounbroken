@@ -76,6 +76,12 @@ export function isWeighted(name: string): boolean {
   return WEIGHTED_MOVEMENTS.has(name.toLowerCase())
 }
 
+// O catálogo novo registra aqui os movimentos com carga externa quando carrega,
+// para o PR-lookup cobrir os 415 nomes sem regredir os legados.
+export function extendWeightedMovements(names: string[]) {
+  for (const n of names) WEIGHTED_MOVEMENTS.add(n.toLowerCase())
+}
+
 type FocusKey = TrainingFocus | 'default'
 type SuggestionMap = Partial<Record<FocusKey, string[]>>
 

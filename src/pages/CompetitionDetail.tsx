@@ -4,7 +4,8 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { useProfile } from '@/hooks/useProfile'
 import { useCompetition } from '@/hooks/useCompetition'
-import type { CompetitionStatus, TeamStatus } from '@/types'
+import StickyFooter from '@/components/StickyFooter'
+import type { CompetitionStatus, DivisionAvailability, TeamStatus } from '@/types'
 
 // ─── types (leaderboard final) ───────────────────────────────────────────────
 
@@ -61,7 +62,6 @@ const STATUS_COLORS: Record<StatusKey, { dot: string; text: string; label: strin
   closed:             { dot: '#6B6B68', text: '#6B6B68', label: 'FINISHED' },
   finished:           { dot: '#6B6B68', text: '#6B6B68', label: 'FINALIZED' },
   approved:           { dot: '#D4FF3A', text: '#D4FF3A', label: 'APPROVED' },
-  pending_payment:    { dot: '#FFB800', text: '#FFB800', label: 'PENDING PAYMENT' },
   pending_approval:   { dot: '#4DA3FF', text: '#4DA3FF', label: 'PENDING APPROVAL' },
   pending_members:    { dot: '#6B6B68', text: '#6B6B68', label: 'INCOMPLETE' },
   rejected:           { dot: '#FF3B30', text: '#FF3B30', label: 'REJECTED' },
@@ -161,6 +161,14 @@ export default function CompetitionDetail() {
   const { competition, wods, divisions, myTeam, myRole, teamCounts, pendingJudgeInvite, pendingTeamInvite, loading, reload } = useCompetition(id, user?.id)
   const [copied, setCopied] = useState(false)
   const [inviteLoading, setInviteLoading] = useState(false)
+  const [availability, setAvailability] = useState<Map<string, DivisionAvailability>>(new Map())
+
+  useEffect(() => {
+    if (!id) return
+    supabase.rpc('get_division_availability', { p_competition_id: id }).then(({ data }) => {
+      if (data) setAvailability(new Map((data as DivisionAvailability[]).map(a => [a.division_id, a])))
+    })
+  }, [id])
 
   // Final results (finished state)
   const [finalRows, setFinalRows] = useState<FinalRow[]>([])
@@ -257,9 +265,13 @@ export default function CompetitionDetail() {
     reload()
   }
 
+  // privada compartilha o link de convite (resgate); pública, a página do slug
+  const shareUrl = competition?.is_private && competition.invite_code
+    ? `gounbroken.app/comp/${competition.invite_code}`
+    : `gounbroken.app/competition/${competition?.public_slug ?? competition?.id ?? ''}`
+
   function copySlug() {
-    const slug = competition?.public_slug ?? competition?.id ?? ''
-    navigator.clipboard.writeText(`gounbroken.app/competition/${slug}`)
+    navigator.clipboard.writeText(shareUrl)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -356,6 +368,15 @@ export default function CompetitionDetail() {
           </h1>
           <div className="flex flex-wrap gap-1.5">
             <StatusPill status={competition.status} />
+            {competition.is_private && (
+              <span
+                className="inline-flex items-center gap-1.5 font-mono font-black uppercase"
+                style={{ fontSize: 9, letterSpacing: '0.14em', color: '#FF8A00', border: '1px solid rgba(255,138,0,0.35)', padding: '4px 8px' }}
+              >
+                <span style={{ width: 6, height: 6, background: '#FF8A00', display: 'inline-block' }} />
+                PRIVADA
+              </span>
+            )}
             {myTeam && <StatusPill status={myTeam.team.status} />}
             <NeutralPill>
               {divisions.length} {divisions.length === 1 ? 'DIVISÃO' : 'DIVISÕES'} · {wods.length} WODs
@@ -496,15 +517,42 @@ export default function CompetitionDetail() {
             {divisions.length === 0 ? (
               <span className="font-mono" style={{ fontSize: 12, color: '#3D3D3B' }}>—</span>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                {divisions.map(d => (
-                  <span key={d.id} className="font-mono font-bold uppercase" style={{ fontSize: 10, letterSpacing: '0.12em', color: '#D4FF3A' }}>
-                    {['individual','pair','team3','team4'].indexOf(d.format) >= 0
-                      ? { individual:'IND', pair:'PAIR', team3:'TEAM 3', team4:'TEAM 4' }[d.format as 'individual'|'pair'|'team3'|'team4']
-                      : d.format.toUpperCase()
-                    } · {d.composition.toUpperCase()} · {d.category.toUpperCase()}
-                  </span>
-                ))}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {divisions.map(d => {
+                  const avail = availability.get(d.id)
+                  const left = avail && avail.max_teams !== null ? Math.max(0, avail.max_teams - avail.taken) : null
+                  return (
+                    <span key={d.id} className="inline-flex items-center flex-wrap" style={{ gap: 6 }}>
+                      <span className="font-mono font-bold uppercase" style={{ fontSize: 10, letterSpacing: '0.12em', color: '#D4FF3A' }}>
+                        {['individual','pair','team3','team4'].indexOf(d.format) >= 0
+                          ? { individual:'IND', pair:'PAIR', team3:'TEAM 3', team4:'TEAM 4' }[d.format as 'individual'|'pair'|'team3'|'team4']
+                          : d.format.toUpperCase()
+                        } · {d.composition.toUpperCase()} · {d.category.toUpperCase()}
+                      </span>
+                      {left !== null && (
+                        left === 0 ? (
+                          <span
+                            className="font-mono font-black uppercase"
+                            style={{ fontSize: 8, letterSpacing: '0.12em', background: '#FF3B30', color: '#0A0A0A', padding: '2px 5px', lineHeight: 1.2 }}
+                          >
+                            ESGOTADO
+                          </span>
+                        ) : left <= 3 ? (
+                          <span
+                            className="font-mono font-black uppercase"
+                            style={{ fontSize: 8, letterSpacing: '0.12em', color: '#FF8A00', border: '1px solid rgba(255,138,0,0.35)', padding: '2px 5px', lineHeight: 1.2 }}
+                          >
+                            {left === 1 ? 'ÚLTIMA VAGA' : `ÚLTIMAS ${left} VAGAS`}
+                          </span>
+                        ) : (
+                          <span className="font-mono font-bold uppercase" style={{ fontSize: 9, letterSpacing: '0.12em', color: '#6B6B68' }}>
+                            {left} VAGAS
+                          </span>
+                        )
+                      )}
+                    </span>
+                  )
+                })}
               </div>
             )}
           </StatCell>
@@ -744,20 +792,28 @@ export default function CompetitionDetail() {
           </div>
         )}
 
-        {/* Share line */}
+        {/* Share line — privada usa o link de convite (borda lime = chave de acesso) */}
+        <div style={{ margin: '16px 20px' }}>
+          {competition.is_private && (
+            <span
+              className="font-mono font-black uppercase block"
+              style={{ fontSize: 9, letterSpacing: '0.16em', color: '#D4FF3A', marginBottom: 6 }}
+            >
+              LINK DE CONVITE · ACESSO PRIVADO
+            </span>
+          )}
         <div
           className="flex items-center justify-between gap-2.5"
           style={{
-            margin: '16px 20px',
             padding: '12px 14px',
-            border: '1px dashed #3A3A3A',
+            border: competition.is_private ? '1px dashed #D4FF3A' : '1px dashed #3A3A3A',
           }}
         >
           <span
             className="font-mono font-semibold truncate"
             style={{ fontSize: 11, letterSpacing: '0.04em', color: '#A8A8A4' }}
           >
-            gounbroken.app/competition/{slug}
+            {shareUrl}
           </span>
           <button
             onClick={copySlug}
@@ -777,6 +833,7 @@ export default function CompetitionDetail() {
             </svg>
             {copied ? 'COPIADO' : 'COPIAR'}
           </button>
+        </div>
         </div>
 
         {/* Action buttons */}
@@ -995,27 +1052,32 @@ export default function CompetitionDetail() {
       )}
 
       {/* Sticky bottom CTA — only if registration open and no team yet */}
-      {registrationOpen && !myTeam && (
-        <div
-          className="sticky bottom-0 border-t border-[#2A2A2A]"
-          style={{ padding: '14px 20px 24px', background: '#0A0A0A' }}
-        >
-          <button
-            onClick={() => navigate(`/athlete/competitions/${id}/team/new`)}
-            className="w-full flex items-center justify-center font-mono font-black uppercase"
-            style={{
-              fontSize: 12,
-              letterSpacing: '0.14em',
-              padding: '16px 20px',
-              background: '#D4FF3A',
-              color: '#0A0A0A',
-              border: 0,
-            }}
-          >
-            CREATE TEAM → BECOME CAPTAIN
-          </button>
-        </div>
-      )}
+      {registrationOpen && !myTeam && (() => {
+        const allFull = divisions.length > 0 && divisions.every(d => {
+          const a = availability.get(d.id)
+          return a && a.max_teams !== null && a.taken >= a.max_teams
+        })
+        return (
+          <StickyFooter style={{ paddingTop: 14, paddingLeft: 20, paddingRight: 20 }}>
+            <button
+              onClick={() => !allFull && navigate(`/athlete/competitions/${id}/team/new`)}
+              disabled={allFull}
+              className="w-full flex items-center justify-center font-mono font-black uppercase"
+              style={{
+                fontSize: 12,
+                letterSpacing: '0.14em',
+                padding: '16px 20px',
+                background: allFull ? '#1A1A1A' : '#D4FF3A',
+                color: allFull ? '#3D3D3B' : '#0A0A0A',
+                border: allFull ? '1px solid #2A2A2A' : 0,
+                cursor: allFull ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {allFull ? 'INSCRIÇÕES ESGOTADAS' : 'CREATE TEAM → BECOME CAPTAIN'}
+            </button>
+          </StickyFooter>
+        )
+      })()}
 
     </div>
   )
