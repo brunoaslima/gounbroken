@@ -1,7 +1,19 @@
+export type MovementCategory = 'weightlifting' | 'gymnastics' | 'monostructural' | 'girls' | 'heroes'
+
 export interface Movement {
   id: string
   user_id: string
   name: string
+  category: MovementCategory
+  created_at: string
+}
+
+export interface UnbrokenSet {
+  id: string
+  user_id: string
+  movement_id: string
+  reps: number
+  time_seconds: number
   created_at: string
 }
 

@@ -5,6 +5,7 @@ import Login from '@/pages/Login'
 import Home from '@/pages/Home'
 import AddScore from '@/pages/AddScore'
 import MovementDetail from '@/pages/MovementDetail'
+import UnbrokenDetail from '@/pages/UnbrokenDetail'
 import Stats from '@/pages/Stats'
 import Profile from '@/pages/Profile'
 import Onboarding from '@/pages/Onboarding'
@@ -118,6 +119,7 @@ export default function App() {
         <Route path="/athlete/my-workouts"    element={<RequireAuth><TabLayout><MyWorkouts /></TabLayout></RequireAuth>} />
         <Route path="/athlete/add"            element={<RequireAuth><TabLayout><AddScore /></TabLayout></RequireAuth>} />
         <Route path="/athlete/movement/:id"   element={<RequireAuth><TabLayout><MovementDetail /></TabLayout></RequireAuth>} />
+        <Route path="/athlete/unbroken/:id"  element={<RequireAuth><TabLayout><UnbrokenDetail /></TabLayout></RequireAuth>} />
         <Route path="/athlete/buildup"        element={<RequireAuth><TabLayout><Buildup /></TabLayout></RequireAuth>} />
         <Route path="/athlete/timer"          element={<RequireAuth><TabLayout><Timer /></TabLayout></RequireAuth>} />
         <Route path="/athlete/invites"        element={<RequireAuth><TabLayout><InviteInbox /></TabLayout></RequireAuth>} />

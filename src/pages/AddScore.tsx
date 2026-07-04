@@ -4,14 +4,36 @@ import { useAuth } from '@/hooks/useAuth'
 import { useMovements } from '@/hooks/useMovements'
 import { useScores } from '@/hooks/useScores'
 import { useProfile } from '@/hooks/useProfile'
+import { useUnbrokenSets } from '@/hooks/useUnbrokenSets'
 import { analyzeStrength, TIER_LABELS } from '@/lib/strengthStandards'
 import { epley1RM } from '@/lib/scoreUtils'
 import TierBar from '@/components/TierBar'
-import MovementPicker from '@/components/MovementPicker'
 import { phCapture } from '@/lib/posthog'
+import type { MovementCategory } from '@/types'
 
 const QUICK_ADJUST = [-5, -2.5, -1, +1, +2.5, +5]
 const REP_BUTTONS = [1, 2, 3, 4, 5, 6, 8, 10]
+
+const TABS: { id: MovementCategory; label: string }[] = [
+  { id: 'weightlifting', label: 'WEIGHTLIFTING' },
+  { id: 'gymnastics',    label: 'GINÁSTICOS' },
+  { id: 'monostructural', label: 'MONOEST.' },
+  { id: 'girls',         label: 'GIRLS' },
+  { id: 'heroes',        label: 'HEROES' },
+]
+
+function fmtTime(secs: number): string {
+  if (secs >= 60) {
+    const m = Math.floor(secs / 60)
+    const s = secs % 60
+    return `${m}:${s < 10 ? '0' : ''}${s}`
+  }
+  return `${secs}s`
+}
+
+function rpsVal(reps: number, secs: number): string {
+  return secs > 0 ? (reps / secs).toFixed(2) : '—'
+}
 
 export default function AddScore() {
   const navigate = useNavigate()
@@ -20,27 +42,42 @@ export default function AddScore() {
   const { movements } = useMovements(user?.id)
   const { addScore, getPRsForMovement } = useScores(user?.id)
   const { profile } = useProfile(user?.id)
+  const { getPRForMovement, getSetsForMovement } = useUnbrokenSets(user?.id)
 
   const today = new Date().toISOString().split('T')[0]
 
+  const [activeTab, setActiveTab] = useState<MovementCategory>('weightlifting')
   const [movementId, setMovementId] = useState(searchParams.get('movement') ?? '')
   const [reps, setReps] = useState<number>(1)
   const [weight, setWeight] = useState(0)
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   const movement = movements.find(m => m.id === movementId)
   const currentPR = movementId && reps ? (getPRsForMovement(movementId)[reps] ?? null) : null
   const wouldBePR = weight > 0 && (currentPR === null || weight > currentPR)
   const e1rm = epley1RM(weight, reps)
 
-  // Strength analysis preview
   const strengthAnalysis = movement && profile?.body_weight_kg && profile?.gender && reps === 1 && weight > 0
-    ? analyzeStrength(movement.name, weight, profile.body_weight_kg, profile.gender as 'male'|'female'|'other')
+    ? analyzeStrength(movement.name, weight, profile.body_weight_kg, profile.gender as 'male' | 'female' | 'other')
     : null
+
+  const filteredMovements = movements.filter(m =>
+    m.category === activeTab &&
+    (searchQuery === '' || m.name.toLowerCase().includes(searchQuery.toLowerCase()))
+  )
 
   function adjustWeight(delta: number) {
     setWeight(prev => Math.max(0, Math.round((prev + delta) * 2) / 2))
+  }
+
+  function handleTabChange(tab: MovementCategory) {
+    setActiveTab(tab)
+    setMovementId('')
+    setSearchQuery('')
+    setWeight(0)
+    setReps(1)
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -63,46 +100,169 @@ export default function AddScore() {
       } else {
         navigate(-1)
       }
-    } catch (err: unknown) {
+    } catch {
+      // no-op: rare network error, user can retry
     } finally {
       setSaving(false)
     }
   }
 
+  // ── GYMNASTICS: show movement list → navigate to UnbrokenDetail
+  if (activeTab === 'gymnastics' && !movementId) {
+    return (
+      <div className="min-h-screen bg-graphite safe-top safe-bottom flex flex-col">
+        <header className="flex items-center justify-between px-5 border-b border-[#2A2A2A]" style={{ height: 52 }}>
+          <button onClick={() => navigate(-1)} className="font-mono font-bold uppercase tracking-[0.12em] text-[11px] text-[#A8A8A4] active:text-soft-white">
+            Cancel
+          </button>
+          <span className="font-mono font-bold uppercase tracking-[0.18em] text-[11px] text-[#A8A8A4]">New PR</span>
+          <div className="w-16" />
+        </header>
+
+        <TabBar activeTab={activeTab} onTabChange={handleTabChange} />
+
+        {/* Search */}
+        <div className="px-4 py-2.5 border-b border-[#1A1A1A] relative">
+          <svg className="absolute left-7 top-1/2 -translate-y-1/2 text-[#444]" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+          </svg>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Pesquisar..."
+            className="w-full h-9 bg-[#111] border border-[#2A2A2A] pl-8 pr-3 text-[13px] text-soft-white placeholder-[#444] focus:outline-none focus:border-[#3A3A3A]"
+          />
+        </div>
+
+        {/* Movement cards */}
+        <div className="flex-1 overflow-y-auto">
+          {filteredMovements.length === 0 ? (
+            <p className="px-5 py-6 font-mono text-[10px] uppercase tracking-widest text-[#444]">Sem movimentos</p>
+          ) : (
+            filteredMovements.map(mv => {
+              const pr = getPRForMovement(mv.id)
+              const sets = getSetsForMovement(mv.id)
+              return (
+                <button
+                  key={mv.id}
+                  onClick={() => navigate(`/athlete/unbroken/${mv.id}`)}
+                  className="w-full text-left px-4 py-3.5 border-b border-[#1A1A1A] active:bg-[#0D0D0D]"
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[15px] font-bold text-soft-white">{mv.name}</span>
+                    <span className="font-mono font-bold text-[9px] uppercase tracking-[0.12em] text-[#888] border border-[#2A2A2A] bg-[#1A1A1A] px-1.5 py-0.5">GYM</span>
+                  </div>
+                  <div className="flex items-baseline gap-2 mb-1">
+                    <span className="font-bold leading-none" style={{ fontSize: 32, color: pr ? '#D4FF3A' : '#333' }}>
+                      {pr ? pr.reps : '—'}
+                    </span>
+                    <span className="font-mono text-[9px] text-[#888] uppercase">reps</span>
+                    {pr && (
+                      <>
+                        <span className="text-[#2A2A2A] text-lg">|</span>
+                        <span className="font-mono font-bold text-[17px] text-soft-white">{fmtTime(pr.time_seconds)}</span>
+                      </>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[11px] text-[#888]">
+                      {pr ? `${rpsVal(pr.reps, pr.time_seconds)} reps/sec` : 'sem registos'}
+                    </span>
+                    {sets.length > 0 && (
+                      <span className="font-mono text-[10px] text-[#555]">{sets.length} set{sets.length !== 1 ? 's' : ''}</span>
+                    )}
+                  </div>
+                </button>
+              )
+            })
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // ── WEIGHTLIFTING / MONOEST. / GIRLS / HEROES: existing form flow
+  // If no movement selected yet, show picker list
+  if (!movementId) {
+    return (
+      <div className="min-h-screen bg-graphite safe-top safe-bottom flex flex-col">
+        <header className="flex items-center justify-between px-5 border-b border-[#2A2A2A]" style={{ height: 52 }}>
+          <button onClick={() => navigate(-1)} className="font-mono font-bold uppercase tracking-[0.12em] text-[11px] text-[#A8A8A4] active:text-soft-white">
+            Cancel
+          </button>
+          <span className="font-mono font-bold uppercase tracking-[0.18em] text-[11px] text-[#A8A8A4]">New PR</span>
+          <div className="w-16" />
+        </header>
+
+        <TabBar activeTab={activeTab} onTabChange={handleTabChange} />
+
+        {/* Search */}
+        <div className="px-4 py-2.5 border-b border-[#1A1A1A] relative">
+          <svg className="absolute left-7 top-1/2 -translate-y-1/2 text-[#444]" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+          </svg>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Pesquisar..."
+            className="w-full h-9 bg-[#111] border border-[#2A2A2A] pl-8 pr-3 text-[13px] text-soft-white placeholder-[#444] focus:outline-none focus:border-[#3A3A3A]"
+          />
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {filteredMovements.length === 0 ? (
+            <p className="px-5 py-6 font-mono text-[10px] uppercase tracking-widest text-[#444]">Sem movimentos</p>
+          ) : (
+            filteredMovements.map(mv => {
+              const pr = getPRsForMovement(mv.id)[1] ?? null
+              return (
+                <button
+                  key={mv.id}
+                  onClick={() => setMovementId(mv.id)}
+                  className="w-full text-left flex items-center justify-between px-5 border-b border-[#111] active:bg-[#0D0D0D]"
+                  style={{ height: 54 }}
+                >
+                  <div>
+                    <div className="text-[14px] font-bold text-soft-white">{mv.name}</div>
+                    <div className="font-mono text-[10px] text-[#555]">
+                      {pr !== null ? `PR: ${pr} kg` : 'Sem registos'}
+                    </div>
+                  </div>
+                  <span className="text-[#333] text-lg">›</span>
+                </button>
+              )
+            })
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // ── PR ENTRY FORM (weightlifting / monoest. / girls / heroes)
   return (
     <div className="min-h-screen bg-graphite safe-top safe-bottom flex flex-col">
-      {/* TopBar */}
-      <header
-        className="flex items-center justify-between px-5 border-b border-[#2A2A2A]"
-        style={{ height: 52 }}
-      >
+      <header className="flex items-center justify-between px-5 border-b border-[#2A2A2A]" style={{ height: 52 }}>
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => setMovementId('')}
           className="font-mono font-bold uppercase tracking-[0.12em] text-[11px] text-[#A8A8A4] active:text-soft-white"
         >
-          Cancel
+          ← Voltar
         </button>
-        <span className="font-mono font-bold uppercase tracking-[0.18em] text-[11px] text-[#A8A8A4]">
-          New PR
-        </span>
+        <span className="font-mono font-bold uppercase tracking-[0.18em] text-[11px] text-[#A8A8A4]">New PR</span>
         <div className="w-16" />
       </header>
 
+      {/* Selected movement name */}
+      <div className="px-5 py-3.5 border-b border-[#1A1A1A]">
+        <span className="font-bold text-[20px] leading-tight" style={{ color: '#D4FF3A' }}>
+          {movement?.name ?? ''}
+        </span>
+      </div>
+
       <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
         <div className="flex-1 overflow-y-auto">
-
-          {/* Exercise */}
-          <div className="px-5 pt-5 pb-4 border-b border-[#2A2A2A]">
-            <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#6B6B68] block mb-2">
-              Exercise
-            </span>
-            <MovementPicker
-              movements={movements}
-              value={movementId}
-              onChange={setMovementId}
-              required
-            />
-          </div>
 
           {/* Carga */}
           <div className="px-5 pt-5 pb-4 border-b border-[#2A2A2A]">
@@ -115,15 +275,10 @@ export default function AddScore() {
                   </span>
                 )}
               </span>
-              {/* KG only for now */}
               <span className="font-mono font-bold uppercase tracking-widest text-[10px] px-2 py-1 border border-[#2A2A2A] text-[#A8A8A4]">KG</span>
             </div>
 
-            {/* Big number display */}
-            <div
-              className="border border-[#2A2A2A] bg-[#141414] flex items-center justify-between px-5"
-              style={{ minHeight: 100 }}
-            >
+            <div className="border border-[#2A2A2A] bg-[#141414] flex items-center justify-between px-5" style={{ minHeight: 100 }}>
               <input
                 type="number"
                 step="0.5"
@@ -142,7 +297,6 @@ export default function AddScore() {
               )}
             </div>
 
-            {/* Quick adjust */}
             <div className="flex mt-0" style={{ gap: 0 }}>
               {QUICK_ADJUST.map((delta, i) => (
                 <button
@@ -165,9 +319,7 @@ export default function AddScore() {
           {/* Reps */}
           <div className="px-5 pt-5 pb-4 border-b border-[#2A2A2A]">
             <div className="flex items-center justify-between mb-3">
-              <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#6B6B68]">
-                Reps
-              </span>
+              <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#6B6B68]">Reps</span>
               {e1rm && reps > 1 && (
                 <span className="font-mono font-bold uppercase tracking-[0.1em] text-[10px] text-[#A8A8A4]">
                   E1RM · {e1rm} KG
@@ -210,9 +362,7 @@ export default function AddScore() {
 
           {/* Nota */}
           <div className="px-5 pt-5 pb-4">
-            <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#6B6B68] block mb-2">
-              Note
-            </span>
+            <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#6B6B68] block mb-2">Note</span>
             <div className="border border-[#2A2A2A] bg-[#141414]">
               <input
                 type="text"
@@ -225,7 +375,6 @@ export default function AddScore() {
           </div>
         </div>
 
-        {/* Save button */}
         <div className="px-5 pb-8 pt-4">
           <button
             type="submit"
@@ -237,6 +386,52 @@ export default function AddScore() {
           </button>
         </div>
       </form>
+    </div>
+  )
+}
+
+// ── Tab bar component (Bug Pattern #18: full iOS scroll combo)
+function TabBar({ activeTab, onTabChange }: { activeTab: MovementCategory; onTabChange: (t: MovementCategory) => void }) {
+  return (
+    <div
+      style={{
+        overflowX: 'scroll',
+        WebkitOverflowScrolling: 'touch',
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
+        borderBottom: '1px solid #2A2A2A',
+        touchAction: 'pan-x',
+        flexShrink: 0,
+      }}
+    >
+      <div style={{ display: 'flex', width: 'max-content' }}>
+        {TABS.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => onTabChange(tab.id)}
+            style={{
+              touchAction: 'pan-x',
+              fontFamily: '"JetBrains Mono", monospace',
+              fontSize: 9,
+              fontWeight: 700,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              padding: '0 14px',
+              height: 40,
+              display: 'flex',
+              alignItems: 'center',
+              whiteSpace: 'nowrap',
+              background: 'transparent',
+              border: 'none',
+              borderBottom: activeTab === tab.id ? '2px solid #D4FF3A' : '2px solid transparent',
+              color: activeTab === tab.id ? '#D4FF3A' : '#555',
+              cursor: 'pointer',
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

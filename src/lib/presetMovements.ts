@@ -1,3 +1,64 @@
+import type { MovementCategory } from '@/types'
+
+export const GYMNASTICS_MOVEMENTS = [
+  'Pull-up',
+  'Chest-to-bar Pull-up',
+  'Muscle-up (Ring)',
+  'Bar Muscle-up',
+  'Toes-to-Bar',
+  'Handstand Push-up',
+  'Ring Dip',
+  'Pistol Squat',
+  'Double-Under',
+  'Box Jump',
+  'Burpee',
+  'Rope Climb',
+]
+
+export const MONOSTRUCTURAL_MOVEMENTS = [
+  'Row 500m',
+  'Row 1000m',
+  'Row 2000m',
+  'Assault Bike',
+  'Echo Bike',
+  'Ski Erg 1000m',
+  'Run 400m',
+  'Run 1600m',
+]
+
+export const GIRLS_MOVEMENTS = [
+  'Fran',
+  'Grace',
+  'Annie',
+  'Cindy',
+  'Karen',
+  'Isabel',
+  'Helen',
+  'Eva',
+  'Kelly',
+  'Amanda',
+]
+
+export const HEROES_MOVEMENTS = [
+  'Murph',
+  'DT',
+  'Michael',
+  'JT',
+  'Diane',
+  'Randy',
+  'Ryan',
+  'Josh',
+  'Nate',
+]
+
+export const PRESET_MOVEMENTS_BY_CATEGORY: Record<MovementCategory, string[]> = {
+  weightlifting: [],      // filled below from MOVEMENT_GROUPS
+  gymnastics: GYMNASTICS_MOVEMENTS,
+  monostructural: MONOSTRUCTURAL_MOVEMENTS,
+  girls: GIRLS_MOVEMENTS,
+  heroes: HEROES_MOVEMENTS,
+}
+
 export const MOVEMENT_GROUPS = [
   {
     category: 'Squat',
@@ -73,6 +134,9 @@ export const MOVEMENT_GROUPS = [
 ]
 
 export const PRESET_MOVEMENTS = MOVEMENT_GROUPS.flatMap(g => g.movements)
+
+// Fill weightlifting category
+PRESET_MOVEMENTS_BY_CATEGORY.weightlifting = PRESET_MOVEMENTS
 
 export function getMovementCategory(name: string): string | null {
   for (const group of MOVEMENT_GROUPS) {

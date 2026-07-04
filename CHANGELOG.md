@@ -6,6 +6,22 @@ Formato de versão: `## [versão] — AAAA-MM-DD`
 
 ---
 
+## [1.3.0] — 2026-07-04
+
+### Training → Unbroken Tracker
+
+- Training → Unbroken Tracker: nova feature para registar sets unbroken de movimentos ginásticos (reps + tempo)
+- Training → Unbroken Tracker: listagem com PR reps em destaque (32px lime), tempo, reps/sec e data por movimento
+- Training → Unbroken Tracker: detalhe do movimento com bloco de PR 3 colunas (PR REPS · TEMPO · REPS/SEC), gráfico SVG com toggle REPS/REPS/SEC e histórico completo de sets com borda lime no PR
+- Training → Unbroken Tracker: bottom sheet de registo com input de reps grande (52px) + campos MIN:SEC separados (padrão ScoreInput da competição) + preview de reps/sec em tempo real + badge NOVO PR
+- Training → Add PR: tab bar horizontal com 5 categorias — WEIGHTLIFTING | GINÁSTICOS | MONOEST. | GIRLS | HEROES
+- Training → Add PR: ao seleccionar categoria, lista de exercícios é filtrada com barra de pesquisa; exercício seleccionado aparece como título em lime em vez de dropdown
+- Training → Add PR: GINÁSTICOS navega para o Unbroken Tracker em vez do formulário de carga
+- DB: coluna `category` adicionada a `movements` (default: weightlifting, backward-compat)
+- DB: nova tabela `unbroken_sets` (reps, time_seconds) com RLS que valida ownership do `movement_id`
+
+---
+
 ## [1.2.0] — 2026-07-01
 
 ### Competition → Live Leaderboard
