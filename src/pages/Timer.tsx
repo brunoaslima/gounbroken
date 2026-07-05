@@ -20,7 +20,7 @@ export default function Timer() {
       {/* Config screen */}
       <header
         className="flex items-center justify-between px-4 border-b border-[#2A2A2A] flex-shrink-0"
-        style={{ height: 52 }}
+        style={{ minHeight: 52, paddingTop: 'env(safe-area-inset-top)' }}
       >
         <button
           type="button"

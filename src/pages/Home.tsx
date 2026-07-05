@@ -129,8 +129,8 @@ export default function Home() {
     <div className="min-h-screen bg-graphite pb-24 md:pb-8 safe-top">
 
       {/* TopBar */}
-      <header className="sticky top-0 z-10 bg-graphite border-b border-[#2A2A2A]" style={{ height: 52 }}>
-        <div className="flex items-center justify-between px-4 h-full md:max-w-5xl md:mx-auto">
+      <header className="sticky top-0 z-10 bg-graphite border-b border-[#2A2A2A]" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="flex items-center justify-between px-4 md:max-w-5xl md:mx-auto" style={{ height: 52 }}>
           <span className="font-mono font-bold uppercase tracking-[0.18em] text-[11px] text-[#A8A8A4]">
             GU · DASHBOARD
           </span>
