@@ -42,7 +42,7 @@ function divisionShortLabel(d: CompetitionDivision): string {
   return `${FORMAT_SHORT[d.format]} · ${d.composition.toUpperCase()} · ${d.category.toUpperCase()}`
 }
 
-const REFRESH_INTERVAL = 30
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const ScoreTypeLabel: Record<string, string> = {
   time: 'FOR TIME',
@@ -415,9 +415,7 @@ export default function Leaderboard() {
       }
     } catch { /* corrupted storage — start fresh */ }
   }, [id, selectedDivisionId])
-  const [countdown, setCountdown] = useState(REFRESH_INTERVAL)
   const [refreshKey, setRefreshKey] = useState(0)
-  const countdownRef = useRef(REFRESH_INTERVAL)
   const divFilterRef = useRef<HTMLDivElement>(null)
   const [filterHasMore, setFilterHasMore] = useState(false)
   const dragRef = useRef({ active: false, startX: 0, scrollLeft: 0, moved: false })
@@ -534,23 +532,28 @@ export default function Leaderboard() {
 
   useEffect(() => { load() }, [load])
 
-  const triggerRefresh = useCallback(() => {
-    countdownRef.current = REFRESH_INTERVAL
-    setCountdown(REFRESH_INTERVAL)
-    setRefreshKey(k => k + 1)
-  }, [])
+  const triggerRefresh = useCallback(() => setRefreshKey(k => k + 1), [])
 
+  // Realtime: refetch immediately when competition_results change
   useEffect(() => {
-    const t = setInterval(() => {
-      countdownRef.current -= 1
-      setCountdown(countdownRef.current)
-      if (countdownRef.current <= 0) {
-        countdownRef.current = REFRESH_INTERVAL
-        setCountdown(REFRESH_INTERVAL)
-        setRefreshKey(k => k + 1)
-      }
-    }, 1000)
-    return () => clearInterval(t)
+    if (!id || !UUID_RE.test(id)) return
+    const channel = supabase
+      .channel(`leaderboard:${id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'competition_results',
+        filter: `competition_id=eq.${id}`,
+      }, () => setRefreshKey(k => k + 1))
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [id])
+
+  // Refetch when the user returns to this tab after being away
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') setRefreshKey(k => k + 1) }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
 
   const publishedWods = wods.filter(w => w.status === 'published')
@@ -605,23 +608,15 @@ export default function Leaderboard() {
             LIVE
           </div>
 
-          {/* Countdown + refresh */}
-          <div className="flex items-center gap-1.5">
-            <span
-              className="font-mono font-bold"
-              style={{ fontSize: 10, color: '#6B6B68', letterSpacing: '0.1em' }}
-            >
-              {String(countdown).padStart(2, '0')}s
-            </span>
-            <button
-              onClick={triggerRefresh}
-              className="flex items-center justify-center border border-[#2A2A2A] text-[#F5F5F0]"
-              style={{ width: 28, height: 28, background: 'none', cursor: 'pointer' }}
-              aria-label="Atualizar"
-            >
-              <RefreshIcon />
-            </button>
-          </div>
+          {/* Manual refresh */}
+          <button
+            onClick={triggerRefresh}
+            className="flex items-center justify-center border border-[#2A2A2A] text-[#F5F5F0]"
+            style={{ width: 28, height: 28, background: 'none', cursor: 'pointer' }}
+            aria-label="Atualizar"
+          >
+            <RefreshIcon />
+          </button>
         </div>
       </div>
 
