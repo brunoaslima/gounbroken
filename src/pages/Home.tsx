@@ -187,7 +187,7 @@ export default function Home() {
               <span className="font-mono font-bold uppercase tracking-[0.1em] text-[10px] text-[#6B6B68] block mb-1.5">Volume · 7d</span>
               <div className="flex items-baseline gap-1">
                 <span className="font-mono font-black text-[26px] text-soft-white leading-none">
-                  {volume7d > 0 ? volume7d.toLocaleString('pt-BR') : '—'}
+                  {volume7d > 0 ? volume7d.toLocaleString('en-US') : '—'}
                 </span>
                 {volume7d > 0 && (
                   <span className="font-mono text-[11px] font-medium text-[#6B6B68]">kg</span>

@@ -39,11 +39,11 @@ export function suggestEmail(email: string): string | null {
 export function formatDate(dateStr: string): string {
   const [year, month, day] = dateStr.split('-').map(Number)
   const date = new Date(year, month - 1, day)
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+  return date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()
 }
 
 export function formatDateShort(dateStr: string): string {
   const [year, month, day] = dateStr.split('-').map(Number)
   const date = new Date(year, month - 1, day)
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+  return date.toLocaleDateString('en-US', { day: '2-digit', month: 'short' }).toUpperCase()
 }

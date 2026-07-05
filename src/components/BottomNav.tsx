@@ -34,7 +34,7 @@ const NAV_ITEMS = [
   {
     id: 'profile',
     path: '/athlete/profile',
-    label: 'Perfil',
+    label: 'Profile',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="12" cy="8" r="4" /><path d="M4 21c1-4 5-6 8-6s7 2 8 6" />

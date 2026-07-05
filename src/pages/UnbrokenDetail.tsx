@@ -23,7 +23,7 @@ function rpsStr(reps: number, secs: number): string {
 function formatDateShort(iso: string): { day: string; mon: string } {
   const d = new Date(iso)
   const day = String(d.getDate()).padStart(2, '0')
-  const mon = d.toLocaleString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()
+  const mon = d.toLocaleString('en-US', { month: 'short' }).toUpperCase()
   return { day, mon }
 }
 
