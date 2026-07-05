@@ -43,6 +43,7 @@ export default function Home() {
   const navigate = useNavigate()
   const [showEmpty, setShowEmpty] = useState(false)
   const [activeTab, setActiveTab] = useState<'strength' | 'gymnastics' | 'benchmark'>('strength')
+  const [headlineSeed] = useState(() => Math.floor(Math.random() * 100000))
 
   const loading = loadingMovements || loadingScores
 
@@ -170,6 +171,7 @@ export default function Home() {
                     weekNum,
                     totalVolumeKg: totalVolumeMonth,
                     profile: profile ? { body_weight_kg: profile.body_weight_kg ?? null } : null,
+                    seed: headlineSeed,
                   })
                 : <>Record your{' '}<span style={{ color: '#D4FF3A' }}>PRs</span>{' '}and see where you stand.</>
               }

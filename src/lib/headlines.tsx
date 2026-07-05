@@ -32,6 +32,7 @@ function pick<T>(arr: T[], seed: number): T {
 }
 
 export interface HeadlineCtx {
+  seed: number
   allAnalyses: Array<{
     movement: { name: string }
     analysis: { score: number; level: string }
@@ -51,12 +52,7 @@ export interface HeadlineCtx {
 }
 
 export function pickHeadline(ctx: HeadlineCtx): ReactNode {
-  const { allAnalyses, heroPR, scores, weekNum, totalVolumeKg, profile } = ctx
-
-  // Daily seed — changes every day so users see variety
-  const today = new Date()
-  const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000)
-  const seed = dayOfYear * 7 + weekNum
+  const { allAnalyses, heroPR, scores, weekNum, totalVolumeKg, profile, seed } = ctx
 
   if (allAnalyses.length === 0) return philosophical(seed)
 
