@@ -6,6 +6,17 @@ Formato de versão: `## [versão] — AAAA-MM-DD`
 
 ---
 
+## [1.4.4] — 2026-07-06
+
+### Home → Dynamic headline system (100 contexts)
+
+- Headline da Home agora rotaciona entre 100 contextos diferentes baseados nos dados do atleta
+- Prioridade: PR hoje → próximo de subir tier → PRs no mês → Elite → volume → ratio corporal → advanced spread → tier/standing → filosófico
+- Rotação diária determinística (muda a cada dia, nunca aleatório) — usuário nunca vê o mesmo headline dois dias seguidos
+- Sem nova query ao Supabase — usa exclusivamente dados já carregados
+
+---
+
 ## [1.4.3] — 2026-07-06
 
 ### Training → Gymnastics: delete set

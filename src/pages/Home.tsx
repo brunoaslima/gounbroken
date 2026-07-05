@@ -6,6 +6,7 @@ import { useScores } from '@/hooks/useScores'
 import { useProfile } from '@/hooks/useProfile'
 import { useUnbrokenSets } from '@/hooks/useUnbrokenSets'
 import { analyzeStrength, TIER_LABELS, TIER_COLORS } from '@/lib/strengthStandards'
+import { pickHeadline } from '@/lib/headlines'
 import { MOVEMENT_GROUPS, getMovementCategory } from '@/lib/presetMovements'
 import {
   calculateStrengthLevel,
@@ -52,6 +53,13 @@ export default function Home() {
   const prsThisMonth = scores.filter(s => new Date(s.recorded_at) >= thisMonthStart).length
   const volume7d = (() => {
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7)
+    return scores
+      .filter(s => new Date(s.recorded_at + 'T00:00:00') >= cutoff)
+      .reduce((acc, s) => acc + (s.weight_kg ?? 0) * s.reps, 0)
+  })()
+
+  const totalVolumeMonth = (() => {
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30)
     return scores
       .filter(s => new Date(s.recorded_at + 'T00:00:00') >= cutoff)
       .reduce((acc, s) => acc + (s.weight_kg ?? 0) * s.reps, 0)
@@ -152,19 +160,19 @@ export default function Home() {
           <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#6B6B68]">
             Hello, {firstName} · Week {weekNum}
           </span>
-          {!loading && allAnalyses.length > 0 ? (
+          {!loading && (
             <h1 className="font-sans font-bold text-[28px] mt-2 leading-[1.1]" style={{ letterSpacing: '-0.02em' }}>
-              You're in the{' '}
-              <span style={{ color: tierColor }}>
-                top {Math.round(100 - (heroPR?.analysis.score ?? 0))}%
-              </span>{' '}
-              of humanity.
-            </h1>
-          ) : !loading && (
-            <h1 className="font-sans font-bold text-[28px] mt-2 leading-[1.1]" style={{ letterSpacing: '-0.02em' }}>
-              Record your{' '}
-              <span style={{ color: '#D4FF3A' }}>PRs</span>{' '}
-              and see where you stand.
+              {allAnalyses.length > 0
+                ? pickHeadline({
+                    allAnalyses,
+                    heroPR,
+                    scores,
+                    weekNum,
+                    totalVolumeKg: totalVolumeMonth,
+                    profile: profile ? { body_weight_kg: profile.body_weight_kg ?? null } : null,
+                  })
+                : <>Record your{' '}<span style={{ color: '#D4FF3A' }}>PRs</span>{' '}and see where you stand.</>
+              }
             </h1>
           )}
         </div>
