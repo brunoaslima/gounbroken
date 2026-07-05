@@ -180,7 +180,7 @@ export default function InviteInbox() {
       {/* Topbar */}
       <header style={{
         position: 'sticky', top: 0, zIndex: 10,
-        height: 52, padding: '0 16px',
+        paddingTop: 'env(safe-area-inset-top)', paddingLeft: 16, paddingRight: 16, minHeight: 52,
         background: '#0A0A0A', borderBottom: '1px solid #2A2A2A',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>

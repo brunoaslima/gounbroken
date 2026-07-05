@@ -6,6 +6,16 @@ Formato de versão: `## [versão] — AAAA-MM-DD`
 
 ---
 
+## [1.4.1] — 2026-07-05
+
+### UI → Safe Area (iPhone notch / Dynamic Island)
+
+- Corrigido notch sobrepondo headers em todas as páginas do app (InviteInbox, CompetitionManage, CompetitionDetail, CompetitionCreate, CompetitionEdit, CompetitionList, JudgePanel, Leaderboard, TeamManage, TeamCreate, Timer, AthleteReport)
+- Headers sticky (Home, Profile, MyWorkouts) agora protegem o conteúdo também ao rolar
+- WrappedReport: progress bars e brand label reposicionados com `calc(env(safe-area-inset-top) + offset)`
+
+---
+
 ## [1.4.0] — 2026-07-05
 
 ### Training → Benchmark WODs (Girls & Heroes)

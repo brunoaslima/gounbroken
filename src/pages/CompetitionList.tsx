@@ -288,7 +288,7 @@ export default function CompetitionList() {
       {/* Topbar */}
       <header
         className="sticky top-0 z-10 flex items-center justify-between border-b border-[#2A2A2A]"
-        style={{ height: 52, padding: '8px 16px 12px', background: '#0A0A0A' }}
+        style={{ minHeight: 52, paddingTop: 'env(safe-area-inset-top)', paddingBottom: 12, paddingLeft: 16, paddingRight: 16, background: '#0A0A0A' }}
       >
         <button
           className="flex items-center justify-center text-[#6B6B68] active:text-[#F5F5F0]"

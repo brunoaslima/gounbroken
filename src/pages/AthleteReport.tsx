@@ -476,7 +476,7 @@ export default function AthleteReport() {
   return (
     <div style={{ minHeight: '100dvh', background: '#0F0F0E', fontFamily: 'Space Grotesk, sans-serif' }}>
       {/* Top bar */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 50, background: '#0F0F0E', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 50, background: '#0F0F0E', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingTop: 'calc(env(safe-area-inset-top) + 12px)', paddingBottom: 12, paddingLeft: 16, paddingRight: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
         <button
           onClick={() => navigate(-1)}
           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px 4px 0', color: '#F5F5F0', display: 'flex', alignItems: 'center' }}
