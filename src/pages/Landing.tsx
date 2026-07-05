@@ -75,10 +75,14 @@ const FAQ_ITEMS = [
 
 const CTA_WORDS = ['climb', 'season', 'story', 'comp']
 
-function useCountUp(target: number, active: boolean) {
+function useCountUp(target: number, active: boolean, reducedMotion = false) {
   const [val, setVal] = useState(0)
   useEffect(() => {
     if (!active) return
+    if (reducedMotion) {
+      setVal(target)
+      return
+    }
     const dur = 1300
     const t0 = Date.now()
     const iv = setInterval(() => {
@@ -88,7 +92,7 @@ function useCountUp(target: number, active: boolean) {
       if (p >= 1) clearInterval(iv)
     }, 40)
     return () => clearInterval(iv)
-  }, [active, target])
+  }, [active, target, reducedMotion])
   return val
 }
 
@@ -105,9 +109,13 @@ function usePrefersReducedMotion(): boolean {
   return reduced
 }
 
-function useTypeOn(text: string, speed = 40) {
+function useTypeOn(text: string, speed = 40, reducedMotion = false) {
   const [n, setN] = useState(0)
   useEffect(() => {
+    if (reducedMotion) {
+      setN(text.length)
+      return
+    }
     const iv = setInterval(() => {
       setN(prev => {
         if (prev >= text.length) { clearInterval(iv); return prev }
@@ -115,21 +123,25 @@ function useTypeOn(text: string, speed = 40) {
       })
     }, speed)
     return () => clearInterval(iv)
-  }, [text, speed])
+  }, [text, speed, reducedMotion])
   return { shown: text.slice(0, n), done: n >= text.length }
 }
 
 // section reveal: dry 120ms step, not a soft fade
-function Section({ children, id, style }: { children: React.ReactNode; id?: string; style?: React.CSSProperties }) {
+function Section({ children, id, style, reducedMotion = false }: { children: React.ReactNode; id?: string; style?: React.CSSProperties; reducedMotion?: boolean }) {
   const ref = useRef<HTMLElement>(null)
   const [vis, setVis] = useState(false)
   useEffect(() => {
+    if (reducedMotion) {
+      setVis(true)
+      return
+    }
     const el = ref.current
     if (!el) return
     const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVis(true); io.disconnect() } }, { threshold: 0.12 })
     io.observe(el)
     return () => io.disconnect()
-  }, [])
+  }, [reducedMotion])
   return (
     <section
       ref={ref}
@@ -137,8 +149,8 @@ function Section({ children, id, style }: { children: React.ReactNode; id?: stri
       style={{
         ...style,
         opacity: vis ? 1 : 0,
-        transform: vis ? 'none' : 'translateY(12px)',
-        transition: 'opacity 120ms linear, transform 120ms linear',
+        transform: reducedMotion || vis ? 'none' : 'translateY(12px)',
+        transition: reducedMotion ? 'none' : 'opacity 120ms linear, transform 120ms linear',
       }}
     >
       {children}
@@ -149,7 +161,8 @@ function Section({ children, id, style }: { children: React.ReactNode; id?: stri
 function StatCard({ num, label, color, live, last }: { num: number; label: string; color: string; live?: boolean; last?: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
   const [active, setActive] = useState(false)
-  const val = useCountUp(num, active)
+  const reducedMotion = usePrefersReducedMotion()
+  const val = useCountUp(num, active, reducedMotion)
   const [extra, setExtra] = useState(0)
   const [flash, setFlash] = useState(false)
 
@@ -160,8 +173,6 @@ function StatCard({ num, label, color, live, last }: { num: number; label: strin
     io.observe(el)
     return () => io.disconnect()
   }, [])
-
-  const reducedMotion = usePrefersReducedMotion()
 
   // after the count-up, the number keeps ticking — alive, not a static stat
   useEffect(() => {
@@ -357,13 +368,13 @@ function ScriptedBoard() {
 export default function Landing() {
   const navigate = useNavigate()
   const [openFaq, setOpenFaq] = useState<number | null>(null)
-  const { shown: h1Shown, done: h1Done } = useTypeOn(HERO_H1)
+  const reducedMotion = usePrefersReducedMotion()
+  const { shown: h1Shown, done: h1Done } = useTypeOn(HERO_H1, 40, reducedMotion)
   const [markerStep, setMarkerStep] = useState(0)
   const [journeyActive, setJourneyActive] = useState(0)
   const [journeyHover, setJourneyHover] = useState<number | null>(null)
   const [ctaWord, setCtaWord] = useState(0)
   const [ctaInvert, setCtaInvert] = useState(false)
-  const reducedMotion = usePrefersReducedMotion()
 
   // percentile marker climbs tiers in dry steps once the H1 finishes typing
   useEffect(() => {
@@ -459,7 +470,7 @@ export default function Landing() {
       </section>
 
       {/* JOURNEY — the thesis of the page */}
-      <Section id="journey" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '1px solid #2A2A2A' }}>
+      <Section id="journey" reducedMotion={reducedMotion} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '1px solid #2A2A2A' }}>
         {JOURNEY.map((s, i) => {
           const active = journeyCurrent === i
           return (
@@ -498,7 +509,7 @@ export default function Landing() {
       </Section>
 
       {/* STATS */}
-      <Section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '1px solid #2A2A2A', background: '#111111' }}>
+      <Section reducedMotion={reducedMotion} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '1px solid #2A2A2A', background: '#111111' }}>
         <StatCard num={12847} label="PRs LOGGED" color="#D4FF3A" live />
         <StatCard num={1203} label="ATHLETES RANKED" color="#4DA3FF" />
         <StatCard num={47} label="COMPETITIONS RUN" color="#FF8A00" last />
@@ -520,12 +531,12 @@ export default function Landing() {
       </div>
 
       {/* LIVE LEADERBOARD — scripted comeback story */}
-      <Section id="leaderboard" style={{ borderBottom: '1px solid #2A2A2A' }}>
+      <Section id="leaderboard" reducedMotion={reducedMotion} style={{ borderBottom: '1px solid #2A2A2A' }}>
         <ScriptedBoard />
       </Section>
 
       {/* COACH & ORGANIZER */}
-      <Section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #2A2A2A' }}>
+      <Section reducedMotion={reducedMotion} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #2A2A2A' }}>
         <div style={{ padding: '44px 32px', borderRight: '1px solid #2A2A2A' }}>
           <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: '#4DA3FF', marginBottom: 16 }}>COACH</div>
           <h3 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 12px', letterSpacing: '-0.01em' }}>Program 40 athletes from one screen.</h3>
@@ -553,7 +564,7 @@ export default function Landing() {
       </Section>
 
       {/* TESTIMONIALS */}
-      <Section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '1px solid #2A2A2A' }}>
+      <Section reducedMotion={reducedMotion} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '1px solid #2A2A2A' }}>
         {[
           { quote: '"I stopped guessing. Every cycle ends with a number that used to be a maybe."', name: 'MARINA C.', badge: 'TOP 9%', badgeColor: '#D4FF3A' },
           { quote: '"Programming 40 athletes is one screen now, with a live board on comp day."', name: 'COACH RAFA', badge: 'BOX OWNER', badgeColor: '#4DA3FF' },
@@ -569,7 +580,7 @@ export default function Landing() {
       </Section>
 
       {/* FAQ */}
-      <Section id="faq" style={{ display: 'grid', gridTemplateColumns: '280px 1fr', borderBottom: '1px solid #2A2A2A' }}>
+      <Section id="faq" reducedMotion={reducedMotion} style={{ display: 'grid', gridTemplateColumns: '280px 1fr', borderBottom: '1px solid #2A2A2A' }}>
         <div style={{ padding: '44px 32px', borderRight: '1px solid #2A2A2A' }}>
           <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: '#D4FF3A', marginBottom: 14 }}>FAQ</div>
           <h2 style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1, margin: 0 }}>Good<br />to know.</h2>

@@ -34,6 +34,7 @@ export default function CompetitionEdit() {
   const [venue, setVenue] = useState('')
   const [startDate, setStartDate] = useState('')
   const [deadline, setDeadline] = useState('')
+  const [deadlineTime, setDeadlineTime] = useState('')
   const [divMaxTeams, setDivMaxTeams] = useState<Record<string, number | null>>({})
 
   const [saving, setSaving] = useState(false)
@@ -58,7 +59,9 @@ export default function CompetitionEdit() {
         setDescription(c.description ?? '')
         setVenue(c.venue ?? '')
         setStartDate(c.start_date)
-        setDeadline(c.registration_deadline.slice(0, 10))
+        const [datePart, timePart] = c.registration_deadline.split('T')
+        setDeadline(datePart)
+        setDeadlineTime(timePart?.split('.')[0] || '23:59:59')
       }
       setDivMaxTeams(Object.fromEntries(divs.map(d => [d.id, d.max_teams])))
       setLoading(false)
@@ -83,7 +86,7 @@ export default function CompetitionEdit() {
       p_description: description.trim(),
       p_venue: venue.trim(),
       p_start_date: startDate,
-      p_registration_deadline: deadline,
+      p_registration_deadline: `${deadline}T${deadlineTime}`,
       p_divisions: divisions.map(d => ({ id: d.id, max_teams: divMaxTeams[d.id] ?? null })),
     })
 

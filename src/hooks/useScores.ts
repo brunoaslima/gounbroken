@@ -3,9 +3,9 @@ import { supabase } from '@/lib/supabase'
 import type { Score } from '@/types'
 
 export function getPR(scores: Score[], movementId: string, reps: number): number | null {
-  const matching = scores.filter(s => s.movement_id === movementId && s.reps === reps)
+  const matching = scores.filter(s => s.movement_id === movementId && s.reps === reps && s.weight_kg !== null)
   if (!matching.length) return null
-  return Math.max(...matching.map(s => s.weight_kg))
+  return Math.max(...matching.map(s => s.weight_kg!))
 }
 
 export function isNewPR(newWeight: number, currentPR: number | null): boolean {
@@ -82,13 +82,46 @@ export function useScores(userId: string | undefined) {
   // Returns delta kg vs previous entry for same movement+reps, and that entry's date
   function getDelta(movementId: string, reps: number): { delta: number; prevDate: string } | null {
     const sorted = scores
-      .filter(s => s.movement_id === movementId && s.reps === reps)
+      .filter(s => s.movement_id === movementId && s.reps === reps && s.weight_kg !== null)
       .sort((a, b) => b.recorded_at.localeCompare(a.recorded_at))
     if (sorted.length < 2) return null
     return {
-      delta: sorted[0].weight_kg - sorted[1].weight_kg,
+      delta: sorted[0].weight_kg! - sorted[1].weight_kg!,
       prevDate: sorted[1].recorded_at,
     }
+  }
+
+  // PR time for time-based movements (lowest time_seconds = fastest = best)
+  function getPRTimeForMovement(movementId: string): number | null {
+    const ts = scores.filter(s => s.movement_id === movementId && s.time_seconds !== null)
+    if (!ts.length) return null
+    return Math.min(...ts.map(s => s.time_seconds!))
+  }
+
+  async function addTimeScore(
+    movementId: string,
+    timeSeconds: number,
+    rx: boolean,
+    adaptation: string | undefined,
+    scaledWeightKg: number | undefined,
+    recordedAt: string,
+  ): Promise<{ error: string | null }> {
+    const { data, error } = await supabase
+      .from('scores')
+      .insert({
+        user_id: userId,
+        movement_id: movementId,
+        reps: 1,
+        weight_kg: scaledWeightKg ?? null,
+        time_seconds: timeSeconds,
+        rx,
+        adaptation: adaptation?.trim() || null,
+        recorded_at: recordedAt,
+      })
+      .select()
+      .single()
+    if (!error && data) setScores(prev => [data, ...prev])
+    return { error: error?.message ?? null }
   }
 
   // Primary RM to highlight per movement: prefer 1RM, else lowest available
@@ -103,9 +136,11 @@ export function useScores(userId: string | undefined) {
     scores,
     loading,
     addScore,
+    addTimeScore,
     deleteScore,
     getScoresForMovement,
     getPRsForMovement,
+    getPRTimeForMovement,
     getLastRecordedAt,
     getDelta,
     getPrimaryRM,

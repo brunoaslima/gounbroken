@@ -6,6 +6,39 @@ Formato de versão: `## [versão] — AAAA-MM-DD`
 
 ---
 
+## [1.4.0] — 2026-07-05
+
+### Training → Benchmark WODs (Girls & Heroes)
+
+- Training → Add PR: Girls e Heroes agora têm formulário de tempo (MM:SS) em vez de carga
+- Training → Add PR: toggle RX / SCALED — RX regista apenas o tempo; SCALED expõe campo de peso utilizado + texto de adaptação (max 200 chars)
+- Training → Add PR: exibe PR atual abaixo dos inputs de tempo; badge "NOVO PR" em lime quando o tempo digitado é melhor
+- Training → MovementDetail: modo tempo para movements com `score_type = 'time'` — card de descrição do WOD (exercícios, cargas RX, benchmarks Elite/Advanced/Avg), PR em MM:SS em lime, histórico com badge RX/SCALED, peso e adaptação quando SCALED
+- Training → MovementDetail: celebration panel de novo PR de tempo
+- Home: secção "Benchmark WODs" exibe Girls/Heroes com PR de tempo registado; secção "Main PRs" exclui movimentos de tempo
+- DB: coluna `score_type` em `movements` (weight/time/rounds, default weight); Girls e Heroes setados para 'time'
+- DB: `weight_kg` em `scores` agora nullable (suporte a RX sem carga)
+- DB: colunas `time_seconds`, `rx` (default true), `adaptation` (text max 200) em `scores`
+- `src/lib/benchmarkWods.ts`: descrições e benchmarks de 19 WODs (Fran, Grace, Annie, Cindy, Karen, Isabel, Helen, Eva, Kelly, Amanda, Murph, DT, Michael, JT, Diane, Randy, Ryan, Josh, Nate)
+
+---
+
+## [1.3.0] — 2026-07-04
+
+### Training → Unbroken Tracker
+
+- Training → Unbroken Tracker: nova feature para registar sets unbroken de movimentos ginásticos (reps + tempo)
+- Training → Unbroken Tracker: listagem com PR reps em destaque (32px lime), tempo, reps/sec e data por movimento
+- Training → Unbroken Tracker: detalhe do movimento com bloco de PR 3 colunas (PR REPS · TEMPO · REPS/SEC), gráfico SVG com toggle REPS/REPS/SEC e histórico completo de sets com borda lime no PR
+- Training → Unbroken Tracker: bottom sheet de registo com input de reps grande (52px) + campos MIN:SEC separados (padrão ScoreInput da competição) + preview de reps/sec em tempo real + badge NOVO PR
+- Training → Add PR: tab bar horizontal com 5 categorias — WEIGHTLIFTING | GINÁSTICOS | MONOEST. | GIRLS | HEROES
+- Training → Add PR: ao seleccionar categoria, lista de exercícios é filtrada com barra de pesquisa; exercício seleccionado aparece como título em lime em vez de dropdown
+- Training → Add PR: GINÁSTICOS navega para o Unbroken Tracker em vez do formulário de carga
+- DB: coluna `category` adicionada a `movements` (default: weightlifting, backward-compat)
+- DB: nova tabela `unbroken_sets` (reps, time_seconds) com RLS que valida ownership do `movement_id`
+
+---
+
 ## [1.2.0] — 2026-07-01
 
 ### Competition → Live Leaderboard

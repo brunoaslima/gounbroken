@@ -12,7 +12,7 @@ import type { Movement } from '@/types'
 // ── Fixtures ───────────────────────────────────────────────────────────────────
 
 function makeMovement(id: string, name: string): Movement {
-  return { id, name, user_id: 'u1', created_at: '' }
+  return { id, name, user_id: 'u1', created_at: '', category: 'weightlifting', score_type: 'weight' }
 }
 
 // 80kg male, solid numbers across categories

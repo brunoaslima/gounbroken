@@ -1,7 +1,21 @@
+export type MovementCategory = 'weightlifting' | 'gymnastics' | 'monostructural' | 'girls' | 'heroes'
+export type MovementScoreType = 'weight' | 'time' | 'rounds'
+
 export interface Movement {
   id: string
   user_id: string
   name: string
+  category: MovementCategory
+  score_type: MovementScoreType
+  created_at: string
+}
+
+export interface UnbrokenSet {
+  id: string
+  user_id: string
+  movement_id: string
+  reps: number
+  time_seconds: number
   created_at: string
 }
 
@@ -10,7 +24,10 @@ export interface Score {
   user_id: string
   movement_id: string
   reps: number
-  weight_kg: number
+  weight_kg: number | null
+  time_seconds: number | null
+  rx: boolean
+  adaptation: string | null
   recorded_at: string
   notes: string | null
   created_at: string
