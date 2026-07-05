@@ -68,7 +68,7 @@ export function pickHeadline(ctx: HeadlineCtx): ReactNode {
     ? Math.round((heroWeight / profile.body_weight_kg) * 10) / 10
     : null
 
-  const todayStr = today.toISOString().slice(0, 10)
+  const todayStr = new Date().toISOString().slice(0, 10)
   const prToday  = scores.some(s => s.recorded_at?.startsWith(todayStr))
 
   const thirtyAgo = new Date(); thirtyAgo.setDate(thirtyAgo.getDate() - 30)
