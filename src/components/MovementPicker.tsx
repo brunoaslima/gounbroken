@@ -60,7 +60,7 @@ export default function MovementPicker({ movements, value, onChange, required }:
         // satisfies native required semantics visually — actual required is on hidden input below
       >
         <span className={`font-sans text-[16px] leading-tight ${selected ? 'text-soft-white' : 'text-[#3D3D3B]'}`}>
-          {selected ? selected.name : 'Selecionar…'}
+          {selected ? selected.name : 'Select…'}
         </span>
         <svg className="w-4 h-4 text-[#6B6B68] shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -89,7 +89,7 @@ export default function MovementPicker({ movements, value, onChange, required }:
               onClick={() => setOpen(false)}
               className="font-mono font-bold uppercase tracking-[0.12em] text-[11px] text-[#A8A8A4] active:text-soft-white shrink-0"
             >
-              Cancelar
+              Cancel
             </button>
 
             {/* Search field */}
@@ -133,10 +133,10 @@ export default function MovementPicker({ movements, value, onChange, required }:
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 gap-2">
                 <span className="font-mono font-bold uppercase tracking-[0.12em] text-[11px] text-[#3D3D3B]">
-                  Nenhum resultado
+                  No results
                 </span>
                 <span className="font-mono text-[10px] text-[#2A2A2A] uppercase tracking-widest">
-                  tente outro termo
+                  try another term
                 </span>
               </div>
             ) : (

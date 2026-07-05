@@ -162,7 +162,7 @@ describe('validateScoreFields — time', () => {
   it('fails when exceeds cap', () => {
     const err = validateScoreFields({ type: 'time', minutes: 10, seconds: 0 }, 480) // cap 8min
     expect(err).not.toBeNull()
-    expect(err).toContain('limite')
+    expect(err).toContain('cap')
   })
 
   it('passes when equal to cap', () => {

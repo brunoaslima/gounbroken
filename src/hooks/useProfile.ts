@@ -138,10 +138,10 @@ export function useProfile(userId: string | undefined) {
   }
 
   function getBMILabel(bmi: number): { label: string; color: string } {
-    if (bmi < 18.5) return { label: 'Abaixo do peso', color: '#46C2FF' }
-    if (bmi < 25)   return { label: 'Peso normal',    color: '#20C997' }
-    if (bmi < 30)   return { label: 'Sobrepeso',      color: '#FFB84D' }
-    return             { label: 'Obesidade',          color: '#f87171' }
+    if (bmi < 18.5) return { label: 'Underweight', color: '#46C2FF' }
+    if (bmi < 25)   return { label: 'Normal',       color: '#20C997' }
+    if (bmi < 30)   return { label: 'Overweight',   color: '#FFB84D' }
+    return             { label: 'Obese',            color: '#f87171' }
   }
 
   return { profile, loading, saveProfile, completeOnboarding, updateProfile, getAge, getBMI, getBMILabel, refetch: fetch }

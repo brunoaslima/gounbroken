@@ -240,11 +240,11 @@ export default function CompetitionPublic() {
       {/* TABLE */}
       {loading && rows.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
-          <span className="font-mono font-bold uppercase text-[10px] tracking-[0.14em] text-[#6B6B68]">Carregando...</span>
+          <span className="font-mono font-bold uppercase text-[10px] tracking-[0.14em] text-[#6B6B68]">Loading...</span>
         </div>
       ) : rows.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
-          <span className="font-mono font-bold uppercase text-[10px] tracking-[0.14em] text-[#6B6B68]">Nenhum resultado publicado</span>
+          <span className="font-mono font-bold uppercase text-[10px] tracking-[0.14em] text-[#6B6B68]">No published results</span>
         </div>
       ) : (
         <div className="flex-1 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>

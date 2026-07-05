@@ -76,7 +76,7 @@ export default function Drawer({ open, onClose }: Props) {
           <p className="text-[10px] font-semibold text-muted-gray/60 uppercase tracking-wider px-4 mb-2">Menu</p>
 
           <NavItem
-            label="Recordes Pessoais"
+            label="Personal Records"
             active={pathname === '/athlete'}
             onClick={() => go('/athlete')}
             icon={
@@ -98,7 +98,7 @@ export default function Drawer({ open, onClose }: Props) {
           />
 
           <NavItem
-            label="Meus Treinos"
+            label="My Workouts"
             active={pathname === '/athlete/my-workouts'}
             onClick={() => go('/athlete/my-workouts')}
             icon={
@@ -137,7 +137,7 @@ export default function Drawer({ open, onClose }: Props) {
 
         <div className="px-3 py-4 border-t border-white/5">
           <NavItem
-            label="Sair"
+            label="Sign out"
             active={false}
             onClick={() => { signOut(); onClose() }}
             icon={

@@ -209,7 +209,7 @@ export default function BuildupSheet({ open, onClose, movementName, defaultTarge
         <div className="px-5 shrink-0" style={{ paddingTop: 16, paddingBottom: 16, borderBottom: '1px solid #2A2A2A' }}>
           {/* Target weight */}
           <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#6B6B68] block mb-2">
-            Peso alvo
+            Target weight
           </span>
           <div className="flex items-baseline gap-2 mb-4">
             <input
@@ -225,7 +225,7 @@ export default function BuildupSheet({ open, onClose, movementName, defaultTarge
           </div>
           {rawTarget !== '' && !valid && (
             <span className="font-mono text-[11px] text-[#FF4444] uppercase tracking-wider block mb-3">
-              Peso deve ser maior que {barKg} kg (barra vazia)
+              Weight must be greater than {barKg} kg (empty bar)
             </span>
           )}
           {warning && (

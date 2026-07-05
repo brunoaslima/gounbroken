@@ -144,7 +144,7 @@ function FeedbackSheet({ workoutId, initialStatus, existing, onSaved, onClose }:
         {/* Handle */}
         <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-9 h-1 bg-white/15 rounded-full" />
 
-        <p className="text-soft-white font-black text-base">Como foi o treino?</p>
+        <p className="text-soft-white font-black text-base">How was the workout?</p>
 
         {/* Enjoyment */}
         <div>
@@ -217,7 +217,7 @@ function FeedbackSheet({ workoutId, initialStatus, existing, onSaved, onClose }:
 function FeedbackSummary({ feedback }: { feedback: WorkoutFeedback; isCoach?: boolean }) {
   return (
     <div className="space-y-2">
-      <p className="text-[9px] font-black text-muted-gray/35 uppercase tracking-widest">Feedback do treino</p>
+      <p className="text-[9px] font-black text-muted-gray/35 uppercase tracking-widest">Workout feedback</p>
       <div className="flex flex-wrap gap-2 items-center">
         <span className={`text-[11px] font-bold px-2.5 py-1 border ${
           feedback.status === 'completed'           ? 'border-lime/30 bg-lime/10 text-lime' :

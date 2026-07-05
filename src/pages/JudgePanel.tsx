@@ -201,7 +201,7 @@ export default function JudgePanel() {
             />
 
             <div style={{ fontWeight: 700, fontSize: 22, letterSpacing: '-0.015em', lineHeight: 1.1 }}>
-              Resultado da equipe
+              Team result
             </div>
 
             {/* Score inputs — same pattern as CompetitionManage Results tab */}

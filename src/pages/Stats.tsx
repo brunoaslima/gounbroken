@@ -294,14 +294,14 @@ export default function Stats() {
         {/* ── Profile + BMI ── */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-card rounded-2xl p-4 border border-white/5">
-            <p className="text-[11px] font-bold text-muted-gray uppercase tracking-widest mb-3">Seu perfil</p>
+            <p className="text-[11px] font-bold text-muted-gray uppercase tracking-widest mb-3">Your profile</p>
             <p className="text-2xl font-black text-soft-white">{age}</p>
-            <p className="text-muted-gray text-xs mt-0.5">anos</p>
+            <p className="text-muted-gray text-xs mt-0.5">yr</p>
             <p className="text-soft-white font-semibold text-sm mt-2">{profile.body_weight_kg}kg · {profile.height_cm}cm</p>
           </div>
           {bmi && bmiInfo && (
             <div className="bg-card rounded-2xl p-4 border border-white/5">
-              <p className="text-[11px] font-bold text-muted-gray uppercase tracking-widest mb-3">IMC</p>
+              <p className="text-[11px] font-bold text-muted-gray uppercase tracking-widest mb-3">BMI</p>
               <p className="text-2xl font-black text-soft-white">{bmi}</p>
               <span
                 className="inline-block text-xs font-bold px-2 py-0.5 mt-2"

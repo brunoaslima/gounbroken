@@ -139,30 +139,30 @@ export function validateScoreFields(fields: ScoreFields, capSeconds?: number | n
   switch (fields.type) {
     case 'time': {
       const ss = fields.seconds ?? 0
-      if (ss > 59) return 'Segundos deve ser 0–59'
+      if (ss > 59) return 'Seconds must be 0–59'
       const total = (fields.minutes ?? 0) * 60 + ss
-      if (total <= 0) return 'Tempo deve ser maior que zero'
-      if (total > 3600) return 'Tempo máximo: 60:00'
+      if (total <= 0) return 'Time must be greater than zero'
+      if (total > 3600) return 'Maximum time: 60:00'
       if (capSeconds != null && total > capSeconds) {
         const capMM = Math.floor(capSeconds / 60)
         const capSS = capSeconds % 60
-        return `Tempo excede o limite da prova (${String(capMM).padStart(2, '0')}:${String(capSS).padStart(2, '0')})`
+        return `Time exceeds event cap (${String(capMM).padStart(2, '0')}:${String(capSS).padStart(2, '0')})`
       }
       return null
     }
     case 'reps':
-      if (!fields.reps || fields.reps <= 0) return 'Reps deve ser maior que zero'
+      if (!fields.reps || fields.reps <= 0) return 'Reps must be greater than zero'
       return null
     case 'weight':
-      if (!fields.kg || fields.kg <= 0) return 'Peso deve ser maior que zero'
+      if (!fields.kg || fields.kg <= 0) return 'Weight must be greater than zero'
       return null
     case 'rounds_plus_reps': {
       const rounds = fields.rounds ?? 0
       const reps = fields.partialReps ?? 0
-      if (rounds < 0) return 'Rounds não pode ser negativo'
-      if (reps < 0) return 'Reps não pode ser negativo'
-      if (rounds === 0 && reps === 0) return 'Resultado deve ser maior que zero'
-      if (reps >= ROUNDS_MULTIPLIER) return 'Reps parciais deve ser menor que 10000'
+      if (rounds < 0) return 'Rounds cannot be negative'
+      if (reps < 0) return 'Reps cannot be negative'
+      if (rounds === 0 && reps === 0) return 'Result must be greater than zero'
+      if (reps >= ROUNDS_MULTIPLIER) return 'Partial reps must be less than 10000'
       return null
     }
   }
