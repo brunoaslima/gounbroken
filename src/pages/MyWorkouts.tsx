@@ -331,7 +331,7 @@ export default function MyWorkouts() {
     .sort((a, b) => b.workout_date.localeCompare(a.workout_date))
 
   return (
-    <div className="min-h-screen bg-graphite pb-28 md:pb-8 safe-top">
+    <div className="min-h-screen bg-graphite pb-28 md:pb-8">
       {generateOpen && (
         <GenerateSheet
           onClose={() => setGenerateOpen(false)}
