@@ -1442,7 +1442,7 @@ function WrappedStage({ slides, onClose }: WrappedStageProps) {
     }}>
       {/* Progress bars */}
       <div style={{
-        position: 'absolute', top: 48, left: 12, right: 12, zIndex: 30,
+        position: 'absolute', top: 'calc(env(safe-area-inset-top) + 48px)', left: 12, right: 12, zIndex: 30,
         display: 'flex', gap: 3,
       }}>
         {slides.map((_, i) => (
@@ -1463,7 +1463,7 @@ function WrappedStage({ slides, onClose }: WrappedStageProps) {
 
       {/* Brand top */}
       <div style={{
-        position: 'absolute', top: 60, left: 0, right: 0,
+        position: 'absolute', top: 'calc(env(safe-area-inset-top) + 60px)', left: 0, right: 0,
         padding: '10px 20px',
         display: 'flex', justifyContent: 'space-between',
         zIndex: 25, pointerEvents: 'none',

@@ -567,7 +567,7 @@ export default function Leaderboard() {
       {/* TOP BAR */}
       <div
         className="flex items-center justify-between gap-3 px-4 border-b border-[#2A2A2A]"
-        style={{ minHeight: 52 }}
+        style={{ paddingTop: 'env(safe-area-inset-top)', minHeight: 52 }}
       >
         <div className="flex items-center gap-3 min-w-0">
           <button

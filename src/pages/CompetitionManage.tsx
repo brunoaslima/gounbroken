@@ -652,7 +652,7 @@ export default function CompetitionManage() {
     <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: '#0A0A0A', color: '#F5F5F0', fontFamily: 'Space Grotesk, sans-serif', display: 'flex', flexDirection: 'column' }}>
 
       {/* ── Topbar ──────────────────────────────────────────────────────────────── */}
-      <div style={{ background: '#111111', borderBottom: '1px solid #2A2A2A', padding: '0 16px', height: 52, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+      <div style={{ background: '#111111', borderBottom: '1px solid #2A2A2A', paddingTop: 'env(safe-area-inset-top)', paddingLeft: 16, paddingRight: 16, minHeight: 52, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
         <button
           onClick={() => navigate(-1)}
           style={{ background: 'none', border: 'none', color: '#6B6B68', cursor: 'pointer', padding: '4px 8px 4px 0', display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}

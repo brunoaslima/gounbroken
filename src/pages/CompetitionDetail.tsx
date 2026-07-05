@@ -282,7 +282,7 @@ export default function CompetitionDetail() {
         {/* topbar skeleton */}
         <header
           className="sticky top-0 z-10 flex items-center justify-between border-b border-[#2A2A2A]"
-          style={{ height: 52, padding: '8px 16px 12px', background: '#0A0A0A' }}
+          style={{ minHeight: 52, paddingTop: 'env(safe-area-inset-top)', paddingBottom: 12, paddingLeft: 16, paddingRight: 16, background: '#0A0A0A' }}
         >
           <div style={{ width: 36, height: 36 }} />
           <span className="font-mono font-black uppercase" style={{ fontSize: 11, letterSpacing: '0.22em', color: '#F5F5F0' }}>

@@ -537,7 +537,7 @@ const pageStyle: React.CSSProperties = {
 
 const topbarStyle: React.CSSProperties = {
   background: '#111111', borderBottom: '1px solid #2A2A2A',
-  padding: '0 16px', height: 52,
+  paddingTop: 'env(safe-area-inset-top)', paddingLeft: 16, paddingRight: 16, minHeight: 52,
   display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0,
 }
 
