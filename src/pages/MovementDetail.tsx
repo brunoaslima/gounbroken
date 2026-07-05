@@ -10,6 +10,8 @@ import { getMovementSuggestions } from '@/lib/movementSuggestions'
 import { formatDate, formatDateShort } from '@/lib/utils'
 import { epley1RM } from '@/lib/scoreUtils'
 import BuildupSheet from '@/components/BuildupSheet'
+import { BENCHMARK_WODS } from '@/lib/benchmarkWods'
+import WodCard from '@/components/WodCard'
 
 const RANGES = ['1S', '1M', '3M', '1A', 'ALL'] as const
 type Range = typeof RANGES[number]
@@ -45,7 +47,7 @@ export default function MovementDetail() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { movements } = useMovements(user?.id)
-  const { getScoresForMovement, getPRsForMovement, deleteScore } = useScores(user?.id)
+  const { getScoresForMovement, getPRsForMovement, getPRTimeForMovement, deleteScore } = useScores(user?.id)
   const { profile } = useProfile(user?.id)
 
   const [filterReps, setFilterReps] = useState<number>(1)
@@ -58,14 +60,21 @@ export default function MovementDetail() {
   const [showCelebration, setShowCelebration] = useState(false)
   const [celebrationWeight, setCelebrationWeight] = useState(0)
   const [celebrationReps, setCelebrationReps] = useState(1)
+  const [showCelebrationTime, setShowCelebrationTime] = useState(false)
+  const [celebrationTime, setCelebrationTime] = useState(0)
 
   const location = useLocation()
   useEffect(() => {
-    const s = location.state as { celebratePR?: boolean; weight?: number; reps?: number } | null
+    const s = location.state as { celebratePR?: boolean; weight?: number; reps?: number; timeSeconds?: number } | null
     if (s?.celebratePR && s.weight && s.reps) {
       setCelebrationWeight(s.weight)
       setCelebrationReps(s.reps)
       setShowCelebration(true)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+    if (s?.celebratePR && s.timeSeconds) {
+      setCelebrationTime(s.timeSeconds)
+      setShowCelebrationTime(true)
       window.history.replaceState({}, '', window.location.pathname)
     }
   }, [])
@@ -106,14 +115,14 @@ export default function MovementDetail() {
   const tierColor = analysis ? TIER_COLORS[analysis.level] : '#6B6B68'
 
   const periodStart = filteredByRange[0]?.weight_kg ?? null
-  const periodPeak = filteredByRange.length > 0 ? Math.max(...filteredByRange.map(s => s.weight_kg)) : null
+  const periodPeak = filteredByRange.length > 0 ? Math.max(...filteredByRange.map(s => s.weight_kg ?? 0)) : null
   const periodDelta = filteredByRange.length >= 2
-    ? filteredByRange[filteredByRange.length - 1].weight_kg - filteredByRange[0].weight_kg
+    ? (filteredByRange[filteredByRange.length - 1].weight_kg ?? 0) - (filteredByRange[0].weight_kg ?? 0)
     : null
 
   // Recent delta (last vs second-to-last in full rep history)
   const recentDelta = filteredByReps.length >= 2
-    ? filteredByReps[filteredByReps.length - 1].weight_kg - filteredByReps[filteredByReps.length - 2].weight_kg
+    ? (filteredByReps[filteredByReps.length - 1].weight_kg ?? 0) - (filteredByReps[filteredByReps.length - 2].weight_kg ?? 0)
     : null
 
   const suggestions = movement ? getMovementSuggestions(movement.name) : null
@@ -127,7 +136,7 @@ export default function MovementDetail() {
         import('html-to-image'),
       ])
       const data = buildStoriesData(
-        allScores,
+        allScores.filter(s => s.weight_kg !== null) as Parameters<typeof buildStoriesData>[0],
         movement.name,
         profile?.body_weight_kg ?? null,
         profile?.gender as 'male' | 'female' | 'other' | 'prefer_not_to_say' | null,
@@ -181,8 +190,188 @@ export default function MovementDetail() {
     </div>
   )
 
+  // ── TIME MODE ────────────────────────────────────────────────────────────────
+  if (movement.score_type === 'time') {
+    const timePR = id ? getPRTimeForMovement(id) : null
+    const timeScores = allScores
+      .filter(s => s.time_seconds !== null)
+      .sort((a, b) => b.recorded_at.localeCompare(a.recorded_at))
+    const wod = BENCHMARK_WODS[movement.name]
+
+    function fmtTime(secs: number): string {
+      const m = Math.floor(secs / 60)
+      const s2 = secs % 60
+      return `${m}:${String(s2).padStart(2, '0')}`
+    }
+
+    return (
+      <div className="min-h-screen bg-graphite pb-28 safe-top safe-bottom flex flex-col">
+        <header className="flex items-center justify-between px-5 border-b border-[#2A2A2A] shrink-0" style={{ height: 52 }}>
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center justify-center text-[#A8A8A4] active:text-soft-white"
+            style={{ width: 40, height: 40, marginLeft: -8 }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <span className="font-mono font-bold uppercase tracking-[0.18em] text-[11px] text-[#A8A8A4]">History</span>
+          <div style={{ width: 40 }} />
+        </header>
+
+        <div className="flex-1 overflow-y-auto">
+          {/* Header */}
+          <div className="px-5 pt-4 pb-5 border-b border-[#2A2A2A]">
+            <h1 className="font-sans font-bold text-soft-white" style={{ fontSize: 28, letterSpacing: '-0.02em', lineHeight: 1.05 }}>
+              {movement.name}
+            </h1>
+            {/* WOD description card */}
+            {wod && <WodCard wod={wod} className="mt-3" />}
+            {/* PR time */}
+            <div className="flex items-end justify-between mt-3">
+              <div className="flex items-baseline gap-2">
+                <span
+                  className="font-mono font-black text-soft-white leading-none"
+                  style={{ fontSize: 56, letterSpacing: '0.01em', fontVariantNumeric: 'tabular-nums', color: timePR !== null ? '#D4FF3A' : '#3D3D3B' }}
+                >
+                  {timePR !== null ? fmtTime(timePR) : '—:——'}
+                </span>
+              </div>
+            </div>
+            {timePR !== null && (
+              <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#6B6B68] block mt-1">
+                PR · fastest time
+              </span>
+            )}
+          </div>
+
+          {/* History list */}
+          <div className="border-t border-[#2A2A2A]">
+            <div className="px-5 py-3 border-b border-[#2A2A2A]">
+              <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#A8A8A4]">
+                Recent sessions
+              </span>
+            </div>
+            {timeScores.length === 0 ? (
+              <div className="px-5 py-12 text-center">
+                <p className="font-mono text-[11px] uppercase tracking-widest text-[#6B6B68]">No record</p>
+              </div>
+            ) : (
+              <div>
+                {timeScores.map(score => {
+                  const isPR = score.time_seconds !== null && score.time_seconds === timePR
+                  return (
+                    <div
+                      key={score.id}
+                      className="border-b border-[#2A2A2A] px-5 py-3.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="font-mono font-bold uppercase tracking-[0.1em] text-[10px] text-[#6B6B68]">
+                            {formatDate(score.recorded_at)}
+                          </span>
+                          <span
+                            className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-2 py-0.5"
+                            style={{
+                              background: score.rx ? '#1A2A00' : '#1A1A1A',
+                              color: score.rx ? '#D4FF3A' : '#A8A8A4',
+                              border: `1px solid ${score.rx ? '#2A4400' : '#2A2A2A'}`,
+                            }}
+                          >
+                            {score.rx ? 'RX' : 'SCALED'}
+                          </span>
+                          {isPR && (
+                            <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-2 py-0.5" style={{ background: '#D4FF3A', color: '#0A0A0A' }}>
+                              PR
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-mono font-black text-[22px] text-soft-white" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                            {score.time_seconds !== null ? fmtTime(score.time_seconds) : '—'}
+                          </span>
+                          {confirmingDeleteId === score.id ? (
+                            <div className="flex items-center gap-1">
+                              <span className="font-mono text-[10px] text-[#FF4444] uppercase tracking-wider">Delete?</span>
+                              <button
+                                onClick={() => { setConfirmingDeleteId(null); handleDeleteScore(score.id) }}
+                                className="font-mono text-[10px] font-bold text-[#0A0A0A] px-2 py-1"
+                                style={{ background: '#FF4444' }}
+                              >Yes</button>
+                              <button
+                                onClick={() => setConfirmingDeleteId(null)}
+                                className="font-mono text-[10px] text-[#6B6B68] px-2 py-1 border border-[#2A2A2A]"
+                              >No</button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setConfirmingDeleteId(score.id)}
+                              className="text-[#3D3D3B] active:text-[#FF4444] transition-colors p-1"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {!score.rx && score.adaptation && (
+                        <p className="font-sans text-[12px] text-[#6B6B68] mt-1.5 leading-snug">{score.adaptation}</p>
+                      )}
+                      {!score.rx && score.weight_kg !== null && (
+                        <p className="font-mono text-[10px] text-[#555] mt-0.5">{score.weight_kg} kg</p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* FAB */}
+        <button
+          onClick={() => navigate(`/athlete/add?movement=${id}`)}
+          className="fixed bottom-6 right-5 flex items-center justify-center z-10 active:scale-95 transition-transform"
+          style={{ width: 52, height: 52, background: '#D4FF3A' }}
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0A0A0A" strokeWidth="2.5">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </button>
+
+        {/* Celebration panel — time PR */}
+        {showCelebrationTime && (
+          <div className="fixed inset-0 z-50 flex flex-col justify-end">
+            <div className="absolute inset-0 bg-black/60" onClick={() => setShowCelebrationTime(false)} />
+            <div className="relative bg-[#111111] border-t-2 border-[#D4FF3A] px-5 pt-7 pb-10" style={{ zIndex: 1 }}>
+              <div className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-[#D4FF3A] mb-3">
+                New Personal Record
+              </div>
+              <div className="font-sans text-[26px] font-bold leading-tight text-white mb-4">
+                {movement.name}
+              </div>
+              <div className="flex items-baseline gap-3 mb-7">
+                <span className="font-mono text-[52px] font-black leading-none text-[#D4FF3A]">
+                  {fmtTime(celebrationTime)}
+                </span>
+              </div>
+              <button
+                onClick={() => setShowCelebrationTime(false)}
+                className="w-full py-3.5 border border-[#2A2A2A] font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[#6B6B68]"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   // SVG chart
-  const chartValues = filteredByRange.map(s => s.weight_kg)
+  const chartValues = filteredByRange.map(s => s.weight_kg ?? 0)
   const W = 360, H = 160, PAD = 16
   const chartMin = chartValues.length > 0 ? Math.min(...chartValues) : 0
   const chartMax = chartValues.length > 0 ? Math.max(...chartValues) : 1
@@ -465,7 +654,7 @@ export default function MovementDetail() {
           ) : (
             <div>
               {[...filteredByReps].reverse().map(score => {
-                const isPR = prs[score.reps] === score.weight_kg
+                const isPR = score.weight_kg !== null && prs[score.reps] === score.weight_kg
                 return (
                   <div
                     key={score.id}

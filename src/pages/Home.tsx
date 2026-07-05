@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useMovements } from '@/hooks/useMovements'
 import { useScores } from '@/hooks/useScores'
 import { useProfile } from '@/hooks/useProfile'
+import { useUnbrokenSets } from '@/hooks/useUnbrokenSets'
 import { analyzeStrength, TIER_LABELS, TIER_COLORS } from '@/lib/strengthStandards'
 import { MOVEMENT_GROUPS, getMovementCategory } from '@/lib/presetMovements'
 import {
@@ -35,10 +36,12 @@ const Ruler = () => (
 export default function Home() {
   const { user } = useAuth()
   const { movements, loading: loadingMovements } = useMovements(user?.id)
-  const { loading: loadingScores, getPRsForMovement, getLastRecordedAt, getDelta, getPrimaryRM, scores } = useScores(user?.id)
+  const { loading: loadingScores, getPRsForMovement, getPRTimeForMovement, getDelta, getPrimaryRM, scores } = useScores(user?.id)
   const { profile } = useProfile(user?.id)
+  const { getPRForMovement: getUnbrokenPR } = useUnbrokenSets(user?.id)
   const navigate = useNavigate()
   const [showEmpty, setShowEmpty] = useState(false)
+  const [activeTab, setActiveTab] = useState<'strength' | 'gymnastics' | 'benchmark'>('strength')
 
   const loading = loadingMovements || loadingScores
 
@@ -51,12 +54,16 @@ export default function Home() {
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7)
     return scores
       .filter(s => new Date(s.recorded_at + 'T00:00:00') >= cutoff)
-      .reduce((acc, s) => acc + s.weight_kg * s.reps, 0)
+      .reduce((acc, s) => acc + (s.weight_kg ?? 0) * s.reps, 0)
   })()
 
   // Best movement analysis (for headline %)
-  const movementsWithScores = movements.filter(m => getPrimaryRM(m.id) !== null)
-  const movementsWithoutScores = movements.filter(m => getPrimaryRM(m.id) === null)
+  const movementsWithScores = movements.filter(m =>
+    m.category !== 'gymnastics' && m.score_type !== 'time' && getPrimaryRM(m.id) !== null
+  )
+  const movementsWithoutScores = movements.filter(m =>
+    m.category !== 'gymnastics' && m.score_type !== 'time' && getPrimaryRM(m.id) === null
+  )
 
   const allAnalyses = profile?.body_weight_kg && profile?.gender
     ? movementsWithScores
@@ -83,16 +90,27 @@ export default function Home() {
   const alpha = (a: string, b: string) =>
     a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })
 
-  const sortedMovements = allAnalyses.length > 0
-    ? allAnalyses.sort((a, b) => alpha(a.movement.name, b.movement.name))
-    : movementsWithScores
-        .sort((a, b) => alpha(a.name, b.name))
-        .map(m => ({
-          movement: m,
-          analysis: null,
-          weight: getPRsForMovement(m.id)[getPrimaryRM(m.id)!] ?? 0,
-          rm: getPrimaryRM(m.id) ?? 1,
-        }))
+  // All movements with kg-based scores (weightlifting, monostructural, girls, heroes)
+  const sortedMovements = movementsWithScores
+    .sort((a, b) => alpha(a.name, b.name))
+    .map(m => {
+      const rm = getPrimaryRM(m.id) ?? 1
+      const w = getPRsForMovement(m.id)[rm] ?? 0
+      const analysis = (profile?.body_weight_kg && profile?.gender)
+        ? analyzeStrength(m.name, w, profile.body_weight_kg, profile.gender as 'male'|'female'|'other')
+        : null
+      return { movement: m, analysis, weight: w, rm }
+    })
+
+  // Gymnastics movements that have at least one unbroken set
+  const gymMovementsWithPR = movements
+    .filter(m => m.category === 'gymnastics' && getUnbrokenPR(m.id) !== null)
+    .sort((a, b) => alpha(a.name, b.name))
+
+  // Girls/Heroes with at least one time score
+  const timeMovementsWithPR = movements
+    .filter(m => m.score_type === 'time' && getPRTimeForMovement(m.id) !== null)
+    .sort((a, b) => alpha(a.name, b.name))
 
   // Delta for hero
   const heroDelta = heroPR ? getDelta(heroPR.movement.id, heroPR.rm) : null
@@ -230,52 +248,169 @@ export default function Home() {
           </div>
         )}
 
-        {/* Movement list */}
-        {!loading && sortedMovements.length > 0 && (
-          <div>
-            <div className="px-5 pb-2 flex items-center justify-between border-t border-[#2A2A2A] pt-4">
-              <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#A8A8A4]">
-                Main PRs
-              </span>
-              <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#6B6B68]">
-                {sortedMovements.length} movements
-              </span>
-            </div>
-
-            <div className="border-t border-[#2A2A2A]">
-              {sortedMovements.map(({ movement, analysis, weight, rm }) => {
-                const tierColor = analysis ? TIER_COLORS[analysis.level] : '#6B6B68'
-                const tierShort = analysis ? TIER_LABELS[analysis.level] : null
-                const score = analysis?.score
-
+        {/* ── Category tabs ─────────────────────────────────────────────── */}
+        {!loading && (
+          <div className="border-t border-[#2A2A2A]">
+            {/* Tab bar */}
+            <div className="flex">
+              {([
+                { key: 'strength',   label: 'STRENGTH',   count: sortedMovements.length },
+                { key: 'gymnastics', label: 'GYMNASTICS', count: gymMovementsWithPR.length },
+                { key: 'benchmark',  label: 'BENCHMARK',  count: timeMovementsWithPR.length },
+              ] as const).map(({ key, label, count }, i, arr) => {
+                const active = activeTab === key
                 return (
                   <button
-                    key={movement.id}
-                    onClick={() => navigate(`/athlete/movement/${movement.id}`)}
-                    className="w-full text-left border-b border-[#2A2A2A] active:bg-[#141414] transition-colors"
-                    style={{ display: 'grid', gridTemplateColumns: '4px 1fr auto', alignItems: 'center', gap: 16, padding: '16px 20px' }}
+                    key={key}
+                    onClick={() => setActiveTab(key)}
+                    className="flex-1 flex flex-col items-center justify-center transition-colors"
+                    style={{
+                      height: 44,
+                      background: 'transparent',
+                      borderRight: i < arr.length - 1 ? '1px solid #2A2A2A' : 'none',
+                      borderBottom: active ? '2px solid #D4FF3A' : '2px solid transparent',
+                    }}
                   >
-                    <span style={{ width: 4, alignSelf: 'stretch', background: tierColor, display: 'block', minHeight: 36 }} />
-                    <div>
-                      <div className="font-sans font-semibold text-[16px] text-soft-white" style={{ letterSpacing: '-0.01em' }}>
-                        {movement.name}
-                      </div>
-                      {tierShort && (
-                        <span className="font-mono font-bold uppercase tracking-[0.1em] text-[10px] mt-1 block" style={{ color: tierColor }}>
-                          {tierShort}{score !== undefined ? ` · top ${Math.round(100 - score)}%` : ''}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-baseline gap-1">
-                      <span className="font-mono font-bold text-[20px] text-soft-white" style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: '0.01em' }}>
-                        {weight}
+                    <span
+                      className="font-mono font-bold uppercase tracking-[0.12em] text-[10px]"
+                      style={{ color: active ? '#D4FF3A' : '#555' }}
+                    >
+                      {label}
+                    </span>
+                    {count > 0 && (
+                      <span
+                        className="font-mono font-bold text-[10px] mt-0.5"
+                        style={{ color: active ? '#6B6B68' : '#2A2A2A' }}
+                      >
+                        {count}
                       </span>
-                      <span className="font-mono font-medium text-[11px] text-[#6B6B68]">KG</span>
-                    </div>
+                    )}
                   </button>
                 )
               })}
             </div>
+
+            {/* STRENGTH */}
+            {activeTab === 'strength' && (
+              <div>
+                {sortedMovements.length === 0 ? (
+                  <div className="px-5 py-12 text-center">
+                    <p className="font-mono text-[11px] uppercase tracking-widest text-[#3D3D3B]">No PRs recorded yet</p>
+                  </div>
+                ) : (
+                  sortedMovements.map(({ movement, analysis, weight, rm }) => {
+                    const color = analysis ? TIER_COLORS[analysis.level] : '#6B6B68'
+                    const tierShort = analysis ? TIER_LABELS[analysis.level] : null
+                    const score = analysis?.score
+                    return (
+                      <button
+                        key={movement.id}
+                        onClick={() => navigate(`/athlete/movement/${movement.id}`)}
+                        className="w-full text-left border-b border-[#2A2A2A] active:bg-[#141414] transition-colors"
+                        style={{ display: 'grid', gridTemplateColumns: '4px 1fr auto', alignItems: 'center', gap: 16, padding: '16px 20px' }}
+                      >
+                        <span style={{ width: 4, alignSelf: 'stretch', background: color, display: 'block', minHeight: 36 }} />
+                        <div>
+                          <div className="font-sans font-semibold text-[16px] text-soft-white" style={{ letterSpacing: '-0.01em' }}>
+                            {movement.name}
+                          </div>
+                          {tierShort && (
+                            <span className="font-mono font-bold uppercase tracking-[0.1em] text-[10px] mt-1 block" style={{ color }}>
+                              {tierShort}{score !== undefined ? ` · top ${Math.round(100 - score)}%` : ''}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                          <span className="font-mono font-bold text-[20px] text-soft-white" style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: '0.01em' }}>
+                            {weight}
+                          </span>
+                          <span className="font-mono font-medium text-[11px] text-[#6B6B68]">KG</span>
+                        </div>
+                      </button>
+                    )
+                  })
+                )}
+              </div>
+            )}
+
+            {/* GYMNASTICS */}
+            {activeTab === 'gymnastics' && (
+              <div>
+                {gymMovementsWithPR.length === 0 ? (
+                  <div className="px-5 py-12 text-center">
+                    <p className="font-mono text-[11px] uppercase tracking-widest text-[#3D3D3B]">No unbroken sets recorded yet</p>
+                  </div>
+                ) : (
+                  gymMovementsWithPR.map(m => {
+                    const pr = getUnbrokenPR(m.id)!
+                    const rps = pr.time_seconds > 0 ? (pr.reps / pr.time_seconds).toFixed(2) : '—'
+                    return (
+                      <button
+                        key={m.id}
+                        onClick={() => navigate(`/athlete/unbroken/${m.id}`)}
+                        className="w-full text-left border-b border-[#2A2A2A] active:bg-[#141414] transition-colors"
+                        style={{ display: 'grid', gridTemplateColumns: '4px 1fr auto', alignItems: 'center', gap: 16, padding: '16px 20px' }}
+                      >
+                        <span style={{ width: 4, alignSelf: 'stretch', background: '#D4FF3A', display: 'block', minHeight: 36 }} />
+                        <div>
+                          <div className="font-sans font-semibold text-[16px] text-soft-white" style={{ letterSpacing: '-0.01em' }}>
+                            {m.name}
+                          </div>
+                          <span className="font-mono font-bold uppercase tracking-[0.1em] text-[10px] mt-1 block" style={{ color: '#D4FF3A' }}>
+                            {rps} reps/sec
+                          </span>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                          <span className="font-mono font-bold text-[20px] text-soft-white" style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: '0.01em' }}>
+                            {pr.reps}
+                          </span>
+                          <span className="font-mono font-medium text-[11px] text-[#6B6B68]">REPS</span>
+                        </div>
+                      </button>
+                    )
+                  })
+                )}
+              </div>
+            )}
+
+            {/* BENCHMARK */}
+            {activeTab === 'benchmark' && (
+              <div>
+                {timeMovementsWithPR.length === 0 ? (
+                  <div className="px-5 py-12 text-center">
+                    <p className="font-mono text-[11px] uppercase tracking-widest text-[#3D3D3B]">No benchmark WODs recorded yet</p>
+                  </div>
+                ) : (
+                  timeMovementsWithPR.map(m => {
+                    const timePR = getPRTimeForMovement(m.id)!
+                    const mins = Math.floor(timePR / 60)
+                    const secs = timePR % 60
+                    const fmtPR = `${mins}:${String(secs).padStart(2, '0')}`
+                    return (
+                      <button
+                        key={m.id}
+                        onClick={() => navigate(`/athlete/movement/${m.id}`)}
+                        className="w-full text-left border-b border-[#2A2A2A] active:bg-[#141414] transition-colors"
+                        style={{ display: 'grid', gridTemplateColumns: '4px 1fr auto', alignItems: 'center', gap: 16, padding: '16px 20px' }}
+                      >
+                        <span style={{ width: 4, alignSelf: 'stretch', background: '#D4FF3A', display: 'block', minHeight: 36 }} />
+                        <div>
+                          <div className="font-sans font-semibold text-[16px] text-soft-white" style={{ letterSpacing: '-0.01em' }}>
+                            {m.name}
+                          </div>
+                          <span className="font-mono font-bold uppercase tracking-[0.1em] text-[10px] mt-1 block" style={{ color: '#555' }}>
+                            {m.category === 'heroes' ? 'Hero WOD' : 'Girl WOD'} · for time
+                          </span>
+                        </div>
+                        <span className="font-mono font-bold text-[20px] text-soft-white" style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: '0.01em' }}>
+                          {fmtPR}
+                        </span>
+                      </button>
+                    )
+                  })
+                )}
+              </div>
+            )}
           </div>
         )}
 

@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useMovements } from '@/hooks/useMovements'
@@ -9,6 +9,8 @@ import { analyzeStrength, TIER_LABELS } from '@/lib/strengthStandards'
 import { epley1RM } from '@/lib/scoreUtils'
 import TierBar from '@/components/TierBar'
 import { phCapture } from '@/lib/posthog'
+import { BENCHMARK_WODS } from '@/lib/benchmarkWods'
+import WodCard from '@/components/WodCard'
 import type { MovementCategory } from '@/types'
 
 const QUICK_ADJUST = [-5, -2.5, -1, +1, +2.5, +5]
@@ -40,7 +42,7 @@ export default function AddScore() {
   const [searchParams] = useSearchParams()
   const { user } = useAuth()
   const { movements } = useMovements(user?.id)
-  const { addScore, getPRsForMovement } = useScores(user?.id)
+  const { addScore, addTimeScore, getPRsForMovement, getPRTimeForMovement } = useScores(user?.id)
   const { profile } = useProfile(user?.id)
   const { getPRForMovement, getSetsForMovement } = useUnbrokenSets(user?.id)
 
@@ -53,8 +55,21 @@ export default function AddScore() {
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [timeMin, setTimeMin] = useState(0)
+  const [timeSec, setTimeSec] = useState(0)
+  const [rx, setRx] = useState(true)
+  const [scaledWeight, setScaledWeight] = useState(0)
+  const [adaptation, setAdaptation] = useState('')
+  const [savingTime, setSavingTime] = useState(false)
 
   const movement = movements.find(m => m.id === movementId)
+
+  useEffect(() => {
+    if (movement?.category === 'gymnastics') {
+      navigate(`/athlete/unbroken/${movement.id}`, { replace: true })
+    }
+  }, [movement?.id, movement?.category, navigate])
+
   const currentPR = movementId && reps ? (getPRsForMovement(movementId)[reps] ?? null) : null
   const wouldBePR = weight > 0 && (currentPR === null || weight > currentPR)
   const e1rm = epley1RM(weight, reps)
@@ -218,23 +233,200 @@ export default function AddScore() {
             filteredMovements.map(mv => {
               const pr = getPRsForMovement(mv.id)[1] ?? null
               return (
-                <button
-                  key={mv.id}
-                  onClick={() => setMovementId(mv.id)}
-                  className="w-full text-left flex items-center justify-between px-5 border-b border-[#111] active:bg-[#0D0D0D]"
-                  style={{ height: 54 }}
-                >
-                  <div>
-                    <div className="text-[14px] font-bold text-soft-white">{mv.name}</div>
-                    <div className="font-mono text-[10px] text-[#555]">
-                      {pr !== null ? `PR: ${pr} kg` : 'Sem registos'}
+                <div key={mv.id} className="flex items-center border-b border-[#111]" style={{ height: 54 }}>
+                  <button
+                    className="flex-1 text-left flex items-center px-5 h-full active:bg-[#0D0D0D]"
+                    onClick={() => setMovementId(mv.id)}
+                  >
+                    <div>
+                      <div className="text-[14px] font-bold text-soft-white">{mv.name}</div>
+                      <div className="font-mono text-[10px] text-[#555]">
+                        {pr !== null ? `PR: ${pr} kg` : 'Sem registos'}
+                      </div>
                     </div>
-                  </div>
-                  <span className="text-[#333] text-lg">›</span>
-                </button>
+                  </button>
+                  <button
+                    className="px-4 h-full flex items-center border-l border-[#1A1A1A] active:bg-[#0D0D0D]"
+                    onClick={() => navigate(`/athlete/movement/${mv.id}`)}
+                    aria-label="Ver histórico"
+                  >
+                    <svg width="16" height="16" fill="none" stroke="#555" strokeWidth="1.5" viewBox="0 0 24 24">
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                    </svg>
+                  </button>
+                </div>
               )
             })
           )}
+        </div>
+      </div>
+    )
+  }
+
+  // ── TIME ENTRY FORM (girls / heroes — score_type === 'time')
+  if (movementId && movement?.score_type === 'time') {
+    const totalSecs = timeMin * 60 + timeSec
+    const prTime = getPRTimeForMovement(movementId)
+    const isNewPR = totalSecs > 0 && (prTime === null || totalSecs < prTime)
+    const wod = BENCHMARK_WODS[movement.name]
+
+    async function handleSubmitTime() {
+      if (totalSecs <= 0) return
+      setSavingTime(true)
+      const { error } = await addTimeScore(
+        movementId,
+        totalSecs,
+        rx,
+        adaptation || undefined,
+        rx ? undefined : (scaledWeight > 0 ? scaledWeight : undefined),
+        today,
+      )
+      setSavingTime(false)
+      if (error) return
+      if (isNewPR) {
+        navigate(`/athlete/movement/${movementId}`, {
+          replace: true,
+          state: { celebratePR: true, timeSeconds: totalSecs },
+        })
+      } else {
+        navigate(-1)
+      }
+    }
+
+    return (
+      <div className="min-h-screen bg-graphite safe-top safe-bottom flex flex-col">
+        <header className="flex items-center justify-between px-5 border-b border-[#2A2A2A]" style={{ height: 52 }}>
+          <button
+            onClick={() => setMovementId('')}
+            className="font-mono font-bold uppercase tracking-[0.12em] text-[11px] text-[#A8A8A4] active:text-soft-white"
+          >
+            ← Voltar
+          </button>
+          <span className="font-mono font-bold uppercase tracking-[0.18em] text-[11px] text-[#A8A8A4]">New PR</span>
+          <div className="w-16" />
+        </header>
+
+        <div className="px-5 py-3 border-b border-[#1A1A1A]">
+          <span className="font-bold text-[20px] leading-tight" style={{ color: '#D4FF3A' }}>{movement.name}</span>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {/* WOD description */}
+          {wod && <WodCard wod={wod} className="mx-5 mt-4" />}
+
+          {/* RX / SCALED */}
+          <div className="flex mx-5 mt-5">
+            <button
+              onClick={() => setRx(true)}
+              className="flex-1 py-3 font-mono font-bold uppercase tracking-[0.14em] text-[11px]"
+              style={{
+                background: rx ? '#D4FF3A' : '#111',
+                color: rx ? '#0A0A0A' : '#555',
+                border: `1px solid ${rx ? '#D4FF3A' : '#2A2A2A'}`,
+              }}
+            >RX</button>
+            <button
+              onClick={() => setRx(false)}
+              className="flex-1 py-3 font-mono font-bold uppercase tracking-[0.14em] text-[11px]"
+              style={{
+                background: !rx ? '#1A1A1A' : '#111',
+                color: !rx ? '#F5F5F0' : '#555',
+                border: `1px solid ${!rx ? '#D4FF3A' : '#2A2A2A'}`,
+                borderLeft: 'none',
+              }}
+            >SCALED</button>
+          </div>
+
+          {/* SCALED fields */}
+          {!rx && (
+            <div className="mx-5 mt-3 space-y-0">
+              <div className="px-4 py-3.5 bg-[#111] border border-[#2A2A2A] border-b-0">
+                <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#6B6B68] block mb-2">Peso utilizado (kg)</span>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  value={scaledWeight === 0 ? '' : scaledWeight}
+                  onChange={e => setScaledWeight(parseFloat(e.target.value) || 0)}
+                  placeholder="ex: 30"
+                  inputMode="decimal"
+                  className="w-full bg-transparent text-soft-white focus:outline-none"
+                  style={{ fontSize: 22, fontFamily: '"JetBrains Mono", monospace', fontWeight: 700, borderBottom: '1px solid #2A2A2A', paddingBottom: 4 }}
+                />
+              </div>
+              <div className="px-4 py-3.5 bg-[#111] border border-[#2A2A2A]">
+                <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#6B6B68] block mb-2">Adaptação</span>
+                <input
+                  type="text"
+                  value={adaptation}
+                  onChange={e => setAdaptation(e.target.value.slice(0, 200))}
+                  placeholder="ex: Ring rows em vez de pull-ups"
+                  className="w-full bg-transparent text-soft-white text-[13px] focus:outline-none placeholder-[#3D3D3B]"
+                  style={{ fontFamily: '"Space Grotesk", sans-serif' }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Time input */}
+          <div className="mx-5 mt-3 px-4 py-4 bg-[#141414] border border-[#2A2A2A]">
+            <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#6B6B68] block mb-3">Tempo</span>
+            <div className="flex items-center">
+              <div className="flex-1 flex flex-col items-center">
+                <input
+                  type="number"
+                  min="0"
+                  max="99"
+                  value={timeMin === 0 ? '' : timeMin}
+                  onChange={e => setTimeMin(Math.min(99, parseInt(e.target.value) || 0))}
+                  placeholder="0"
+                  inputMode="numeric"
+                  className="w-full bg-transparent text-soft-white focus:outline-none text-center"
+                  style={{ fontSize: 52, fontFamily: '"JetBrains Mono", monospace', fontWeight: 800, letterSpacing: '0.01em' }}
+                />
+                <span className="font-mono font-bold uppercase tracking-[0.14em] text-[9px] text-[#555] mt-1">MIN</span>
+              </div>
+              <span className="font-mono font-black text-[#333] pb-5" style={{ fontSize: 44 }}>:</span>
+              <div className="flex-1 flex flex-col items-center">
+                <input
+                  type="number"
+                  min="0"
+                  max="59"
+                  value={timeSec === 0 ? '' : timeSec}
+                  onChange={e => setTimeSec(Math.min(59, parseInt(e.target.value) || 0))}
+                  placeholder="00"
+                  inputMode="numeric"
+                  className="w-full bg-transparent text-soft-white focus:outline-none text-center"
+                  style={{ fontSize: 52, fontFamily: '"JetBrains Mono", monospace', fontWeight: 800, letterSpacing: '0.01em' }}
+                />
+                <span className="font-mono font-bold uppercase tracking-[0.14em] text-[9px] text-[#555] mt-1">SEC</span>
+              </div>
+              {isNewPR && (
+                <span className="ml-2 font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-2 py-1 shrink-0" style={{ background: '#D4FF3A', color: '#0A0A0A' }}>
+                  NOVO PR
+                </span>
+              )}
+            </div>
+          </div>
+
+          {prTime !== null && (
+            <div className="mx-5 mt-2">
+              <span className="font-mono text-[10px] text-[#555]">
+                PR atual: <span className="text-[#888]">{fmtTime(prTime)}</span>
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="px-5 pb-8 pt-4">
+          <button
+            onClick={handleSubmitTime}
+            disabled={savingTime || totalSecs <= 0}
+            className="w-full bg-lime text-graphite font-mono font-bold uppercase tracking-[0.18em] text-[12px] py-4 flex items-center justify-center gap-2 disabled:opacity-30 active:bg-lime-lo transition-colors"
+          >
+            {savingTime && <span className="w-3.5 h-3.5 border-2 border-graphite/40 border-t-graphite rounded-full animate-spin" />}
+            {savingTime ? 'Saving...' : 'Save Time'}
+          </button>
         </div>
       </div>
     )

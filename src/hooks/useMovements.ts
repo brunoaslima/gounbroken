@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PRESET_MOVEMENTS, PRESET_MOVEMENTS_BY_CATEGORY } from '@/lib/presetMovements'
-import type { Movement, MovementCategory } from '@/types'
+import type { Movement, MovementCategory, MovementScoreType } from '@/types'
+
+const CATEGORY_SCORE_TYPE: Record<MovementCategory, MovementScoreType> = {
+  weightlifting:  'weight',
+  gymnastics:     'weight',
+  monostructural: 'weight',
+  girls:          'time',
+  heroes:         'time',
+}
 
 /** Alphabetical sort — used everywhere movements are listed */
 function sortAlpha(movements: Movement[]): Movement[] {
@@ -59,7 +67,8 @@ export function useMovements(userId: string | undefined) {
 }
 
 async function seedMovements(userId: string, names: string[], category: MovementCategory = 'weightlifting') {
-  const rows = names.map(name => ({ name, user_id: userId, category }))
+  const score_type = CATEGORY_SCORE_TYPE[category]
+  const rows = names.map(name => ({ name, user_id: userId, category, score_type }))
   await supabase.from('movements').upsert(rows, { onConflict: 'user_id,name', ignoreDuplicates: true })
 }
 

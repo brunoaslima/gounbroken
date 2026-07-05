@@ -133,6 +133,7 @@ export default function Stats() {
     const base = before ?? ms[0]
     const latest = ms[ms.length - 1]
     if (base === latest) continue
+    if (latest.weight_kg === null || base.weight_kg === null) continue
     const pct = Math.round(((latest.weight_kg - base.weight_kg) / base.weight_kg) * 100)
     if (pct > 0 && (!bestEvolution || pct > bestEvolution.pct)) {
       bestEvolution = { name: m.name, pct, from: base.weight_kg, to: latest.weight_kg, movementId: m.id }
