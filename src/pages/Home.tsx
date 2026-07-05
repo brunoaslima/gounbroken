@@ -126,7 +126,7 @@ export default function Home() {
     : null
 
   return (
-    <div className="min-h-screen bg-graphite pb-24 md:pb-8 safe-top">
+    <div className="min-h-screen bg-graphite pb-24 md:pb-8">
 
       {/* TopBar */}
       <header className="sticky top-0 z-10 bg-graphite border-b border-[#2A2A2A]" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
