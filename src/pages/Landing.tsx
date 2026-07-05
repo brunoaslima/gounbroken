@@ -411,7 +411,7 @@ export default function Landing() {
     <div className="landing-root" style={{ fontFamily: "'Space Grotesk', sans-serif", background: '#0A0A0A', color: '#F5F5F0', minHeight: '100vh' }}>
 
       {/* NAV */}
-      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 32px', borderBottom: '1px solid #2A2A2A', position: 'sticky', top: 0, background: 'rgba(10,10,10,0.92)', backdropFilter: 'blur(6px)', zIndex: 40 }}>
+      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 18, paddingLeft: 32, paddingRight: 32, borderBottom: '1px solid #2A2A2A', position: 'sticky', top: 0, background: 'rgba(10,10,10,0.92)', backdropFilter: 'blur(6px)', zIndex: 40 }}>
         <button onClick={() => go('/landing')} style={{ display: 'flex', alignItems: 'center', gap: 9, fontWeight: 700, fontSize: 17, background: 'transparent', border: 'none', color: '#F5F5F0', cursor: 'pointer' }}>
           GO<span style={{ width: 18, height: 5, background: '#D4FF3A', display: 'inline-block' }} />UNBROKEN
         </button>

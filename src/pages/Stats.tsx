@@ -167,7 +167,7 @@ export default function Stats() {
       <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
       <ProfilePanel open={profilePanelOpen} onClose={() => setProfilePanelOpen(false)} />
 
-      <header className="sticky top-0 bg-graphite border-b border-white/5 z-10">
+      <header className="sticky top-0 bg-graphite border-b border-white/5 z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="px-5 py-4 flex items-center justify-between md:max-w-5xl md:mx-auto">
           <button
             onClick={() => setDrawerOpen(true)}

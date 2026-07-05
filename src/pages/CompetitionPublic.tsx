@@ -179,7 +179,7 @@ export default function CompetitionPublic() {
       `}</style>
 
       {/* TOP BAR */}
-      <div className="flex items-center justify-between gap-3 px-4 border-b border-[#2A2A2A]" style={{ minHeight: 52 }}>
+      <div className="flex items-center justify-between gap-3 px-4 border-b border-[#2A2A2A]" style={{ minHeight: 52, paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-6 h-6 bg-lime flex items-center justify-center flex-shrink-0">
             <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
