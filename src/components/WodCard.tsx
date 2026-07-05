@@ -28,8 +28,8 @@ export default function WodCard({ wod, className = '' }: Props) {
             {wod.movements[0].reps}
           </span>
           <div>
-            {wod.movements.map((mv, i) => (
-              <span key={i} className="font-sans text-[14px] font-semibold text-soft-white block leading-tight">
+            {wod.movements.map((mv) => (
+              <span key={mv.name} className="font-sans text-[14px] font-semibold text-soft-white block leading-tight">
                 {mv.name}
               </span>
             ))}
@@ -37,8 +37,8 @@ export default function WodCard({ wod, className = '' }: Props) {
         </>
       ) : (
         <div>
-          {wod.movements.map((mv, i) => (
-            <div key={i} className="flex items-baseline gap-3 leading-tight">
+          {wod.movements.map((mv) => (
+            <div key={`${mv.reps}-${mv.name}`} className="flex items-baseline gap-3 leading-tight">
               <span
                 className="font-mono font-bold text-[13px] shrink-0"
                 style={{ color: '#D4FF3A', minWidth: 52, fontVariantNumeric: 'tabular-nums' }}

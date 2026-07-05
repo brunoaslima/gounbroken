@@ -211,6 +211,7 @@ export default function MovementDetail() {
             onClick={() => navigate(-1)}
             className="flex items-center justify-center text-[#A8A8A4] active:text-soft-white"
             style={{ width: 40, height: 40, marginLeft: -8 }}
+            aria-label="Go back"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M15 19l-7-7 7-7" />
@@ -308,6 +309,7 @@ export default function MovementDetail() {
                             <button
                               onClick={() => setConfirmingDeleteId(score.id)}
                               className="text-[#3D3D3B] active:text-[#FF4444] transition-colors p-1"
+                              aria-label="Delete score"
                             >
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <path d="M6 18L18 6M6 6l12 12" />
@@ -335,6 +337,7 @@ export default function MovementDetail() {
           onClick={() => navigate(`/athlete/add?movement=${id}`)}
           className="fixed bottom-6 right-5 flex items-center justify-center z-10 active:scale-95 transition-transform"
           style={{ width: 52, height: 52, background: '#D4FF3A' }}
+          aria-label="Add new score"
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0A0A0A" strokeWidth="2.5">
             <path d="M12 5v14M5 12h14" />
@@ -398,6 +401,7 @@ export default function MovementDetail() {
           onClick={() => navigate(-1)}
           className="flex items-center justify-center text-[#A8A8A4] active:text-soft-white"
           style={{ width: 40, height: 40, marginLeft: -8 }}
+          aria-label="Go back"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M15 19l-7-7 7-7" />
@@ -713,6 +717,7 @@ export default function MovementDetail() {
                       <button
                         onClick={() => setConfirmingDeleteId(score.id)}
                         className="text-[#3D3D3B] active:text-[#FF4444] transition-colors p-1"
+                        aria-label="Delete score"
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M6 18L18 6M6 6l12 12" />
@@ -791,6 +796,7 @@ export default function MovementDetail() {
         onClick={() => navigate(`/athlete/add?movement=${id}`)}
         className="fixed bottom-6 right-5 flex items-center justify-center z-10 active:scale-95 transition-transform"
         style={{ width: 52, height: 52, background: '#D4FF3A' }}
+        aria-label="Add new score"
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0A0A0A" strokeWidth="2.5">
           <path d="M12 5v14M5 12h14" />

@@ -125,14 +125,6 @@ export default function Home() {
       )
     : null
 
-  // Grouped by category for movements without analyses
-  const grouped: { category: string; items: Movement[] }[] = MOVEMENT_GROUPS.map(g => ({
-    category: g.category,
-    items: movementsWithScores.filter(m => g.movements.includes(m.name)),
-  })).filter(g => g.items.length > 0)
-  const ungrouped = movementsWithScores.filter(m => !getMovementCategory(m.name))
-  if (ungrouped.length > 0) grouped.push({ category: 'Outros', items: ungrouped })
-
   return (
     <div className="min-h-screen bg-graphite pb-24 md:pb-8 safe-top">
 

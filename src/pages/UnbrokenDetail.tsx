@@ -106,7 +106,7 @@ export default function UnbrokenDetail() {
       {/* Chart */}
       <div className="border-b border-[#1A1A1A] bg-[#111]" style={{ padding: '12px 16px 10px', flexShrink: 0 }}>
         <div className="flex items-center justify-between mb-2.5">
-          <span className="font-mono font-bold uppercase tracking-[0.14em] text-[9px] text-[#888]">Evolução</span>
+          <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#888]">Evolução</span>
           <div style={{ display: 'flex' }}>
             <ChartToggleBtn active={chartMode === 'reps'} onClick={() => setChartMode('reps')}>REPS</ChartToggleBtn>
             <ChartToggleBtn active={chartMode === 'rps'} onClick={() => setChartMode('rps')}>REPS/SEC</ChartToggleBtn>
@@ -116,7 +116,7 @@ export default function UnbrokenDetail() {
       </div>
 
       {/* Sets list */}
-      <div className="font-mono font-bold uppercase tracking-[0.14em] text-[9px] text-[#888] border-b border-[#1A1A1A] px-4 py-2.5" style={{ flexShrink: 0 }}>
+      <div className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#888] border-b border-[#1A1A1A] px-4 py-2.5" style={{ flexShrink: 0 }}>
         Todos os sets
       </div>
 
@@ -180,7 +180,7 @@ export default function UnbrokenDetail() {
         {/* Sheet header */}
         <div className="flex items-start justify-between px-4 pt-4 pb-3 border-b border-[#1A1A1A]">
           <div>
-            <span className="font-mono font-bold uppercase tracking-[0.14em] text-[9px] text-[#888] block">Novo set</span>
+            <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#888] block">Novo set</span>
             <span className="font-bold text-[17px] text-soft-white mt-0.5 block">{movement.name}</span>
           </div>
           <button
@@ -194,7 +194,7 @@ export default function UnbrokenDetail() {
 
         <div className="px-4 pt-3">
           {/* Reps */}
-          <span className="font-mono font-bold uppercase tracking-[0.14em] text-[9px] text-[#888] block mb-1.5">Reps unbroken</span>
+          <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#888] block mb-1.5" id="reps-label">Reps unbroken</span>
           <input
             ref={repsInputRef}
             type="number"
@@ -204,13 +204,14 @@ export default function UnbrokenDetail() {
             placeholder="0"
             className="w-full bg-[#0A0A0A] border border-[#2A2A2A] text-soft-white placeholder-[#2A2A2A] focus:outline-none focus:border-lime text-center"
             style={{ height: 80, fontSize: 52, fontFamily: '"Space Grotesk", sans-serif', fontWeight: 700 }}
+            aria-labelledby="reps-label"
           />
 
           {/* Time */}
-          <span className="font-mono font-bold uppercase tracking-[0.14em] text-[9px] text-[#888] block mt-3 mb-1.5">Tempo</span>
+          <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#888] block mt-3 mb-1.5">Tempo</span>
           <div className="flex items-end gap-2">
             <div className="flex flex-col items-center gap-1">
-              <span className="font-mono font-bold uppercase tracking-[0.14em] text-[9px] text-[#555]">MIN</span>
+              <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#555]" id="min-label">MIN</span>
               <input
                 type="number"
                 inputMode="numeric"
@@ -221,11 +222,12 @@ export default function UnbrokenDetail() {
                 placeholder="00"
                 className="bg-[#0A0A0A] border border-[#2A2A2A] text-soft-white placeholder-[#333] focus:outline-none focus:border-lime text-center font-mono font-bold"
                 style={{ width: 90, height: 52, fontSize: 28 }}
+                aria-labelledby="min-label"
               />
             </div>
             <span className="font-bold text-[32px] text-[#2A2A2A] pb-1">:</span>
             <div className="flex flex-col items-center gap-1">
-              <span className="font-mono font-bold uppercase tracking-[0.14em] text-[9px] text-[#555]">SEC</span>
+              <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#555]" id="sec-label">SEC</span>
               <input
                 type="number"
                 inputMode="numeric"
@@ -239,6 +241,7 @@ export default function UnbrokenDetail() {
                 placeholder="00"
                 className="bg-[#0A0A0A] border border-[#2A2A2A] text-soft-white placeholder-[#333] focus:outline-none focus:border-lime text-center font-mono font-bold"
                 style={{ width: 90, height: 52, fontSize: 28 }}
+                aria-labelledby="sec-label"
               />
             </div>
           </div>

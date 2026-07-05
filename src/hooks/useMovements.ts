@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PRESET_MOVEMENTS, PRESET_MOVEMENTS_BY_CATEGORY } from '@/lib/presetMovements'
+import { BENCHMARK_WODS } from '@/lib/benchmarkWods'
 import type { Movement, MovementCategory, MovementScoreType } from '@/types'
 
 const CATEGORY_SCORE_TYPE: Record<MovementCategory, MovementScoreType> = {
@@ -9,6 +10,18 @@ const CATEGORY_SCORE_TYPE: Record<MovementCategory, MovementScoreType> = {
   monostructural: 'weight',
   girls:          'time',
   heroes:         'time',
+}
+
+function getScoreTypeForMovement(name: string, category: MovementCategory): MovementScoreType {
+  if (category === 'girls' || category === 'heroes') {
+    const benchmarkWod = BENCHMARK_WODS[name]
+    if (benchmarkWod) {
+      const scoreType = benchmarkWod.scoreType
+      if (scoreType === 'rounds' || scoreType === 'max_reps') return 'rounds'
+      return 'time'
+    }
+  }
+  return CATEGORY_SCORE_TYPE[category]
 }
 
 /** Alphabetical sort — used everywhere movements are listed */
@@ -67,8 +80,12 @@ export function useMovements(userId: string | undefined) {
 }
 
 async function seedMovements(userId: string, names: string[], category: MovementCategory = 'weightlifting') {
-  const score_type = CATEGORY_SCORE_TYPE[category]
-  const rows = names.map(name => ({ name, user_id: userId, category, score_type }))
+  const rows = names.map(name => ({
+    name,
+    user_id: userId,
+    category,
+    score_type: getScoreTypeForMovement(name, category)
+  }))
   await supabase.from('movements').upsert(rows, { onConflict: 'user_id,name', ignoreDuplicates: true })
 }
 

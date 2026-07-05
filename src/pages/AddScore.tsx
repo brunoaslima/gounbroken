@@ -61,6 +61,7 @@ export default function AddScore() {
   const [scaledWeight, setScaledWeight] = useState(0)
   const [adaptation, setAdaptation] = useState('')
   const [savingTime, setSavingTime] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const movement = movements.find(m => m.id === movementId)
 
@@ -273,6 +274,7 @@ export default function AddScore() {
     async function handleSubmitTime() {
       if (totalSecs <= 0) return
       setSavingTime(true)
+      setSaveError(null)
       const { error } = await addTimeScore(
         movementId,
         totalSecs,
@@ -282,7 +284,10 @@ export default function AddScore() {
         today,
       )
       setSavingTime(false)
-      if (error) return
+      if (error) {
+        setSaveError(error || 'Failed to save time')
+        return
+      }
       if (isNewPR) {
         navigate(`/athlete/movement/${movementId}`, {
           replace: true,
@@ -341,7 +346,7 @@ export default function AddScore() {
           {!rx && (
             <div className="mx-5 mt-3 space-y-0">
               <div className="px-4 py-3.5 bg-[#111] border border-[#2A2A2A] border-b-0">
-                <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#6B6B68] block mb-2">Peso utilizado (kg)</span>
+                <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#6B6B68] block mb-2">Peso utilizado (kg)</span>
                 <input
                   type="number"
                   step="0.5"
@@ -355,7 +360,7 @@ export default function AddScore() {
                 />
               </div>
               <div className="px-4 py-3.5 bg-[#111] border border-[#2A2A2A]">
-                <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#6B6B68] block mb-2">Adaptação</span>
+                <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#6B6B68] block mb-2">Adaptação</span>
                 <input
                   type="text"
                   value={adaptation}
@@ -370,7 +375,7 @@ export default function AddScore() {
 
           {/* Time input */}
           <div className="mx-5 mt-3 px-4 py-4 bg-[#141414] border border-[#2A2A2A]">
-            <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#6B6B68] block mb-3">Tempo</span>
+            <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#6B6B68] block mb-3">Tempo</span>
             <div className="flex items-center">
               <div className="flex-1 flex flex-col items-center">
                 <input
@@ -384,7 +389,7 @@ export default function AddScore() {
                   className="w-full bg-transparent text-soft-white focus:outline-none text-center"
                   style={{ fontSize: 52, fontFamily: '"JetBrains Mono", monospace', fontWeight: 800, letterSpacing: '0.01em' }}
                 />
-                <span className="font-mono font-bold uppercase tracking-[0.14em] text-[9px] text-[#555] mt-1">MIN</span>
+                <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#555] mt-1">MIN</span>
               </div>
               <span className="font-mono font-black text-[#333] pb-5" style={{ fontSize: 44 }}>:</span>
               <div className="flex-1 flex flex-col items-center">
@@ -399,7 +404,7 @@ export default function AddScore() {
                   className="w-full bg-transparent text-soft-white focus:outline-none text-center"
                   style={{ fontSize: 52, fontFamily: '"JetBrains Mono", monospace', fontWeight: 800, letterSpacing: '0.01em' }}
                 />
-                <span className="font-mono font-bold uppercase tracking-[0.14em] text-[9px] text-[#555] mt-1">SEC</span>
+                <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#555] mt-1">SEC</span>
               </div>
               {isNewPR && (
                 <span className="ml-2 font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-2 py-1 shrink-0" style={{ background: '#D4FF3A', color: '#0A0A0A' }}>
@@ -419,6 +424,11 @@ export default function AddScore() {
         </div>
 
         <div className="px-5 pb-8 pt-4">
+          {saveError && (
+            <div className="mb-3 px-4 py-3 bg-[#1A0F0F] border border-[#4A1A1A]">
+              <span className="font-mono text-[11px] text-[#FF6B6B]">{saveError}</span>
+            </div>
+          )}
           <button
             onClick={handleSubmitTime}
             disabled={savingTime || totalSecs <= 0}
