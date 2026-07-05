@@ -742,7 +742,7 @@ export default function Leaderboard() {
       {loading && rows.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
           <span className="font-mono font-bold uppercase text-[10px] tracking-[0.14em] text-[#6B6B68]">
-            Carregando...
+            Loading...
           </span>
         </div>
       ) : lbError ? (
@@ -755,7 +755,7 @@ export default function Leaderboard() {
       ) : rows.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
           <span className="font-mono font-bold uppercase text-[10px] tracking-[0.14em] text-[#6B6B68]">
-            Nenhum resultado publicado
+            No published results
           </span>
         </div>
       ) : isColumnsMode ? (

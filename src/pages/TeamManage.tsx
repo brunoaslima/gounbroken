@@ -688,7 +688,7 @@ export default function TeamManage() {
                     disabled={cancelingInvite === m.id}
                     className="flex items-center justify-center text-[#6B6B68] hover:text-[#FF3B30] transition-colors disabled:opacity-30 active:opacity-60"
                     style={{ width: 28, height: 28, background: 'transparent', border: 'none', flexShrink: 0 }}
-                    title="Cancelar convite"
+                    title="Cancel invite"
                   >
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square">
                       <path d="M1 1l10 10M11 1L1 11" />

@@ -493,7 +493,7 @@ export default function CompetitionDetail() {
           className="border-b border-[#2A2A2A]"
           style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', background: '#2A2A2A', gap: 1 }}
         >
-          <StatCell label="LOCAL">
+          <StatCell label="VENUE">
             <span className="font-sans font-semibold" style={{ fontSize: 14, color: '#F5F5F0' }}>
               {competition.venue ?? '—'}
             </span>
@@ -503,7 +503,7 @@ export default function CompetitionDetail() {
               {formatDeadline(competition.registration_deadline)}
             </span>
           </StatCell>
-          <StatCell label="EQUIPES INSCRITAS">
+          <StatCell label="REGISTERED TEAMS">
             <div className="flex items-baseline gap-1">
               <span className="font-mono font-black" style={{ fontSize: 24, letterSpacing: '-0.02em', color: '#F5F5F0' }}>
                 {teamCounts.approved}
@@ -636,7 +636,7 @@ export default function CompetitionDetail() {
                 <div className="flex items-center gap-2">
                   {w.status === 'published' ? (
                     <>
-                      <StatusPill status="approved" label="PUBLICADO" />
+                      <StatusPill status="approved" label="PUBLISHED" />
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B6B68" strokeWidth="2.5">
                         <path d="M9 18l6-6-6-6" />
                       </svg>
@@ -655,7 +655,7 @@ export default function CompetitionDetail() {
               className="border-t border-[#2A2A2A] font-mono font-bold uppercase text-center"
               style={{ fontSize: 9, letterSpacing: '0.14em', color: '#6B6B68', padding: '20px 0' }}
             >
-              Nenhum WOD cadastrado
+              No WODs registered
             </div>
           )}
         </div>
@@ -665,10 +665,10 @@ export default function CompetitionDetail() {
           <div className="border-t border-[#2A2A2A]" style={{ padding: '18px 20px 8px' }}>
             <div className="flex justify-between items-baseline" style={{ marginBottom: 12 }}>
               <span className="font-mono font-black uppercase" style={{ fontSize: 11, letterSpacing: '0.14em', color: '#D4FF3A' }}>
-                RESULTADO FINAL
+                FINAL RESULTS
               </span>
               <span className="font-mono font-bold uppercase" style={{ fontSize: 9, letterSpacing: '0.14em', color: '#6B6B68' }}>
-                {finalRows.length} EQUIPES
+                {finalRows.length} TEAMS
               </span>
             </div>
             {finalLoading ? (
@@ -677,7 +677,7 @@ export default function CompetitionDetail() {
               </div>
             ) : finalRows.length === 0 ? (
               <div className="font-mono font-bold uppercase text-center" style={{ fontSize: 9, letterSpacing: '0.14em', color: '#6B6B68', padding: '20px 0' }}>
-                Nenhum resultado publicado
+                No published results
               </div>
             ) : (
               <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'] }}>
@@ -975,7 +975,7 @@ export default function CompetitionDetail() {
                     className="font-mono font-bold uppercase block"
                     style={{ fontSize: 10, letterSpacing: '0.16em', color: '#6B6B68', marginBottom: 8 }}
                   >
-                    SEM RESULTADOS PUBLICADOS
+                    NO PUBLISHED RESULTS
                   </span>
                   <span
                     className="font-sans"

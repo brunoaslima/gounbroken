@@ -555,13 +555,13 @@ function StepFirstPR({ userId, onNext, onSkip }: {
       <div className="px-5 pb-10 pt-4 flex gap-0 shrink-0">
         <button onClick={onSkip}
           className="flex-1 py-4 font-mono font-bold uppercase tracking-[0.14em] text-[11px] text-[#6B6B68] border border-[#2A2A2A] active:bg-[#1F1F1F] transition-colors">
-          Adicionar depois
+          Add later
         </button>
         <button onClick={handleSave} disabled={!canSave || saving}
           className="flex-[2] py-4 font-mono font-bold uppercase tracking-[0.14em] text-[12px] flex items-center justify-center gap-2 disabled:opacity-40 transition-colors border border-l-0 border-[#D4FF3A]"
           style={{ background: '#D4FF3A', color: '#0A0A0A' }}>
           {saving && <span className="w-3.5 h-3.5 border-2 border-black/20 border-t-black/70 rounded-full animate-spin" />}
-          {saving ? 'Salvando…' : 'Salvar PR →'}
+          {saving ? 'Saving…' : 'Save PR →'}
         </button>
       </div>
     </div>

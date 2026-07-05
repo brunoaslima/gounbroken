@@ -589,7 +589,7 @@ export default function Admin() {
                     {[
                       { label: 'kg', value: d?.avg_weight ? String(d.avg_weight) : '—' },
                       { label: 'cm', value: d?.avg_height ? String(d.avg_height) : '—' },
-                      { label: 'IMC', value: d?.avg_bmi ? String(d.avg_bmi) : '—' },
+                      { label: 'BMI', value: d?.avg_bmi ? String(d.avg_bmi) : '—' },
                     ].map((item, i) => (
                       <div key={item.label} style={{ padding: '10px 0', textAlign: 'center', borderLeft: i === 0 ? 'none' : '1px solid #2A2A2A' }}>
                         <div style={{ fontFamily: '"JetBrains Mono", monospace', fontWeight: 800, fontSize: 22, color: '#F5F5F0', fontVariantNumeric: 'tabular-nums' }}>{item.value}</div>

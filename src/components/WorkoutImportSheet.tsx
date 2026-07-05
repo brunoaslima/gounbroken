@@ -317,7 +317,7 @@ async function preprocessForOCR(file: File): Promise<Blob> {
         reject(e)
       }
     }
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Falha ao carregar imagem')) }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load image')) }
     img.src = url
   })
 }
@@ -376,7 +376,7 @@ function parseTextIntoSections(text: string) {
     const t = line.trim()
     if (t && BLOCK_HEADER_RE.test(t)) {
       const body = currentBody.join('\n').trim()
-      if (body) sections.push(makeSection(currentHeader ?? 'Treino', currentBody, pos++))
+      if (body) sections.push(makeSection(currentHeader ?? 'Workout', currentBody, pos++))
       currentHeader = t
       currentBody = []
     } else {
@@ -385,11 +385,11 @@ function parseTextIntoSections(text: string) {
   }
   // flush last block
   const body = currentBody.join('\n').trim()
-  if (body) sections.push(makeSection(currentHeader ?? 'Treino', currentBody, pos++))
+  if (body) sections.push(makeSection(currentHeader ?? 'Workout', currentBody, pos++))
 
   // fallback: no block headers found → single section
   if (sections.length === 0) {
-    sections.push(makeSection('Treino', lines, 0))
+    sections.push(makeSection('Workout', lines, 0))
   }
 
   return sections
@@ -443,7 +443,7 @@ export default function WorkoutImportSheet({
     e.target.value = ''
     setOcrError(null)
     setProgress(0)
-    setProgressLabel('Preparando imagem…')
+    setProgressLabel('Preparing image…')
     setState('processing')
 
     try {
@@ -453,8 +453,8 @@ export default function WorkoutImportSheet({
 
       const worker = await createWorker('por+eng', 1, {
         logger: (m: { status: string; progress: number }) => {
-          if (m.status === 'loading tesseract core') setProgressLabel('Carregando OCR…')
-          if (m.status === 'loading language traineddata') setProgressLabel('Carregando idioma…')
+          if (m.status === 'loading tesseract core') setProgressLabel('Loading OCR…')
+          if (m.status === 'loading language traineddata') setProgressLabel('Loading language…')
           if (m.status === 'recognizing text') {
             setProgress(Math.round((m.progress ?? 0) * 100))
             setProgressLabel(`Lendo texto… ${Math.round((m.progress ?? 0) * 100)}%`)
@@ -466,7 +466,7 @@ export default function WorkoutImportSheet({
 
       const extracted = data.text.trim()
       if (!extracted) {
-        setOcrError('Nenhum texto encontrado. Tente uma imagem com mais contraste ou escreva manualmente.')
+        setOcrError('No text found. Try an image with more contrast or write manually.')
         setState('menu')
         return
       }
@@ -479,7 +479,7 @@ export default function WorkoutImportSheet({
       setText(extracted)
       setState('review')
     } catch {
-      setOcrError('Erro ao processar imagem. Tente novamente.')
+      setOcrError('Error processing image. Please try again.')
       setState('menu')
     }
   }
@@ -538,14 +538,14 @@ export default function WorkoutImportSheet({
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M15 19l-7-7 7-7" />
                 </svg>
-                Voltar
+                Back
               </button>
             )}
             <span className="font-mono font-bold uppercase tracking-[0.18em] text-[11px] text-[#A8A8A4] block">
-              {state === 'menu'       ? 'Adicionar treino' :
-               state === 'manual'    ? 'Escrever manualmente' :
-               state === 'processing'? 'Processando imagem…' :
-                                       'Revisar treino'}
+              {state === 'menu'       ? 'Add workout' :
+               state === 'manual'    ? 'Write manually' :
+               state === 'processing'? 'Processing image…' :
+                                       'Review workout'}
             </span>
           </div>
           <button onClick={handleClose} className="text-[#6B6B68] active:text-soft-white" style={{ padding: 8 }}>
@@ -666,7 +666,7 @@ export default function WorkoutImportSheet({
 
               {/* Date */}
               <div>
-                <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#6B6B68] block mb-2">Data do treino</span>
+                <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#6B6B68] block mb-2">Workout date</span>
                 <input
                   type="date"
                   value={date}
@@ -684,12 +684,12 @@ export default function WorkoutImportSheet({
                     <button onClick={() => setViewMode('edit')}
                       className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-3 py-1"
                       style={{ background: viewMode === 'edit' ? '#D4FF3A' : '#1A1A1A', color: viewMode === 'edit' ? '#0A0A0A' : '#6B6B68' }}>
-                      Editar
+                      Edit
                     </button>
                     <button onClick={() => setViewMode('preview')}
                       className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-3 py-1"
                       style={{ background: viewMode === 'preview' ? '#D4FF3A' : '#1A1A1A', color: viewMode === 'preview' ? '#0A0A0A' : '#6B6B68', borderLeft: '1px solid #2A2A2A' }}>
-                      Visualizar
+                      Preview
                     </button>
                   </div>
                 </div>
@@ -697,7 +697,7 @@ export default function WorkoutImportSheet({
                   <textarea
                     value={text}
                     onChange={e => setText(e.target.value)}
-                    placeholder="Cole ou escreva o treino aqui..."
+                    placeholder="Paste or write the workout here..."
                     rows={12}
                     className="w-full bg-transparent font-mono text-[13px] text-soft-white outline-none resize-none"
                     style={{ border: '1px solid #2A2A2A', padding: '10px 12px', lineHeight: 1.6 }}
@@ -751,7 +751,7 @@ export default function WorkoutImportSheet({
 
               {/* Date */}
               <div>
-                <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#6B6B68] block mb-2">Data do treino</span>
+                <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#6B6B68] block mb-2">Workout date</span>
                 <input
                   type="date"
                   value={date}
@@ -769,12 +769,12 @@ export default function WorkoutImportSheet({
                     <button onClick={() => setViewMode('edit')}
                       className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-3 py-1"
                       style={{ background: viewMode === 'edit' ? '#D4FF3A' : '#1A1A1A', color: viewMode === 'edit' ? '#0A0A0A' : '#6B6B68' }}>
-                      Editar
+                      Edit
                     </button>
                     <button onClick={() => setViewMode('preview')}
                       className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-3 py-1"
                       style={{ background: viewMode === 'preview' ? '#D4FF3A' : '#1A1A1A', color: viewMode === 'preview' ? '#0A0A0A' : '#6B6B68', borderLeft: '1px solid #2A2A2A' }}>
-                      Visualizar
+                      Preview
                     </button>
                   </div>
                 </div>
@@ -808,7 +808,7 @@ export default function WorkoutImportSheet({
                   color: canSave ? '#0A0A0A' : '#3D3D3B',
                 }}
               >
-                {saving ? 'Salvando…' : 'Salvar treino'}
+                {saving ? 'Saving…' : 'Save workout'}
               </button>
             </div>
           )

@@ -66,7 +66,7 @@ export default function ProfilePanel({ open, onClose }: Props) {
       })
       setEditing(false)
     } catch (err: unknown) {
-      setSaveError(err instanceof Error ? err.message : 'Erro ao salvar')
+      setSaveError(err instanceof Error ? err.message : 'Failed to save')
     } finally {
       setSaving(false)
     }
@@ -172,7 +172,7 @@ export default function ProfilePanel({ open, onClose }: Props) {
                   onClick={startEdit}
                   className="w-full bg-white/5 hover:bg-white/8 text-muted-gray text-sm font-medium rounded-xl py-2.5 transition-colors"
                 >
-                  Editar perfil
+                  Edit profile
                 </button>
               )}
             </div>
@@ -183,17 +183,17 @@ export default function ProfilePanel({ open, onClose }: Props) {
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-gray text-sm">Data nasc.</span>
+                  <span className="text-muted-gray text-sm">Birth date</span>
                   <span className="text-soft-white text-sm">
                     {profile?.date_of_birth ? formatDate(profile.date_of_birth) : '—'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-gray text-sm">Idade</span>
-                  <span className="text-soft-white text-sm">{age != null ? `${age} anos` : '—'}</span>
+                  <span className="text-muted-gray text-sm">Age</span>
+                  <span className="text-soft-white text-sm">{age != null ? `${age} yr` : '—'}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-gray text-sm">Peso</span>
+                  <span className="text-muted-gray text-sm">Weight</span>
                   {editing ? (
                     <input
                       type="number"
@@ -207,7 +207,7 @@ export default function ProfilePanel({ open, onClose }: Props) {
                   )}
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-gray text-sm">Altura</span>
+                  <span className="text-muted-gray text-sm">Height</span>
                   {editing ? (
                     <input
                       type="number"
@@ -253,7 +253,7 @@ export default function ProfilePanel({ open, onClose }: Props) {
                   </p>
                 )}
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-gray text-sm">IMC</span>
+                  <span className="text-muted-gray text-sm">BMI</span>
                   {bmi && bmiInfo ? (
                     <span
                       className="text-xs font-bold px-2 py-0.5"
@@ -279,7 +279,7 @@ export default function ProfilePanel({ open, onClose }: Props) {
                       onClick={cancelEdit}
                       className="flex-1 bg-white/5 text-muted-gray text-sm font-medium rounded-xl py-2.5 transition-colors"
                     >
-                      Cancelar
+                      Cancel
                     </button>
                     <button
                       onClick={handleSave}
@@ -307,7 +307,7 @@ export default function ProfilePanel({ open, onClose }: Props) {
                           contentStyle={{ background: '#141414', border: '1px solid #2A2A2A', borderRadius: 0, fontSize: 12 }}
                           labelStyle={{ color: '#A8A8A4' }}
                           itemStyle={{ color: '#4DA3FF' }}
-                          formatter={(val: number) => [`${val}kg`, 'Peso']}
+                          formatter={(val: number) => [`${val}kg`, 'Weight']}
                         />
                         <Line
                           type="monotone"
@@ -338,7 +338,7 @@ export default function ProfilePanel({ open, onClose }: Props) {
               onClick={() => { signOut(); onClose() }}
               className="w-full bg-graphite hover:bg-white/5 border border-white/5 text-muted-gray text-sm font-medium rounded-2xl py-3.5 transition-colors"
             >
-              Sair da conta
+              Sign out
             </button>
           </div>
         )}

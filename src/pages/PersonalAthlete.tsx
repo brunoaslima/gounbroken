@@ -293,8 +293,8 @@ export default function PersonalAthlete() {
 
         {workouts.length === 0 && (
           <div className="text-center py-10 space-y-2">
-            <p className="text-soft-white font-semibold">Nenhum treino criado ainda</p>
-            <p className="text-muted-gray/50 text-sm">Crie o primeiro treino para {name}</p>
+            <p className="text-soft-white font-semibold">No workouts created yet</p>
+            <p className="text-muted-gray/50 text-sm">Create the first workout for {name}</p>
           </div>
         )}
       </div>

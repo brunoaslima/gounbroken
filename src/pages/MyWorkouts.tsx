@@ -374,7 +374,7 @@ export default function MyWorkouts() {
             onClick={() => setImportOpen(true)}
             className="flex items-center gap-2 active:opacity-60 transition-opacity font-mono font-bold uppercase tracking-[0.14em] text-[11px]"
             style={{ color: '#D4FF3A' }}
-            title="Adicionar treino"
+            title="Add workout"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D4FF3A" strokeWidth="2">
               <path d="M12 5v14M5 12h14" />

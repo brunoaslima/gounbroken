@@ -88,7 +88,7 @@ function MovementPickerSheet({
         </div>
         <div className="px-5 pb-3 shrink-0" style={{ borderBottom: '1px solid #2A2A2A' }}>
           <span className="font-mono font-bold uppercase tracking-[0.18em] text-[10px] text-[#6B6B68] block mb-3">
-            Selecionar movimento
+            Select movement
           </span>
           <input
             autoFocus
@@ -201,7 +201,7 @@ export default function Buildup() {
                 className="font-sans font-bold"
                 style={{ fontSize: 17, letterSpacing: '-0.01em', color: selectedMovement ? '#F5F5F0' : '#3D3D3B' }}
               >
-                {selectedMovement ? selectedMovement.name : 'Selecionar movimento'}
+                {selectedMovement ? selectedMovement.name : 'Select movement'}
               </span>
             </div>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B6B68" strokeWidth="2">
@@ -292,7 +292,7 @@ export default function Buildup() {
 
               {rawTarget !== '' && !valid && (
                 <span className="font-mono text-[11px] text-[#FF4444] uppercase tracking-wider block mt-2">
-                  Peso deve ser maior que {barKg} kg (barra vazia)
+                  Weight must be greater than {barKg} kg (empty bar)
                 </span>
               )}
               {warning && (

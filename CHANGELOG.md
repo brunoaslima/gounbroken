@@ -6,6 +6,16 @@ Formato de versão: `## [versão] — AAAA-MM-DD`
 
 ---
 
+## [1.4.2] — 2026-07-05
+
+### UI → English strings sweep
+
+- Translated all remaining Portuguese-language strings to English across 22 files
+- BMI labels (Abaixo do peso / Peso normal / Sobrepeso / Obesidade → Underweight / Normal / Overweight / Obese)
+- Drawer navigation labels, BottomNav, ProfilePanel fields, WorkoutImportSheet UI, Toast buttons, BuildupSheet, AddScore, Buildup, CompetitionDetail, JudgePanel, Leaderboard, Onboarding, PersonalAthlete, Stats, Validation error messages in competitionScore.ts
+
+---
+
 ## [1.4.1] — 2026-07-05
 
 ### UI → Safe Area (iPhone notch / Dynamic Island)

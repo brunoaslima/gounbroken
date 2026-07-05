@@ -236,7 +236,7 @@ function ToastItem({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
           fontFamily: FONTS.mono, fontWeight: 700, fontSize: 10,
           letterSpacing: '0.06em', color: ink, opacity: 0.75, lineHeight: 1,
         }}>#{id6}</span>
-        <button onClick={onDismiss} aria-label="Fechar" style={{
+        <button onClick={onDismiss} aria-label="Close" style={{
           position: 'relative', zIndex: 1,
           background: 'transparent', border: 0, color: ink, cursor: 'pointer',
           padding: 0, marginLeft: 4, fontFamily: FONTS.mono, fontWeight: 800, fontSize: 13, lineHeight: 1,
@@ -297,7 +297,7 @@ function ToastItem({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
                 padding: '9px 14px', fontFamily: FONTS.mono, fontWeight: 700, fontSize: 11,
                 letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', borderRadius: 0,
                 marginLeft: -1,
-              }}>Dispensar</button>
+              }}>Dismiss</button>
             </div>
           ) : (
             <div style={{ marginTop: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

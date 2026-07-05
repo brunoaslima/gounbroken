@@ -305,7 +305,7 @@ export default function AddScore() {
             onClick={() => setMovementId('')}
             className="font-mono font-bold uppercase tracking-[0.12em] text-[11px] text-[#A8A8A4] active:text-soft-white"
           >
-            ← Voltar
+            ← Back
           </button>
           <span className="font-mono font-bold uppercase tracking-[0.18em] text-[11px] text-[#A8A8A4]">New PR</span>
           <div className="w-16" />
@@ -346,7 +346,7 @@ export default function AddScore() {
           {!rx && (
             <div className="mx-5 mt-3 space-y-0">
               <div className="px-4 py-3.5 bg-[#111] border border-[#2A2A2A] border-b-0">
-                <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#6B6B68] block mb-2">Peso utilizado (kg)</span>
+                <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#6B6B68] block mb-2">Weight used (kg)</span>
                 <input
                   type="number"
                   step="0.5"
@@ -450,7 +450,7 @@ export default function AddScore() {
           onClick={() => setMovementId('')}
           className="font-mono font-bold uppercase tracking-[0.12em] text-[11px] text-[#A8A8A4] active:text-soft-white"
         >
-          ← Voltar
+          ← Back
         </button>
         <span className="font-mono font-bold uppercase tracking-[0.18em] text-[11px] text-[#A8A8A4]">New PR</span>
         <div className="w-16" />
