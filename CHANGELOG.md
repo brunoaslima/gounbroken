@@ -6,6 +6,15 @@ Formato de versão: `## [versão] — AAAA-MM-DD`
 
 ---
 
+## [1.4.3] — 2026-07-06
+
+### Training → Gymnastics: delete set
+
+- UnbrokenDetail: botão de delete em cada row do histórico (tap → confirma DEL / cancela)
+- `useUnbrokenSets`: novo método `deleteSet(setId)`
+
+---
+
 ## [1.4.2] — 2026-07-05
 
 ### UI → English strings sweep
