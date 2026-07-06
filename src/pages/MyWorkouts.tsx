@@ -250,26 +250,37 @@ function Section({
   workouts,
   userId,
   onFeedbackChange,
+  canModify,
+  onEditOwn,
+  onDeleteOwn,
 }: {
   title: string
   workouts: PrescribedWorkoutData[]
   userId?: string
   onFeedbackChange?: (workoutId: string, feedback: import('@/types').WorkoutFeedback) => void
+  canModify?: (date: string) => boolean
+  onEditOwn?: (workout: PrescribedWorkoutData) => void
+  onDeleteOwn?: (workoutId: string) => void
 }) {
   if (!workouts.length) return null
   return (
     <div>
       <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#A8A8A4] block mb-3">{title}</span>
       <div className="space-y-2">
-        {workouts.map(w => (
-          <WorkoutCard
-            key={w.id}
-            workout={w}
-            defaultExpanded={workouts.length === 1}
-            userId={userId}
-            onFeedbackChange={onFeedbackChange}
-          />
-        ))}
+        {workouts.map(w => {
+          const modifiable = w.is_own && (canModify?.(w.workout_date) ?? true)
+          return (
+            <WorkoutCard
+              key={w.id}
+              workout={w}
+              defaultExpanded={workouts.length === 1}
+              userId={userId}
+              onFeedbackChange={onFeedbackChange}
+              onEdit={modifiable && onEditOwn ? () => onEditOwn(w) : undefined}
+              onDelete={modifiable && onDeleteOwn ? () => onDeleteOwn(w.id) : undefined}
+            />
+          )
+        })}
       </div>
     </div>
   )
@@ -287,6 +298,7 @@ export default function MyWorkouts() {
   const [loading, setLoading] = useState(true)
   const [generateOpen, setGenerateOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  const [editingWorkout, setEditingWorkout] = useState<PrescribedWorkoutData | null>(null)
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all')
 
   const hasAIRole = profile?.roles?.includes('ai') ?? false
@@ -304,12 +316,19 @@ export default function MyWorkouts() {
     setLoading(false)
   }
 
+  async function handleDeleteOwnWorkout(workoutId: string) {
+    const { error } = await supabase.rpc('admin_delete_workout', { p_workout_id: workoutId })
+    if (error) { console.error('admin_delete_workout error:', error); return }
+    setWorkouts(prev => prev.filter(w => w.id !== workoutId))
+  }
+
   useEffect(() => {
     if (!user) return
     loadWorkouts()
   }, [user])
 
   const today = toLocalDateStr(new Date())
+  const canModify = (date: string) => date >= today
   const { start: weekStart, end: weekEnd } = getWeekBounds()
 
   const { start: weekStart2, end: weekEnd2 } = getCurrentWeekBounds()
@@ -340,13 +359,14 @@ export default function MyWorkouts() {
       )}
       {user && (
         <WorkoutImportSheet
-          open={importOpen}
-          onClose={() => setImportOpen(false)}
-          onDone={() => { setImportOpen(false); setLoading(true); loadWorkouts() }}
+          open={importOpen || !!editingWorkout}
+          onClose={() => { setImportOpen(false); setEditingWorkout(null) }}
+          onDone={() => { setImportOpen(false); setEditingWorkout(null); setLoading(true); loadWorkouts() }}
           userId={user.id}
           hasAIRole={hasAIRole}
           generatedThisWeek={generatedThisWeek}
           onOpenGenerate={() => setGenerateOpen(true)}
+          editingWorkout={editingWorkout}
         />
       )}
 
@@ -445,9 +465,9 @@ export default function MyWorkouts() {
           </div>
         ) : (
           <>
-            <Section title={`This week · ${thisWeek.length}`} workouts={thisWeek} userId={user?.id} onFeedbackChange={handleFeedbackChange} />
-            <Section title={`Upcoming · ${upcoming.length}`} workouts={upcoming} />
-            <Section title={`Previous · ${past.length}`} workouts={past} userId={user?.id} onFeedbackChange={handleFeedbackChange} />
+            <Section title={`This week · ${thisWeek.length}`} workouts={thisWeek} userId={user?.id} onFeedbackChange={handleFeedbackChange} canModify={canModify} onEditOwn={setEditingWorkout} onDeleteOwn={handleDeleteOwnWorkout} />
+            <Section title={`Upcoming · ${upcoming.length}`} workouts={upcoming} canModify={canModify} onEditOwn={setEditingWorkout} onDeleteOwn={handleDeleteOwnWorkout} />
+            <Section title={`Previous · ${past.length}`} workouts={past} userId={user?.id} onFeedbackChange={handleFeedbackChange} canModify={canModify} onEditOwn={setEditingWorkout} onDeleteOwn={handleDeleteOwnWorkout} />
           </>
         )}
       </div>

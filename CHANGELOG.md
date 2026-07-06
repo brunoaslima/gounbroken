@@ -6,6 +6,49 @@ Formato de versão: `## [versão] — AAAA-MM-DD`
 
 ---
 
+## [1.4.6] — 2026-07-06
+
+### Code Quality → Multiple: CodeRabbit fixes
+
+- Training → WorkoutImportSheet: restore `sectionNotes` in edit prefill — notes with `obs:` suffix no longer duplicated on re-save
+- Training → WorkoutImportSheet: add `aria-label` to sets number input
+- Training → Unbroken: `deleteSet` now returns `{ error }` like `addSet`, surfaces RLS/network failures instead of silently proceeding
+- Competition → CompetitionManage: extract `broadcastResult()` helper that calls `removeChannel` after send — prevents stale channel accumulation on repeated judge actions
+- Competition → JudgePanel: same channel cleanup after broadcast
+- Home → Headlines: fix unreachable no-data fallback (`pool.length < 5` → `!hasData`)
+
+---
+
+## [1.4.5] — 2026-07-06
+
+### Competition → Leaderboard Realtime: fix latency/missing events
+
+- Root cause: RLS policy `"results: anon read published"` only allows SELECT where `status = 'published'`. Supabase Realtime evaluates RLS before emitting `postgres_changes` to the subscriber — so anon viewers never received WAL events for results in `submitted` status (inserted by judges), causing 10-30 s latency or no event at all
+- Fix 1: removed the `filter: competition_id=eq.${id}` from the `postgres_changes` subscription — combining a column filter with RLS causes the Realtime server to run two separate evaluation passes, compounding latency; since the callback only triggers a refetch (no payload used), receiving events from other competitions is harmless
+- Fix 2: added a Broadcast channel `score:<competition_id>` — judge (JudgePanel) and admin (CompetitionManage) send a zero-payload broadcast after every `submit_competition_result`, `override_competition_result`, and `publish_wod_results` call; Leaderboard subscribes and triggers a refetch instantly; Broadcast is pure WebSocket pub/sub with no WAL or RLS involved
+
+---
+
+## [1.4.4] — 2026-07-06
+
+### Home → Dynamic headline system (100 contexts)
+
+- Headline da Home agora rotaciona entre 100 contextos diferentes baseados nos dados do atleta
+- Prioridade: PR hoje → próximo de subir tier → PRs no mês → Elite → volume → ratio corporal → advanced spread → tier/standing → filosófico
+- Rotação diária determinística (muda a cada dia, nunca aleatório) — usuário nunca vê o mesmo headline dois dias seguidos
+- Sem nova query ao Supabase — usa exclusivamente dados já carregados
+
+---
+
+## [1.4.3] — 2026-07-06
+
+### Training → Gymnastics: delete set
+
+- UnbrokenDetail: botão de delete em cada row do histórico (tap → confirma DEL / cancela)
+- `useUnbrokenSets`: novo método `deleteSet(setId)`
+
+---
+
 ## [1.4.2] — 2026-07-05
 
 ### UI → English strings sweep

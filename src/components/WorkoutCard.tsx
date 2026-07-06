@@ -17,6 +17,7 @@ function wClassify(line: string): WLineType {
   // Format lines
   if (/\b(amrap|emom|for[\s-]?time|for[\s-]?load|tabata|every|chipper|ladder)\b/i.test(t)) return 'format'
   if (/^\d+\s*rounds?\s*(of|de|:)?\s*/i.test(t)) return 'format'
+  if (/^\d+\s*[x×]?\s*sets?\b/i.test(t)) return 'format'
   if (/^(each\s+for\s+time|for\s+load|build\s+to|time\s+cap)/i.test(t)) return 'format'
   if (/^\d+r\b.*\b(each|for|time)\b/i.test(t)) return 'format'
   if (/^\d+-\d+(-\d+)+/.test(t)) return 'format'
@@ -43,18 +44,25 @@ function WorkoutNotesRenderer({ notes }: { notes: string }) {
         const t = line.trim()
         if (type === 'empty') return <div key={i} style={{ height: 4 }} />
         if (type === 'format') return (
-          <p key={i} className="text-lime text-[13px] font-black tracking-wide mt-0.5 uppercase">{t}</p>
+          <p key={i} className="text-white/40 text-[11px] font-semibold tracking-wider mt-0.5 uppercase">{t}</p>
         )
-        if (type === 'exercise') return (
-          <p key={i} className="text-soft-white font-bold text-[15px] leading-snug uppercase tracking-wide">{t}</p>
-        )
+        if (type === 'exercise' || type === 'plain') {
+          const m = t.match(/^(\d+[""''′″]?(?:[\/\-]\d+[""''′″]?)?(?:\s*(?:sec|min|cal|kg|m|reps?|x|×))?)\s+(.+)/i)
+          if (m) return (
+            <p key={i} className="flex items-baseline gap-1.5 flex-wrap leading-snug">
+              <span className="text-lime font-black text-[13px] tracking-wide shrink-0 uppercase">{m[1]}</span>
+              <span className="text-soft-white font-bold text-[15px] uppercase tracking-wide">{m[2]}</span>
+            </p>
+          )
+          return <p key={i} className="text-soft-white font-bold text-[15px] leading-snug uppercase tracking-wide">{t}</p>
+        }
         if (type === 'note') return (
           <p key={i} className="text-muted-gray/50 text-xs italic">{t}</p>
         )
         if (type === 'title') return (
           <p key={i} className="text-[11px] font-black text-muted-gray tracking-[0.12em] uppercase mt-2">{t}:</p>
         )
-        return <p key={i} className="text-muted-gray/70 text-sm leading-relaxed">{t}</p>
+        return <p key={i} className="text-soft-white font-bold text-[15px] leading-snug uppercase tracking-wide">{t}</p>
       })}
     </div>
   )
@@ -398,6 +406,7 @@ export default function WorkoutCard({
         {onEdit && (
           <button
             onClick={e => { e.stopPropagation(); onEdit() }}
+            aria-label="Edit workout"
             className="absolute top-3 right-[60px] p-1.5 text-muted-gray/30 hover:text-lime transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -423,6 +432,7 @@ export default function WorkoutCard({
           ) : (
             <button
               onClick={e => { e.stopPropagation(); setConfirming(true) }}
+              aria-label="Delete workout"
               className="absolute top-3 right-10 p-1.5 text-muted-gray/30 hover:text-warning transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -452,9 +462,19 @@ export default function WorkoutCard({
                 {/* Section header */}
                 <div>
                   <p className="text-[10px] font-black tracking-[0.14em] uppercase leading-none">
-                    <span className="text-lime">{section.section_type.replace(/_/g, ' ')}</span>
-                    <span className="text-white/30 mx-1">·</span>
-                    <span className="text-white/55 normal-case tracking-normal font-semibold">{section.label}</span>
+                    {(() => {
+                      const typeDisplay = section.section_type.replace(/_/g, ' ')
+                      const isDefault = section.label.toLowerCase().replace(/[^a-z]/g, '') === typeDisplay.toLowerCase().replace(/[^a-z]/g, '')
+                      return isDefault ? (
+                        <span className="text-lime">{typeDisplay}</span>
+                      ) : (
+                        <>
+                          <span className="text-lime">{typeDisplay}</span>
+                          <span className="text-white/30 mx-1">·</span>
+                          <span className="text-white/55 normal-case tracking-normal font-semibold">{section.label}</span>
+                        </>
+                      )
+                    })()}
                     {section.modality_tags && section.modality_tags.length > 0 && (
                       <span className="ml-2 text-white/25 normal-case font-normal tracking-normal">
                         · {(section.modality_tags as string[]).join(', ')}

@@ -1263,9 +1263,19 @@ function DraftPreview({ sections, workoutNotes, studentNote, focus, workoutTags,
             {/* Section header */}
             <div>
               <p className="text-[10px] font-black tracking-[0.14em] uppercase leading-none">
-                <span className="text-lime">{section.section_type.replace(/_/g, ' ')}</span>
-                <span className="text-white/30 mx-1">·</span>
-                <span className="text-white/55 normal-case tracking-normal font-semibold">{section.label}</span>
+                {(() => {
+                  const typeDisplay = section.section_type.replace(/_/g, ' ')
+                  const isDefault = section.label.toLowerCase().replace(/[^a-z]/g, '') === typeDisplay.toLowerCase().replace(/[^a-z]/g, '')
+                  return isDefault ? (
+                    <span className="text-lime">{typeDisplay}</span>
+                  ) : (
+                    <>
+                      <span className="text-lime">{typeDisplay}</span>
+                      <span className="text-white/30 mx-1">·</span>
+                      <span className="text-white/55 normal-case tracking-normal font-semibold">{section.label}</span>
+                    </>
+                  )
+                })()}
                 {section.modality_tags.length > 0 && (
                   <span className="ml-2 text-white/25 normal-case font-normal tracking-normal">
                     · {section.modality_tags.join(', ')}
