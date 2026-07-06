@@ -125,3 +125,34 @@ export async function seedApprovedTeamWithWod(
 
   return { teamId: team.id as string, teamName, wodId: wod.id as string }
 }
+
+// ─── Cria divisão + time aprovado + WOD publicado + resultado — pronto pro
+// leaderboard exibir uma posição. get_competition_leaderboard só pontua
+// resultados de WODs com status='published' e times com status='approved'.
+export async function seedLeaderboardEntry(
+  competitionId: string
+): Promise<{ teamName: string }> {
+  const db = getServiceClient()
+  const { teamId, teamName, wodId } = await seedApprovedTeamWithWod(competitionId)
+
+  const { error: wodErr } = await db
+    .from('competition_wods')
+    .update({ status: 'published' })
+    .eq('id', wodId)
+  if (wodErr) throw new Error(`seedLeaderboardEntry publish wod: ${wodErr.message}`)
+
+  const { error: resultErr } = await db
+    .from('competition_results')
+    .insert({
+      competition_id: competitionId,
+      wod_id: wodId,
+      team_id: teamId,
+      raw_result: '12:34',
+      score_numeric: 754,
+      score_type: 'time',
+      status: 'published',
+    })
+  if (resultErr) throw new Error(`seedLeaderboardEntry result: ${resultErr.message}`)
+
+  return { teamName }
+}
