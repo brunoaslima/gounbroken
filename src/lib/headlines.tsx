@@ -1,27 +1,6 @@
 import type { ReactNode } from 'react'
 
-const LIME    = '#D4FF3A'
-const BLUE    = '#46C2FF'
-const GREEN   = '#20C997'
-const ORANGE  = '#FFB84D'
-
-const TIER_COLOR: Record<string, string> = {
-  beginner:     BLUE,
-  novice:       BLUE,
-  intermediate: ORANGE,
-  advanced:     GREEN,
-  elite:        LIME,
-}
-
-const TIER_NEXT: Record<string, string> = {
-  beginner:     'Novice',
-  novice:       'Intermediate',
-  intermediate: 'Advanced',
-  advanced:     'Elite',
-  elite:        'Elite',
-}
-
-function cap(s: string) { return s.charAt(0).toUpperCase() + s.slice(1) }
+const LIME = '#D4FF3A'
 
 function ac(content: ReactNode, color: string): ReactNode {
   return <span style={{ color }}>{content}</span>
@@ -29,6 +8,26 @@ function ac(content: ReactNode, color: string): ReactNode {
 
 function pick<T>(arr: T[], seed: number): T {
   return arr[((seed % arr.length) + arr.length) % arr.length]
+}
+
+// Real-world weight references — vivid, universally known
+const WEIGHT_REFS = [
+  { kg: 75,  label: 'a lightweight boxing champion' },
+  { kg: 100, label: 'an NFL quarterback' },
+  { kg: 130, label: 'an NFL linebacker' },
+  { kg: 160, label: 'a professional sumo wrestler' },
+  { kg: 180, label: 'an adult male gorilla' },
+  { kg: 190, label: 'an adult male lion' },
+  { kg: 230, label: 'a grizzly bear' },
+  { kg: 300, label: 'a baby grand piano' },
+  { kg: 450, label: 'a polar bear' },
+  { kg: 480, label: 'a concert grand piano' },
+]
+
+function closestRef(kg: number) {
+  return WEIGHT_REFS.reduce((best, ref) =>
+    Math.abs(ref.kg - kg) < Math.abs(best.kg - kg) ? ref : best
+  )
 }
 
 export interface HeadlineCtx {
@@ -54,189 +53,128 @@ export interface HeadlineCtx {
 export function pickHeadline(ctx: HeadlineCtx): ReactNode {
   const { allAnalyses, heroPR, scores, weekNum, totalVolumeKg, profile, seed } = ctx
 
-  if (allAnalyses.length === 0) return philosophical(seed)
-
-  const tier       = heroPR?.analysis.level ?? 'beginner'
-  const tierColor  = TIER_COLOR[tier] ?? LIME
-  const nextTier   = TIER_NEXT[tier] ?? 'Elite'
-  const movName    = heroPR?.movement.name ?? ''
   const heroWeight = heroPR?.weight ?? 0
-  const pct        = Math.round(100 - (heroPR?.analysis.score ?? 0))
-  const scoreInBand = (heroPR?.analysis.score ?? 0) % 20
-
-  const bwr = profile?.body_weight_kg && heroWeight
-    ? Math.round((heroWeight / profile.body_weight_kg) * 10) / 10
-    : null
-
-  const todayStr = new Date().toISOString().slice(0, 10)
-  const prToday  = scores.some(s => s.recorded_at?.startsWith(todayStr))
-
-  const thirtyAgo = new Date(); thirtyAgo.setDate(thirtyAgo.getDate() - 30)
-  const prCountMonth = scores.filter(s =>
-    new Date(s.recorded_at + 'T00:00:00') >= thirtyAgo
-  ).length
-
-  const eliteCount        = allAnalyses.filter(a => a.analysis.level === 'elite').length
-  const advancedPlusCount = allAnalyses.filter(a =>
+  const bw         = profile?.body_weight_kg ?? null
+  const bwr        = bw && heroWeight > 0 ? Math.round((heroWeight / bw) * 10) / 10 : null
+  const prCount    = scores.length
+  const hasData    = allAnalyses.length > 0
+  const eliteCount = allAnalyses.filter(a => a.analysis.level === 'elite').length
+  const advCount   = allAnalyses.filter(a =>
     a.analysis.level === 'advanced' || a.analysis.level === 'elite'
   ).length
-  const closeToNext = scoreInBand >= 14 && tier !== 'elite'
 
-  const volT = totalVolumeKg >= 1000
-    ? `${(totalVolumeKg / 1000).toFixed(1)}t`
-    : `${Math.round(totalVolumeKg)}kg`
+  const pool: ReactNode[] = []
 
-  // ── A. PR today (10 variants) ────────────────────────────────────────────
-  if (prToday && heroPR) {
-    return pick([
-      <>New PR on {ac(movName, tierColor)}. {ac(`${heroWeight}kg`, LIME)}.</>,
-      <>You just hit {ac(`${heroWeight}kg`, LIME)} on {ac(movName, tierColor)}. That's the job.</>,
-      <>{ac(movName, tierColor)}: {ac(`${heroWeight}kg`, LIME)}. Today was a good day.</>,
-      <>PR logged. {ac(movName, tierColor)} → {ac(`${heroWeight}kg`, LIME)}. Keep the data clean.</>,
-      <>New high on {ac(movName, tierColor)}. {ac(`${heroWeight}kg`, LIME)} recorded.</>,
-      <>{ac(`${heroWeight}kg`, LIME)} on {ac(movName, tierColor)}. Week {weekNum} delivers.</>,
-      <>PR day. {ac(movName, tierColor)}: {ac(`${heroWeight}kg`, LIME)}.</>,
-      <>You lifted more than ever on {ac(movName, tierColor)} today.</>,
-      <>{ac(movName, tierColor)} PR. {ac(`${heroWeight}kg`, LIME)}. Numbers don't lie.</>,
-      <>Today: {ac(`${heroWeight}kg`, LIME)} on {ac(movName, tierColor)}.</>,
-    ], seed)
+  // ── Real-world weight comparisons ─────────────────────────────────────────
+  if (heroWeight >= 60) {
+    const ref = closestRef(heroWeight)
+    pool.push(<>{ac(`${heroWeight}kg`, LIME)}. That's {ref.label}.</>)
+    pool.push(<>You're lifting {ref.label} off the floor.</>)
+    if (heroWeight > ref.kg) {
+      pool.push(<>Your PR is heavier than {ref.label}. Just saying.</>)
+    }
   }
 
-  // ── B. Close to next tier (8 variants) ──────────────────────────────────
-  if (closeToNext && heroPR) {
-    return pick([
-      <>One strong session from {ac(nextTier, LIME)} on {ac(movName, tierColor)}.</>,
-      <>{ac(movName, tierColor)}: {ac(cap(tier), tierColor)} → {ac(nextTier, LIME)} is close.</>,
-      <>You're right on the edge of {ac(nextTier, LIME)} on {ac(movName, tierColor)}.</>,
-      <>Next tier on {ac(movName, tierColor)} is within reach. Push it.</>,
-      <>{ac(nextTier, LIME)} on {ac(movName, tierColor)}. Almost.</>,
-      <>You're tracking toward {ac(nextTier, LIME)} on {ac(movName, tierColor)}.</>,
-      <>The gap to {ac(nextTier, LIME)} on {ac(movName, tierColor)} is smaller than it looks.</>,
-      <>{ac(movName, tierColor)}: almost {ac(nextTier, LIME)}. One session away.</>,
-    ], seed + 1)
+  // ── Volume comparisons (elephant = ~5,000kg; double-decker bus = ~12,000kg) ─
+  if (totalVolumeKg >= 1000) {
+    const tStr = `${(totalVolumeKg / 1000).toFixed(1)}t`
+    const elephants = Math.floor(totalVolumeKg / 5000)
+
+    if (elephants >= 2) {
+      pool.push(<>This month you moved the weight of {ac(elephants, LIME)} elephants.</>)
+    } else if (elephants === 1) {
+      pool.push(<>This month you moved the weight of {ac('an elephant', LIME)}.</>)
+    } else {
+      pool.push(<>You've moved {ac(tStr, LIME)} this month. An elephant weighs {ac('5t', LIME)}.</>)
+    }
+
+    if (totalVolumeKg >= 12000) {
+      pool.push(<>You out-loaded a double-decker bus this month. {ac(tStr, LIME)} total.</>)
+    } else if (totalVolumeKg >= 5000) {
+      pool.push(<>{ac(tStr, LIME)} this month. A double-decker bus is {ac('12t', LIME)}.</>)
+    }
   }
 
-  // ── C. Multiple PRs this month (8 variants) ──────────────────────────────
-  if (prCountMonth >= 3) {
-    return pick([
-      <>{ac(prCountMonth, LIME)} PRs this month. Momentum is real.</>,
-      <>You've hit {ac(prCountMonth, LIME)} new records this month.</>,
-      <>{ac(prCountMonth, LIME)} PRs in the last 30 days. This is what building looks like.</>,
-      <>{ac(prCountMonth, LIME)} records broken this month. Keep going.</>,
-      <>Week {ac(weekNum, LIME)}: {ac(prCountMonth, LIME)} PRs logged.</>,
-      <>{ac(prCountMonth, LIME)} movements improved this month. That's progress.</>,
-      <>This month: {ac(prCountMonth, LIME)} new bests. The bar keeps moving.</>,
-      <>{ac(prCountMonth, LIME)} PRs in 30 days. More than most athletes ever track.</>,
-    ], seed + 2)
+  // ── Bodyweight ratio ──────────────────────────────────────────────────────
+  if (bwr !== null) {
+    if (bwr >= 2.0) {
+      pool.push(<>{ac(`${bwr}×`, LIME)} your own bodyweight. That's Olympic-level territory.</>)
+      pool.push(<>Most certified trainers can't lift what you use for warmup.</>)
+    } else if (bwr >= 1.5) {
+      pool.push(<>{ac(`${bwr}×`, LIME)} bodyweight. The textbook definition of 'advanced'.</>)
+      pool.push(<>A {ac('2×', LIME)} bodyweight lift is the advanced standard. You're tracking toward it.</>)
+    } else if (bwr >= 1.0) {
+      pool.push(<>Most people never lift their own bodyweight once. You do it for reps.</>)
+      pool.push(<>Bodyweight ratio: {ac(`${bwr}×`, LIME)}. Most people stop at {ac('1×', LIME)}.</>)
+    }
   }
 
-  // ── D. Elite status (6 variants) ─────────────────────────────────────────
+  // ── Training science ──────────────────────────────────────────────────────
+  if (hasData) {
+    pool.push(<>Elite lifters PR every 8–12 weeks. You're building toward it either way.</>)
+    pool.push(<>Strength adapts in 4–6 week cycles. Your log confirms it.</>)
+    pool.push(<>Most athletes plateau because they never measure. You do.</>)
+    pool.push(<>Olympic weightlifters squat roughly 2.5× their bodyweight. The gap is a direction.</>)
+    pool.push(<>Your training age is the most underrated number in the sport. Keep adding to it.</>)
+    pool.push(<>The nervous system adapts before the muscles do. The early gains are real.</>)
+  }
+
+  // ── Tier observations (framed as curiosity, not score report) ────────────
+  if (eliteCount >= 2) {
+    pool.push(<>Elite on {ac(eliteCount, LIME)} movements. The top of the table is a small room.</>)
+  }
   if (eliteCount >= 1) {
-    return pick([
-      <>{ac('Elite', LIME)} on {ac(eliteCount, LIME)} {eliteCount === 1 ? 'movement' : 'movements'}. Not many get here.</>,
-      <>You've reached {ac('Elite', LIME)} on {ac(movName, LIME)}. That took work.</>,
-      <>{ac('Elite', LIME)} on {ac(movName, LIME)}. Top {ac(`${pct}%`, LIME)} globally.</>,
-      <>Top {ac(`${pct}%`, LIME)} on {ac(movName, LIME)}. Elite territory.</>,
-      <>{ac('Elite', LIME)} athlete. Week {weekNum}. Stay there.</>,
-      <>{ac(eliteCount, LIME)} {eliteCount === 1 ? 'movement' : 'movements'} at {ac('Elite', LIME)}. The log confirms it.</>,
-    ], seed + 3)
+    pool.push(<>Most athletes never reach Elite on a single lift. You have.</>)
+  }
+  if (advCount >= 3) {
+    pool.push(<>Advanced across {ac(advCount, LIME)} movements. That's not beginner luck anymore.</>)
+    pool.push(<>You don't have a genuinely weak lift. That's rarer than people think.</>)
+  }
+  if (advCount >= 1 && eliteCount === 0) {
+    pool.push(<>Advanced strength is where most athletes stop. You haven't.</>)
   }
 
-  // ── E. Volume milestone (6 variants) ─────────────────────────────────────
-  if (totalVolumeKg >= 5000) {
-    return pick([
-      <>You've moved {ac(volT, LIME)} this month.</>,
-      <>Total volume: {ac(volT, LIME)}. The body notices.</>,
-      <>{ac(volT, LIME)} lifted in the last 30 days.</>,
-      <>Volume: {ac(volT, LIME)}. Compounding.</>,
-      <>{ac(volT, LIME)} this month. The log proves it.</>,
-      <>Last 30 days: {ac(volT, LIME)} moved.</>,
-    ], seed + 4)
+  // ── Week / time perspective ───────────────────────────────────────────────
+  pool.push(<>Week {ac(weekNum, LIME)} of the year. Most New Year's resolutions were dead by week 4.</>)
+  pool.push(<>Week {ac(weekNum, LIME)}. Still here. Still logging.</>)
+  pool.push(<>Week {ac(weekNum, LIME)}. The body keeps the score.</>)
+
+  // ── PR count / consistency ────────────────────────────────────────────────
+  if (prCount >= 20) {
+    pool.push(<>{ac(prCount, LIME)} PRs in the book. The bar keeps moving.</>)
+    pool.push(<>{ac(prCount, LIME)} records. You stopped guessing your strength a long time ago.</>)
+  } else if (prCount >= 10) {
+    pool.push(<>{ac(prCount, LIME)} PRs logged. That's not luck.</>)
+  } else if (prCount >= 5) {
+    pool.push(<>{ac(prCount, LIME)} entries. The log is working.</>)
   }
 
-  // ── F. Body weight ratio (10 variants) ───────────────────────────────────
-  if (bwr !== null && bwr >= 1.0) {
-    return pick([
-      <>{ac(movName, tierColor)}: {ac(`${bwr}×`, LIME)} bodyweight.</>,
-      <>You're moving {ac(`${bwr}×`, LIME)} your bodyweight on {ac(movName, tierColor)}.</>,
-      <>{ac(`${bwr}×`, LIME)} BW on {ac(movName, tierColor)}. {ac(cap(tier), tierColor)} standard.</>,
-      <>Body weight ratio on {ac(movName, tierColor)}: {ac(`${bwr}×`, LIME)}.</>,
-      <>Relative strength: {ac(`${bwr}×`, LIME)} BW on {ac(movName, tierColor)}.</>,
-      <>{ac(movName, tierColor)} at {ac(`${bwr}×`, LIME)} bodyweight. Solid.</>,
-      <>Pound-for-pound: {ac(`${bwr}×`, LIME)} on {ac(movName, tierColor)}.</>,
-      <>{ac(`${bwr}×`, LIME)} your bodyweight on {ac(movName, tierColor)}. That's {ac(cap(tier), tierColor)}.</>,
-      <>Weight-relative strength: {ac(`${bwr}×`, LIME)} on {ac(movName, tierColor)}.</>,
-      <>{ac(movName, tierColor)}: {ac(`${bwr}×`, LIME)} BW. Week {weekNum}.</>,
-    ], seed + 5)
+  // ── Dry wit ───────────────────────────────────────────────────────────────
+  pool.push(<>A barbell has no opinion of you. {ac("That's what makes it honest.", LIME)}</>)
+  pool.push(<>The floor gets a little further away every week.</>)
+  pool.push(<>You logged this. {ac("That already puts you ahead of the version that didn't.", LIME)}</>)
+  pool.push(<>The numbers don't care if it hurt. {ac("That's kind of the point.", LIME)}</>)
+  pool.push(<>Progress is invisible {ac('until the log proves otherwise.', LIME)}</>)
+  pool.push(<>Most people estimate their strength. {ac('You measure it.', LIME)}</>)
+  pool.push(<>Quiet sessions. {ac('Loud data.', LIME)}</>)
+  pool.push(<>The bar was the same weight for everyone. {ac('You moved it anyway.', LIME)}</>)
+  pool.push(<>Every rep you've ever done is still in your muscles. {ac('The log just confirms it.', LIME)}</>)
+  pool.push(<>Strong is a direction, not a destination. {ac("You're pointing the right way.", LIME)}</>)
+  pool.push(<>The gym doesn't remember you. {ac('Your body does.', LIME)}</>)
+  pool.push(<>Numbers compound. {ac('So does consistency.', LIME)}</>)
+  pool.push(<>You showed up. {ac('The data was waiting.', LIME)}</>)
+  pool.push(<>The record exists. {ac('Now beat it.', LIME)}</>)
+  pool.push(<>The average athlete guesses. {ac('You know.', LIME)}</>)
+  pool.push(<>Hard work is quiet. {ac('Data is loud.', LIME)}</>)
+  pool.push(<>Strength compounds. {ac("You're proof.", LIME)}</>)
+  pool.push(<>The log is open. {ac('Keep writing.', LIME)}</>)
+
+  // ── No data fallback ──────────────────────────────────────────────────────
+  if (pool.length < 5) {
+    pool.push(<>The log is open. {ac('Start writing.', LIME)}</>)
+    pool.push(<>Every PR starts with the first entry.</>)
+    pool.push(<>Track once. {ac('The data builds itself.', LIME)}</>)
   }
 
-  // ── G. Advanced spread (6 variants) ──────────────────────────────────────
-  if (advancedPlusCount >= 2) {
-    return pick([
-      <>Advanced on {ac(advancedPlusCount, LIME)} movements. Building the full picture.</>,
-      <>You're {ac(cap(tier), tierColor)} on {ac(advancedPlusCount, LIME)} lifts. Rare.</>,
-      <>{ac(advancedPlusCount, LIME)} movements at {ac('Advanced', GREEN)} or above.</>,
-      <>Solid across {ac(advancedPlusCount, LIME)} movements. Balanced athlete.</>,
-      <>{ac(cap(tier), tierColor)} profile. Week {weekNum}.</>,
-      <>Cross-movement strength: {ac(advancedPlusCount, LIME)} at {ac('Advanced', GREEN)}+.</>,
-    ], seed + 6)
-  }
-
-  // ── H. Tier / standing (12 variants) ─────────────────────────────────────
-  return pick([
-    <>You're in the top {ac(`${pct}%`, tierColor)} on {ac(movName, tierColor)}.</>,
-    <>Top {ac(`${pct}%`, tierColor)} on {ac(movName, tierColor)}. That took work.</>,
-    <>{ac(cap(tier), tierColor)} on {ac(movName, tierColor)}. Week {weekNum}.</>,
-    <>Your best PR puts you in the top {ac(`${pct}%`, tierColor)} globally.</>,
-    <>{ac(`${pct}%`, tierColor)} of athletes lift less than you on {ac(movName, tierColor)}.</>,
-    <>Top {ac(`${pct}%`, tierColor)} on {ac(movName, tierColor)}. Week {weekNum}.</>,
-    <>You've earned {ac(cap(tier), tierColor)} on {ac(movName, tierColor)}.</>,
-    <>{ac(cap(tier), tierColor)} athlete. Week {weekNum}.</>,
-    <>Global top {ac(`${pct}%`, tierColor)} on {ac(movName, tierColor)}. Verified.</>,
-    <>Strength tier: {ac(cap(tier), tierColor)}. Week {weekNum}.</>,
-    <>You're in the top {ac(`${pct}%`, tierColor)} of humanity.</>,
-    <>{ac(movName, tierColor)}: top {ac(`${pct}%`, tierColor)} globally.</>,
-  ], seed + 7)
-}
-
-// ── Philosophical fallback (36 variants — no data yet) ─────────────────────
-function philosophical(seed: number): ReactNode {
-  return pick([
-    <>Most people don't track. {ac('You do.', LIME)} That's the edge.</>,
-    <>The bar doesn't care about your excuses. {ac('Neither do you.', LIME)}</>,
-    <>You showed up. That already puts you {ac('ahead.', LIME)}</>,
-    <>Strength is earned. {ac("You're earning it.", LIME)}</>,
-    <>Progress is invisible until {ac("it isn't.", LIME)}</>,
-    <>Every set is data. {ac("You're collecting.", LIME)}</>,
-    <>You don't have to be the strongest. {ac('Just stronger than yesterday.', LIME)}</>,
-    <>Consistency is the only cheat code. {ac('You found it.', LIME)}</>,
-    <>The only athlete you're racing is {ac("last week's you.", LIME)}</>,
-    <>Numbers don't lie. {ac('Yours are moving.', LIME)}</>,
-    <>The log is open. {ac('Keep writing.', LIME)}</>,
-    <>Effort logged. {ac("That's what matters.", LIME)}</>,
-    <>Strong isn't a destination. {ac("It's a direction.", LIME)}</>,
-    <>What gets measured {ac('gets improved.', LIME)}</>,
-    <>You track because you're serious. {ac('That shows.', LIME)}</>,
-    <>PRs don't happen by accident. {ac('Neither do yours.', LIME)}</>,
-    <>The data is clear. {ac("You're building something.", LIME)}</>,
-    <>Quiet work. {ac('Loud results.', LIME)}</>,
-    <>Every rep counted. {ac('The log confirms it.', LIME)}</>,
-    <>The bar has no memory. {ac('You do.', LIME)}</>,
-    <>Showing up is 80% of the battle. {ac("You're here.", LIME)}</>,
-    <>Strength compounds. {ac("You're proof.", LIME)}</>,
-    <>The record exists. {ac('Now beat it.', LIME)}</>,
-    <>Data first. {ac('Ego later.', LIME)}</>,
-    <>You're not just lifting. You're tracking. {ac("That's different.", LIME)}</>,
-    <>The numbers tell a story. {ac('Keep writing it.', LIME)}</>,
-    <>Hard work is quiet. {ac('Data is loud.', LIME)}</>,
-    <>Most people estimate their strength. {ac('You measure it.', LIME)}</>,
-    <>You track what others guess. {ac("That's the edge.", LIME)}</>,
-    <>Strong today. {ac('Stronger tomorrow.', LIME)}</>,
-    <>The numbers are on your side. {ac('Keep adding to them.', LIME)}</>,
-    <>Benchmarks exist for a reason. {ac("You're using them.", LIME)}</>,
-    <>The average athlete guesses. {ac('You know.', LIME)}</>,
-    <>This is how champions train. {ac('One PR at a time.', LIME)}</>,
-    <>The scoreboard is internal. {ac("You're winning.", LIME)}</>,
-    <>Record it. Improve it. {ac('Repeat.', LIME)}</>,
-  ], seed)
+  return pick(pool, seed)
 }
