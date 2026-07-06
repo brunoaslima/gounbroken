@@ -119,6 +119,7 @@ export interface PrescribedWorkoutData {
   created_at: string
   sections: WorkoutSectionData[]
   feedback?: WorkoutFeedback | null
+  is_own: boolean
 }
 
 export interface AthleteSummary {

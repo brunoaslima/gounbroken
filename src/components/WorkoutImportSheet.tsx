@@ -1,6 +1,8 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createWorker } from 'tesseract.js'
 import { supabase } from '@/lib/supabase'
+import { buildPrescription } from '@/lib/workoutDisplay'
+import type { PrescribedWorkoutData, WorkoutSectionData } from '@/types'
 type SheetState = 'menu' | 'manual' | 'processing' | 'review'
 type ViewMode = 'edit' | 'preview'
 
@@ -12,6 +14,20 @@ interface Props {
   hasAIRole?: boolean
   generatedThisWeek?: boolean
   onOpenGenerate?: () => void
+  /** When set, the sheet opens directly into edit mode for this workout
+   * instead of the create flow — prefills the section builder from its
+   * saved sections and saves via personal_save_workout's replace path. */
+  editingWorkout?: PrescribedWorkoutData | null
+}
+
+// Reconstructs a saved section back into the manual builder's free-text
+// format. Self-registered workouts never populate exercises[] (the manual
+// builder always saves everything as notes), but render them as readable
+// lines as a safety net in case a section ever does have structured data.
+function sectionToContent(s: WorkoutSectionData): string {
+  const lines = s.exercises.map(ex => [ex.movement_name, ...buildPrescription(ex)].filter(Boolean).join(' '))
+  if (s.notes) lines.push(s.notes)
+  return lines.join('\n')
 }
 
 function todayISO() {
@@ -418,9 +434,11 @@ function parseTextIntoSections(text: string) {
 export default function WorkoutImportSheet({
   open, onClose, onDone, userId,
   hasAIRole, generatedThisWeek, onOpenGenerate,
+  editingWorkout,
 }: Props) {
   const cameraRef = useRef<HTMLInputElement>(null)
   const galleryRef = useRef<HTMLInputElement>(null)
+  const sectionsEndRef = useRef<HTMLDivElement>(null)
 
   const [state, setState] = useState<SheetState>('menu')
   const [viewMode, setViewMode] = useState<ViewMode>('edit')
@@ -437,23 +455,59 @@ export default function WorkoutImportSheet({
 
   // Section builder state
   const [explicitSections, setExplicitSections] = useState<DraftSection[]>([])
-  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null)
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
   const [showSectionPicker, setShowSectionPicker] = useState(false)
   const [customLabelInput, setCustomLabelInput] = useState('')
+  const prevSectionCountRef = useRef(0)
+
+  useEffect(() => {
+    if (explicitSections.length > prevSectionCountRef.current) {
+      sectionsEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    }
+    prevSectionCountRef.current = explicitSections.length
+  }, [explicitSections.length])
+
+  // Prefill the section builder from the workout being edited, and jump
+  // straight past the camera/gallery/manual menu into the builder itself.
+  useEffect(() => {
+    if (!open || !editingWorkout) return
+    setDate(editingWorkout.workout_date)
+    setExplicitSections(
+      editingWorkout.sections
+        .slice()
+        .sort((a, b) => a.position - b.position)
+        .map(s => ({ tempId: crypto.randomUUID(), type: s.section_type, label: s.label, content: sectionToContent(s) }))
+    )
+    setState('manual')
+  }, [open, editingWorkout])
 
   function addSection(type: string, label: string) {
     const tempId = crypto.randomUUID()
     setExplicitSections(prev => [...prev, { tempId, type, label, content: '' }])
-    setSelectedSectionId(tempId)
     setShowSectionPicker(false)
     setCustomLabelInput('')
   }
 
   function removeSection(tempId: string) {
+    setExplicitSections(prev => prev.filter(s => s.tempId !== tempId))
+    setCollapsedSections(prev => { const n = new Set(prev); n.delete(tempId); return n })
+  }
+
+  function toggleCollapse(tempId: string) {
+    setCollapsedSections(prev => {
+      const n = new Set(prev)
+      n.has(tempId) ? n.delete(tempId) : n.add(tempId)
+      return n
+    })
+  }
+
+  function moveSection(tempId: string, dir: -1 | 1) {
     setExplicitSections(prev => {
       const idx = prev.findIndex(s => s.tempId === tempId)
-      const next = prev.filter(s => s.tempId !== tempId)
-      setSelectedSectionId(next[Math.max(0, idx - 1)]?.tempId ?? next[0]?.tempId ?? null)
+      const swap = idx + dir
+      if (swap < 0 || swap >= prev.length) return prev
+      const next = [...prev];
+      [next[idx], next[swap]] = [next[swap], next[idx]]
       return next
     })
   }
@@ -472,7 +526,7 @@ export default function WorkoutImportSheet({
     setSaving(false)
     setDate(todayISO())
     setExplicitSections([])
-    setSelectedSectionId(null)
+    setCollapsedSections(new Set())
     setShowSectionPicker(false)
     setCustomLabelInput('')
   }
@@ -561,7 +615,7 @@ export default function WorkoutImportSheet({
         p_focus: [],
         p_notes: null,
         p_sections: sections,
-        p_replace_workout_id: null,
+        p_replace_workout_id: editingWorkout?.id ?? null,
       })
       if (error) throw error
       reset()
@@ -597,7 +651,7 @@ export default function WorkoutImportSheet({
         {/* Header */}
         <div className="flex items-center justify-between px-5 pb-4 shrink-0" style={{ borderBottom: '1px solid #2A2A2A' }}>
           <div>
-            {state !== 'menu' && state !== 'processing' && (
+            {!editingWorkout && state !== 'menu' && state !== 'processing' && (
               <button
                 onClick={() => { setState('menu'); setOcrError(null) }}
                 className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#6B6B68] active:text-soft-white flex items-center gap-1 mb-1"
@@ -609,7 +663,8 @@ export default function WorkoutImportSheet({
               </button>
             )}
             <span className="font-mono font-bold uppercase tracking-[0.18em] text-[11px] text-[#A8A8A4] block">
-              {state === 'menu'       ? 'Add workout' :
+              {editingWorkout          ? 'Edit workout' :
+               state === 'menu'       ? 'Add workout' :
                state === 'manual'    ? 'Write manually' :
                state === 'processing'? 'Processing image…' :
                                        'Review workout'}
@@ -749,124 +804,144 @@ export default function WorkoutImportSheet({
                   <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#6B6B68]">
                     {explicitSections.length > 0 ? 'Sections' : 'Workout content'}
                   </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setShowSectionPicker(true)}
-                      className="font-mono font-bold uppercase tracking-[0.14em] text-[10px]"
-                      style={{ color: '#D4FF3A' }}
-                    >
-                      + Section
-                    </button>
-                    {explicitSections.length === 0 && (
-                      <div className="flex" style={{ border: '1px solid #2A2A2A' }}>
-                        <button onClick={() => setViewMode('edit')}
-                          className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-3 py-1"
-                          style={{ background: viewMode === 'edit' ? '#D4FF3A' : '#1A1A1A', color: viewMode === 'edit' ? '#0A0A0A' : '#6B6B68' }}>
-                          Edit
-                        </button>
-                        <button onClick={() => setViewMode('preview')}
-                          className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-3 py-1"
-                          style={{ background: viewMode === 'preview' ? '#D4FF3A' : '#1A1A1A', color: viewMode === 'preview' ? '#0A0A0A' : '#6B6B68', borderLeft: '1px solid #2A2A2A' }}>
-                          Preview
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  {explicitSections.length === 0 && (
+                    <div className="flex" style={{ border: '1px solid #2A2A2A' }}>
+                      <button onClick={() => setViewMode('edit')}
+                        className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-3 py-1"
+                        style={{ background: viewMode === 'edit' ? '#D4FF3A' : '#1A1A1A', color: viewMode === 'edit' ? '#0A0A0A' : '#6B6B68' }}>
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => text.trim() && setViewMode('preview')}
+                        className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-3 py-1"
+                        style={{
+                          background: viewMode === 'preview' ? '#D4FF3A' : '#1A1A1A',
+                          color: viewMode === 'preview' ? '#0A0A0A' : text.trim() ? '#6B6B68' : '#3D3D3B',
+                          borderLeft: '1px solid #2A2A2A',
+                          cursor: text.trim() ? 'pointer' : 'default',
+                        }}>
+                        Preview
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {explicitSections.length > 0 ? (
-                  <>
-                    {/* Section chips — iOS scroll (bug #18) */}
-                    <div
-                      className="flex mb-3"
-                      style={{
-                        gap: 6,
-                        overflowX: 'scroll',
-                        WebkitOverflowScrolling: 'touch',
-                        scrollbarWidth: 'none',
-                        msOverflowStyle: 'none',
-                        touchAction: 'pan-x',
-                      }}
-                    >
-                      {explicitSections.map(s => {
-                        const active = selectedSectionId === s.tempId
-                        return (
-                          <div key={s.tempId} className="flex shrink-0" style={{ touchAction: 'pan-x' }}>
-                            <button
-                              onClick={() => setSelectedSectionId(s.tempId)}
-                              className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-3 py-1.5"
-                              style={{
-                                touchAction: 'pan-x',
-                                background: active ? '#D4FF3A' : '#1A1A1A',
-                                color: active ? '#0A0A0A' : '#A8A8A4',
-                                border: `1px solid ${active ? '#D4FF3A' : '#2A2A2A'}`,
-                                borderRight: 'none',
-                              }}
-                            >
-                              {s.label}
-                            </button>
-                            <button
-                              onClick={() => removeSection(s.tempId)}
-                              className="flex items-center justify-center font-mono font-bold text-[12px]"
-                              style={{
-                                touchAction: 'pan-x',
-                                width: 26,
-                                background: active ? '#D4FF3A' : '#1A1A1A',
-                                color: active ? '#0A0A0A' : '#6B6B68',
-                                border: `1px solid ${active ? '#D4FF3A' : '#2A2A2A'}`,
-                              }}
-                              aria-label={`Remove ${s.label}`}
-                            >
-                              ×
-                            </button>
-                          </div>
-                        )
-                      })}
-                    </div>
-
-                    {/* Textarea for the active section */}
-                    {selectedSectionId ? (() => {
-                      const sec = explicitSections.find(s => s.tempId === selectedSectionId)
-                      if (!sec) return null
+                  <div className="flex flex-col gap-3">
+                    {explicitSections.map((s, idx) => {
+                      const collapsed = collapsedSections.has(s.tempId)
+                      const isFirst = idx === 0
+                      const isLast = idx === explicitSections.length - 1
                       return (
-                        <textarea
-                          key={sec.tempId}
-                          value={sec.content}
-                          onChange={e => setExplicitSections(prev =>
-                            prev.map(s => s.tempId === sec.tempId ? { ...s, content: e.target.value } : s)
+                        <div key={s.tempId} style={{ border: '1px solid #2A2A2A' }}>
+                          {/* Card header */}
+                          <div
+                            className="flex items-center gap-2 px-3 py-2"
+                            style={{ background: '#1A1A1A', borderBottom: collapsed ? 'none' : '1px solid #2A2A2A' }}
+                          >
+                            {/* Collapse toggle + label */}
+                            <button
+                              onClick={() => toggleCollapse(s.tempId)}
+                              className="flex items-center gap-2 flex-1 min-w-0"
+                              aria-label={collapsed ? 'Expand' : 'Collapse'}
+                            >
+                              <svg
+                                width="10" height="10" viewBox="0 0 10 10" fill="none"
+                                style={{ flexShrink: 0, transition: 'transform 0.15s', transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}
+                              >
+                                <path d="M2 3.5L5 6.5L8 3.5" stroke="#6B6B68" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                              <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] truncate" style={{ color: '#D4FF3A' }}>
+                                {s.label}
+                              </span>
+                            </button>
+                            {/* Move + remove */}
+                            <div className="flex items-center shrink-0" style={{ gap: 2 }}>
+                              <button
+                                onClick={() => moveSection(s.tempId, -1)}
+                                disabled={isFirst}
+                                className="flex items-center justify-center"
+                                style={{ width: 24, height: 24, opacity: isFirst ? 0.2 : 1 }}
+                                aria-label="Move up"
+                              >
+                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                  <path d="M2 6.5L5 3.5L8 6.5" stroke="#6B6B68" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => moveSection(s.tempId, 1)}
+                                disabled={isLast}
+                                className="flex items-center justify-center"
+                                style={{ width: 24, height: 24, opacity: isLast ? 0.2 : 1 }}
+                                aria-label="Move down"
+                              >
+                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                  <path d="M2 3.5L5 6.5L8 3.5" stroke="#6B6B68" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => removeSection(s.tempId)}
+                                className="flex items-center justify-center font-mono font-bold text-[14px] text-[#6B6B68] active:text-soft-white"
+                                style={{ width: 24, height: 24 }}
+                                aria-label={`Remove ${s.label}`}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          </div>
+                          {/* Content textarea — hidden when collapsed */}
+                          {!collapsed && (
+                            <textarea
+                              value={s.content}
+                              onChange={e => setExplicitSections(prev =>
+                                prev.map(x => x.tempId === s.tempId ? { ...x, content: e.target.value } : x)
+                              )}
+                              placeholder={`Write ${s.label} content here...`}
+                              rows={6}
+                              className="w-full bg-transparent font-mono text-[13px] text-soft-white outline-none resize-none"
+                              style={{ padding: '10px 12px', lineHeight: 1.6 }}
+                            />
                           )}
-                          placeholder={`Write the ${sec.label} content here...`}
-                          rows={10}
-                          className="w-full bg-transparent font-mono text-[13px] text-soft-white outline-none resize-none"
-                          style={{ border: '1px solid #2A2A2A', padding: '10px 12px', lineHeight: 1.6 }}
-                          autoFocus
-                        />
+                        </div>
                       )
-                    })() : (
-                      <div
-                        className="flex items-center justify-center py-8"
-                        style={{ border: '1px dashed #2A2A2A' }}
-                      >
-                        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#3D3D3B]">
-                          Select a section above
-                        </span>
-                      </div>
-                    )}
-                  </>
+                    })}
+                    {/* Add another section */}
+                    <button
+                      onClick={() => setShowSectionPicker(true)}
+                      className="w-full flex items-center justify-center py-3 active:opacity-70"
+                      style={{ border: '1px solid #D4FF3A' }}
+                    >
+                      <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px]" style={{ color: '#D4FF3A' }}>
+                        + Add section
+                      </span>
+                    </button>
+                    <div ref={sectionsEndRef} />
+                  </div>
                 ) : (
-                  viewMode === 'edit' ? (
-                    <textarea
-                      value={text}
-                      onChange={e => setText(e.target.value)}
-                      placeholder="Paste or write the workout here..."
-                      rows={12}
-                      className="w-full bg-transparent font-mono text-[13px] text-soft-white outline-none resize-none"
-                      style={{ border: '1px solid #2A2A2A', padding: '10px 12px', lineHeight: 1.6 }}
-                      autoFocus
-                    />
-                  ) : (
-                    <WorkoutPreview text={text} />
-                  )
+                  <div className="flex flex-col gap-3">
+                    {viewMode === 'edit' ? (
+                      <textarea
+                        value={text}
+                        onChange={e => setText(e.target.value)}
+                        placeholder="Paste or write the workout here..."
+                        rows={5}
+                        className="w-full bg-transparent font-mono text-[13px] text-soft-white outline-none resize-none"
+                        style={{ border: '1px solid #2A2A2A', padding: '10px 12px', lineHeight: 1.6 }}
+                        autoFocus
+                      />
+                    ) : (
+                      <WorkoutPreview text={text} />
+                    )}
+                    <button
+                      onClick={() => setShowSectionPicker(true)}
+                      className="w-full flex items-center justify-center py-3 active:opacity-70"
+                      style={{ border: '1px solid #D4FF3A' }}
+                    >
+                      <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px]" style={{ color: '#D4FF3A' }}>
+                        + Add section
+                      </span>
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
