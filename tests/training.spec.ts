@@ -75,7 +75,6 @@ test.describe('Training — fluxo de PR', () => {
     await page.getByRole('button', { name: 'Save PR' }).click()
 
     // Não deve mostrar celebração — deve apenas voltar para o histórico
-    await page.waitForTimeout(2_000)
     await expect(page.getByText('New Personal Record')).not.toBeVisible()
   })
 

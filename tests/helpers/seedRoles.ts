@@ -35,7 +35,8 @@ export async function ensureRole(role: string): Promise<boolean> {
 export async function revertRole(role: string) {
   const client = db()
   const { data, error } = await client.from('profiles').select('roles').eq('user_id', QA_USER_ID).single()
-  if (error || !data) return
+  if (error || !data) throw new Error(`revertRole(${role}): could not read QA profile: ${error?.message}`)
   const roles: string[] = data.roles ?? []
-  await client.from('profiles').update({ roles: roles.filter(r => r !== role) }).eq('user_id', QA_USER_ID)
+  const { error: updErr } = await client.from('profiles').update({ roles: roles.filter(r => r !== role) }).eq('user_id', QA_USER_ID)
+  if (updErr) throw new Error(`revertRole(${role}): ${updErr.message}`)
 }

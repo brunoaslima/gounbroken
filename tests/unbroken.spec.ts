@@ -32,7 +32,7 @@ test.describe('Unbroken tracker — registrar set e ver PR', () => {
     await page.getByRole('button', { name: 'Guardar set' }).click()
 
     // PR block updates to the new reps value, and the set shows in the list
-    await expect(page.getByText('17').first()).toBeVisible({ timeout: 8_000 })
+    await expect(page.locator('span.text-\\[32px\\]', { hasText: '17' })).toBeVisible({ timeout: 8_000 })
   })
 
 })
