@@ -170,7 +170,7 @@ export function pickHeadline(ctx: HeadlineCtx): ReactNode {
   pool.push(<>The log is open. {ac('Keep writing.', LIME)}</>)
 
   // ── No data fallback ──────────────────────────────────────────────────────
-  if (pool.length < 5) {
+  if (!hasData) {
     pool.push(<>The log is open. {ac('Start writing.', LIME)}</>)
     pool.push(<>Every PR starts with the first entry.</>)
     pool.push(<>Track once. {ac('The data builds itself.', LIME)}</>)

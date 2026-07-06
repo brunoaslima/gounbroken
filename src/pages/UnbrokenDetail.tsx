@@ -153,7 +153,7 @@ export default function UnbrokenDetail() {
                 {confirming ? (
                   <div className="flex items-center gap-2 ml-3">
                     <button
-                      onClick={() => { setConfirmDeleteId(null); deleteSet(s.id) }}
+                      onClick={() => { setConfirmDeleteId(null); deleteSet(s.id).then(r => { if (r.error) console.error('deleteSet error:', r.error) }) }}
                       className="font-mono font-bold uppercase text-[9px] tracking-[0.1em] px-2 py-1"
                       style={{ background: '#FF3B30', color: '#fff' }}
                     >

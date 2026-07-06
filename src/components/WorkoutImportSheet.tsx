@@ -478,13 +478,18 @@ export default function WorkoutImportSheet({
       editingWorkout.sections
         .slice()
         .sort((a, b) => a.position - b.position)
-        .map(s => ({
-          tempId: crypto.randomUUID(),
-          type: s.section_type,
-          label: s.label,
-          content: sectionToContent(s),
-          sets: (s.format_config as { sets?: number } | null)?.sets ?? undefined,
-        }))
+        .map(s => {
+          const raw = sectionToContent(s)
+          const obsIdx = raw.search(/\nobs: /)
+          return {
+            tempId: crypto.randomUUID(),
+            type: s.section_type,
+            label: s.label,
+            content: obsIdx >= 0 ? raw.slice(0, obsIdx).trim() : raw,
+            sets: (s.format_config as { sets?: number } | null)?.sets ?? undefined,
+            sectionNotes: obsIdx >= 0 ? raw.slice(obsIdx + 6).trim() || undefined : undefined,
+          }
+        })
     )
     setState('manual')
   }, [open, editingWorkout])
@@ -861,6 +866,7 @@ export default function WorkoutImportSheet({
                                 min={1}
                                 max={99}
                                 value={s.sets ?? ''}
+                                aria-label={`Sets for ${s.label}`}
                                 onChange={e => {
                                   const v = parseInt(e.target.value)
                                   setExplicitSections(prev => prev.map(x => x.tempId === s.tempId ? { ...x, sets: isNaN(v) ? undefined : v } : x))

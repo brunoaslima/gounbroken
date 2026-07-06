@@ -6,6 +6,19 @@ Formato de versão: `## [versão] — AAAA-MM-DD`
 
 ---
 
+## [1.4.6] — 2026-07-06
+
+### Code Quality → Multiple: CodeRabbit fixes
+
+- Training → WorkoutImportSheet: restore `sectionNotes` in edit prefill — notes with `obs:` suffix no longer duplicated on re-save
+- Training → WorkoutImportSheet: add `aria-label` to sets number input
+- Training → Unbroken: `deleteSet` now returns `{ error }` like `addSet`, surfaces RLS/network failures instead of silently proceeding
+- Competition → CompetitionManage: extract `broadcastResult()` helper that calls `removeChannel` after send — prevents stale channel accumulation on repeated judge actions
+- Competition → JudgePanel: same channel cleanup after broadcast
+- Home → Headlines: fix unreachable no-data fallback (`pool.length < 5` → `!hasData`)
+
+---
+
 ## [1.4.5] — 2026-07-06
 
 ### Competition → Leaderboard Realtime: fix latency/missing events

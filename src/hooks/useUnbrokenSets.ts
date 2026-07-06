@@ -46,9 +46,11 @@ export function useUnbrokenSets(userId: string | undefined) {
     return { error: null }
   }
 
-  async function deleteSet(setId: string): Promise<void> {
-    await supabase.from('unbroken_sets').delete().eq('id', setId)
+  async function deleteSet(setId: string): Promise<{ error: string | null }> {
+    const { error } = await supabase.from('unbroken_sets').delete().eq('id', setId)
+    if (error) return { error: error.message }
     await fetch()
+    return { error: null }
   }
 
   return { sets, loading, getPRForMovement, getSetsForMovement, addSet, deleteSet, refetch: fetch }

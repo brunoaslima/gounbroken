@@ -377,6 +377,11 @@ export default function CompetitionManage() {
     setRejectReason('')
   }
 
+  function broadcastResult() {
+    const ch = supabase.channel(`score:${id}`)
+    ch.send({ type: 'broadcast', event: 'result', payload: {} }).finally(() => supabase.removeChannel(ch))
+  }
+
   // ─── WOD publish ─────────────────────────────────────────────────────────────
   async function publishWod(wodId: string) {
     setMutating(true)
@@ -384,7 +389,7 @@ export default function CompetitionManage() {
     try {
       const { error } = await supabase.rpc('update_wod_status', { p_wod_id: wodId, p_status: 'published' })
       if (error) throw new Error(error.message)
-      supabase.channel(`score:${id}`).send({ type: 'broadcast', event: 'result', payload: {} })
+      broadcastResult()
       await load()
     } catch (e) {
       setMutateError(e instanceof Error ? e.message : 'Error')
@@ -431,7 +436,7 @@ export default function CompetitionManage() {
         p_reason: overrideReason.trim(),
       })
       if (error) throw new Error(error.message)
-      supabase.channel(`score:${id}`).send({ type: 'broadcast', event: 'result', payload: {} })
+      broadcastResult()
       setOverrideResultId(null)
       setOverrideReason('')
       await load()
@@ -462,7 +467,7 @@ export default function CompetitionManage() {
         p_score_numeric: encoded.score_numeric,
       })
       if (error) throw new Error(error.message)
-      supabase.channel(`score:${id}`).send({ type: 'broadcast', event: 'result', payload: {} })
+      broadcastResult()
       setEnterTeamId(null)
       setEnterFields({ type: selectedWod.score_type as WodScoreType })
       setSavedMsg(`RESULT SAVED — ${teamName} · ${encoded.raw_result}`)
