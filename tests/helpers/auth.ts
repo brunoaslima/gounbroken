@@ -12,13 +12,13 @@ export async function loginAsAdmin(page: Page) {
   await page.waitForLoadState('networkidle')
 
   // Preenche e-mail ou username
-  await page.getByPlaceholder('email@dominio.com ou username').fill(ADMIN_EMAIL)
+  await page.getByPlaceholder('email@domain.com or username').fill(ADMIN_EMAIL)
 
   // Preenche senha (primeiro campo de password visível)
   await page.getByPlaceholder('••••••••').first().fill(ADMIN_PASS)
 
-  // Submete
-  await page.getByRole('button', { name: /^Entrar$/i }).first().click()
+  // Submete — botão de submit do form, não a aba "Sign In" do topo
+  await page.getByRole('button', { name: 'Sign In', exact: true }).last().click()
 
   // Aguarda sair do /login
   await page.waitForURL(url => !url.pathname.startsWith('/login'), { timeout: 15_000 })
