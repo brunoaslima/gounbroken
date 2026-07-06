@@ -218,11 +218,18 @@ function ExerciseLineContent({ text }: { text: string }) {
   )}</>
 }
 
-function WorkoutPreview({ text }: { text: string }) {
+function WorkoutPreview({ text, notes }: { text: string; notes?: string }) {
+  const hasNotes = !!notes?.trim()
+
   if (!text.trim()) {
     return (
-      <div style={{ border: '1px solid #2A2A2A', padding: '10px 12px', minHeight: 192 }}>
+      <div style={{ border: '1px solid #2A2A2A', padding: '10px 12px', minHeight: 192, display: 'flex', flexDirection: 'column' }}>
         <span className="font-mono text-[12px]" style={{ color: '#3D3D3B' }}>No content yet.</span>
+        {hasNotes && (
+          <div className="font-mono" style={{ color: '#6B6B68', fontSize: 12, fontStyle: 'italic', marginTop: 'auto', paddingTop: 8 }}>
+            Note: {notes}
+          </div>
+        )}
       </div>
     )
   }
@@ -230,7 +237,7 @@ function WorkoutPreview({ text }: { text: string }) {
   const lines = text.split('\n')
 
   return (
-    <div style={{ border: '1px solid #2A2A2A', padding: '10px 12px', minHeight: 192, lineHeight: 1.75 }}>
+    <div style={{ border: '1px solid #2A2A2A', padding: '10px 12px', minHeight: 192, lineHeight: 1.75, display: 'flex', flexDirection: 'column' }}>
       {lines.map((line, i) => {
         const type = classifyLine(line)
         const trimmed = line.trimStart()
@@ -292,6 +299,11 @@ function WorkoutPreview({ text }: { text: string }) {
           </div>
         )
       })}
+      {hasNotes && (
+        <div className="font-mono" style={{ color: '#6B6B68', fontSize: 12, fontStyle: 'italic', marginTop: 'auto', paddingTop: 8 }}>
+          Note: {notes}
+        </div>
+      )}
     </div>
   )
 }
@@ -843,7 +855,7 @@ export default function WorkoutImportSheet({
                             className="flex items-center gap-2 px-3 py-2"
                             style={{ background: '#1A1A1A', borderBottom: collapsed ? 'none' : '1px solid #2A2A2A' }}
                           >
-                            {/* Collapse toggle + label */}
+                            {/* Collapse toggle + label (+ read-only sets subtitle in preview) */}
                             <button
                               onClick={() => toggleCollapse(s.tempId)}
                               className="flex items-center gap-2 flex-1 min-w-0"
@@ -855,29 +867,39 @@ export default function WorkoutImportSheet({
                               >
                                 <path d="M2 3.5L5 6.5L8 3.5" stroke="#6B6B68" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                               </svg>
-                              <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] truncate" style={{ color: '#D4FF3A' }}>
-                                {s.label}
+                              <span className="flex flex-col items-start min-w-0">
+                                <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] truncate" style={{ color: '#D4FF3A' }}>
+                                  {s.label}
+                                </span>
+                                {viewMode === 'preview' && s.sets && (
+                                  <span className="font-mono font-semibold uppercase tracking-[0.1em] text-[10px]" style={{ color: '#6B6B68' }}>
+                                    {s.sets}× sets
+                                  </span>
+                                )}
                               </span>
                             </button>
-                            {/* Sets input */}
-                            <div className="flex items-center shrink-0" style={{ gap: 4 }}>
-                              <input
-                                type="number"
-                                min={1}
-                                max={99}
-                                value={s.sets ?? ''}
-                                aria-label={`Sets for ${s.label}`}
-                                onChange={e => {
-                                  const v = parseInt(e.target.value)
-                                  setExplicitSections(prev => prev.map(x => x.tempId === s.tempId ? { ...x, sets: isNaN(v) ? undefined : v } : x))
-                                }}
-                                placeholder="—"
-                                className="font-mono font-bold uppercase tracking-[0.1em] text-[10px] bg-transparent text-center outline-none w-5"
-                                style={{ color: '#A8A8A4', borderBottom: '1px solid #2A2A2A', colorScheme: 'dark' }}
-                              />
-                              <span className="font-mono font-bold uppercase tracking-[0.1em] text-[10px] text-[#3D3D3B]">sets</span>
-                            </div>
-                            {/* Move + remove */}
+                            {/* Sets input — editing only */}
+                            {viewMode === 'edit' && (
+                              <div className="flex items-center shrink-0" style={{ gap: 4 }}>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={99}
+                                  value={s.sets ?? ''}
+                                  aria-label={`Sets for ${s.label}`}
+                                  onChange={e => {
+                                    const v = parseInt(e.target.value)
+                                    setExplicitSections(prev => prev.map(x => x.tempId === s.tempId ? { ...x, sets: isNaN(v) ? undefined : v } : x))
+                                  }}
+                                  placeholder="—"
+                                  className="font-mono font-bold uppercase tracking-[0.1em] text-[10px] bg-transparent text-center outline-none w-5"
+                                  style={{ color: '#A8A8A4', borderBottom: '1px solid #2A2A2A', colorScheme: 'dark' }}
+                                />
+                                <span className="font-mono font-bold uppercase tracking-[0.1em] text-[10px] text-[#3D3D3B]">sets</span>
+                              </div>
+                            )}
+                            {/* Move + remove — editing only */}
+                            {viewMode === 'edit' && (
                             <div className="flex items-center shrink-0" style={{ gap: 2 }}>
                               <button
                                 onClick={() => moveSection(s.tempId, -1)}
@@ -910,17 +932,13 @@ export default function WorkoutImportSheet({
                                 ×
                               </button>
                             </div>
+                            )}
                           </div>
                           {/* Content — hidden when collapsed */}
                           {!collapsed && (
                             viewMode === 'preview' ? (
                               <div style={{ padding: '10px 12px' }}>
-                                <WorkoutPreview text={s.content} />
-                                {s.sectionNotes?.trim() && (
-                                  <p className="font-mono text-[11px] italic mt-3" style={{ color: '#6B6B68' }}>
-                                    {s.sectionNotes}
-                                  </p>
-                                )}
+                                <WorkoutPreview text={s.content} notes={s.sectionNotes} />
                               </div>
                             ) : (
                               <>
@@ -952,16 +970,18 @@ export default function WorkoutImportSheet({
                         </div>
                       )
                     })}
-                    {/* Add another section */}
-                    <button
-                      onClick={() => setShowSectionPicker(true)}
-                      className="w-full flex items-center justify-center py-3 active:opacity-70"
-                      style={{ border: '1px solid #D4FF3A' }}
-                    >
-                      <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px]" style={{ color: '#D4FF3A' }}>
-                        + Add section
-                      </span>
-                    </button>
+                    {/* Add another section — editing only */}
+                    {viewMode === 'edit' && (
+                      <button
+                        onClick={() => setShowSectionPicker(true)}
+                        className="w-full flex items-center justify-center py-3 active:opacity-70"
+                        style={{ border: '1px solid #D4FF3A' }}
+                      >
+                        <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px]" style={{ color: '#D4FF3A' }}>
+                          + Add section
+                        </span>
+                      </button>
+                    )}
                     <div ref={sectionsEndRef} />
                   </div>
                 ) : (

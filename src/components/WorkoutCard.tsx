@@ -57,7 +57,9 @@ function WorkoutNotesRenderer({ notes }: { notes: string }) {
           return <p key={i} className="text-soft-white font-bold text-[15px] leading-snug uppercase tracking-wide">{t}</p>
         }
         if (type === 'note') return (
-          <p key={i} className="text-muted-gray/50 text-xs italic">{t}</p>
+          // "obs: " is an internal marker WorkoutImportSheet uses to fold section notes
+          // into this same free-text field for round-tripping — strip it, athletes never typed it
+          <p key={i} className="text-muted-gray/50 text-xs italic">{t.replace(/^obs:\s*/i, '')}</p>
         )
         if (type === 'title') return (
           <p key={i} className="text-[11px] font-black text-muted-gray tracking-[0.12em] uppercase mt-2">{t}:</p>

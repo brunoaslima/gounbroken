@@ -17,6 +17,7 @@ import {
   searchMatches,
 } from '@/lib/exerciseCatalog'
 import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
+import { useFakeProgress } from '@/hooks/useFakeProgress'
 import StickyFooter from '@/components/StickyFooter'
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -191,6 +192,12 @@ function SuggestSheet({
   const [coachNotes, setCoachNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { progress, label: progressLabel, complete: completeProgress } = useFakeProgress(loading, [
+    'Analyzing athlete history…',
+    'Selecting movements…',
+    'Balancing volume & intensity…',
+    'Finalizing suggestion…',
+  ])
 
   useEffect(() => {
     if (open) {
@@ -220,6 +227,8 @@ function SuggestSheet({
       })
       if (fnErr) throw fnErr
       if (!data?.sections?.length) throw new Error('Empty suggestion. Please try again.')
+      completeProgress()
+      await new Promise(r => setTimeout(r, 300))
       onResult(
         suggestionToDraft(data.sections as SuggestionSection[]),
         data.student_note ?? null,
@@ -243,6 +252,21 @@ function SuggestSheet({
         style={{ maxHeight: '92dvh' }}
         onClick={e => e.stopPropagation()}
       >
+        {/* Loading overlay */}
+        {loading && (
+          <div className="absolute inset-0 z-10 bg-graphite/95 rounded-t-3xl flex flex-col items-center justify-center gap-4">
+            <div className="w-10 h-10 border-2 border-lime border-t-transparent rounded-full animate-spin" />
+            <div className="w-full px-5" style={{ maxWidth: 260 }}>
+              <div style={{ height: 3, background: 'rgba(255,255,255,0.08)' }}>
+                <div style={{ height: 3, background: '#D4FF3A', width: `${progress}%`, transition: 'width 0.3s' }} />
+              </div>
+              <span className="font-mono text-[10px] uppercase tracking-widest text-muted-gray/60 block text-center mt-2">
+                {progressLabel}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Handle */}
         <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mt-3 mb-1 shrink-0" />
 
@@ -412,14 +436,7 @@ function SuggestSheet({
             disabled={loading}
             className="w-full bg-lime disabled:opacity-50 text-graphite font-black text-sm py-4 rounded-2xl flex items-center justify-center gap-2 transition-opacity"
           >
-            {loading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-graphite/30 border-t-graphite rounded-full animate-spin" />
-                Generating…
-              </>
-            ) : (
-              mode === 'section' ? 'Create section' : 'Create suggestion'
-            )}
+            {mode === 'section' ? 'Create section' : 'Create suggestion'}
           </button>
         </div>
       </div>
