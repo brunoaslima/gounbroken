@@ -6,6 +6,7 @@ import { useProfile } from '@/hooks/useProfile'
 import type { PrescribedWorkoutData, WorkoutFeedback } from '@/types'
 import WorkoutCard from '@/components/WorkoutCard'
 import WorkoutImportSheet from '@/components/WorkoutImportSheet'
+import { useFakeProgress } from '@/hooks/useFakeProgress'
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
@@ -91,6 +92,12 @@ function GenerateSheet({ onClose, onDone }: GenerateSheetProps) {
   const [intensity, setIntensity] = useState('moderada')
   const [focus, setFocus] = useState<string[]>([])
   const [generating, setGenerating] = useState(false)
+  const { progress, label: progressLabel, complete: completeProgress } = useFakeProgress(generating, [
+    'Analyzing your training…',
+    'Selecting movements…',
+    'Balancing volume & intensity…',
+    'Finalizing plan…',
+  ])
 
   function toggleDay(str: string) {
     setSelectedDays(prev => prev.includes(str) ? prev.filter(d => d !== str) : [...prev, str])
@@ -109,6 +116,8 @@ function GenerateSheet({ onClose, onDone }: GenerateSheetProps) {
         body: { days: selectedDays, duration_minutes: duration, focus, intensity },
       })
       if (error) throw error
+      completeProgress()
+      await new Promise(r => setTimeout(r, 300))
       onDone()
     } catch (err) {
       console.error(err)
@@ -129,7 +138,14 @@ function GenerateSheet({ onClose, onDone }: GenerateSheetProps) {
         {generating && (
           <div className="absolute inset-0 z-10 bg-graphite/95 flex flex-col items-center justify-center gap-4">
             <div className="w-10 h-10 border-2 border-lime border-t-transparent rounded-full animate-spin" />
-            <p className="font-mono font-bold uppercase tracking-[0.12em] text-[11px] text-[#A8A8A4]">Creating plan...</p>
+            <div className="w-full px-5" style={{ maxWidth: 260 }}>
+              <div style={{ height: 3, background: '#1A1A1A' }}>
+                <div style={{ height: 3, background: '#D4FF3A', width: `${progress}%`, transition: 'width 0.3s' }} />
+              </div>
+              <span className="font-mono font-bold text-[10px] uppercase tracking-[0.14em] text-[#6B6B68] block text-center mt-2">
+                {progressLabel}
+              </span>
+            </div>
           </div>
         )}
 

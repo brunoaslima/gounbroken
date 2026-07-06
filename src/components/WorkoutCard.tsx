@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { PrescribedWorkoutData, WorkoutFeedback } from '@/types'
 import { buildFormatLine, buildPrescriptionParts, dayLabel, formatDateBR } from '@/lib/workoutDisplay'
@@ -57,7 +57,9 @@ function WorkoutNotesRenderer({ notes }: { notes: string }) {
           return <p key={i} className="text-soft-white font-bold text-[15px] leading-snug uppercase tracking-wide">{t}</p>
         }
         if (type === 'note') return (
-          <p key={i} className="text-muted-gray/50 text-xs italic">{t}</p>
+          // "obs: " is an internal marker WorkoutImportSheet uses to fold section notes
+          // into this same free-text field for round-tripping — strip it, athletes never typed it
+          <p key={i} className="text-muted-gray/50 text-xs italic">{t.replace(/^obs:\s*/i, '')}</p>
         )
         if (type === 'title') return (
           <p key={i} className="text-[11px] font-black text-muted-gray tracking-[0.12em] uppercase mt-2">{t}:</p>
@@ -286,6 +288,9 @@ export default function WorkoutCard({
   const [confirming, setConfirming] = useState(false)
   const [localFeedback, setLocalFeedback] = useState<WorkoutFeedback | null>(workout.feedback ?? null)
   const [pendingStatus, setPendingStatus] = useState<'completed' | 'partially_completed' | 'skipped' | null>(null)
+  const [sectionNotes, setSectionNotes] = useState<Record<number, string>>({})
+  const [sectionNoteStatus, setSectionNoteStatus] = useState<Record<number, 'saving' | 'saved'>>({})
+  const noteSaveTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
 
   const today = new Date()
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
@@ -296,6 +301,61 @@ export default function WorkoutCard({
 
   // Student can give feedback on past and today's workouts
   const canFeedback = !!userId && (isToday || isPast) && !isCoachView
+
+  // Load this athlete's own per-section notes — keyed by (athlete_id,
+  // workout_date, position) rather than workout_id/section_id, since those
+  // get deleted and recreated on every edit (see workout-section-notes.sql)
+  useEffect(() => {
+    if (!canFeedback || !expanded) return
+    supabase
+      .from('workout_section_notes')
+      .select('section_position, note')
+      .eq('athlete_id', userId)
+      .eq('workout_date', workout.workout_date)
+      .then(({ data }) => {
+        const map: Record<number, string> = {}
+        for (const row of data ?? []) map[row.section_position] = row.note
+        setSectionNotes(map)
+      })
+  }, [canFeedback, expanded, userId, workout.workout_date])
+
+  async function saveSectionNote(position: number, label: string, note: string) {
+    setSectionNoteStatus(prev => ({ ...prev, [position]: 'saving' }))
+    const { error } = await supabase.rpc('save_section_note', {
+      p_workout_date: workout.workout_date,
+      p_section_position: position,
+      p_section_label: label,
+      p_note: note,
+    })
+    if (error) {
+      console.error('save_section_note error:', error)
+      setSectionNoteStatus(prev => {
+        const next = { ...prev }
+        delete next[position]
+        return next
+      })
+      return
+    }
+    setSectionNoteStatus(prev => ({ ...prev, [position]: 'saved' }))
+  }
+
+  function handleSectionNoteChange(position: number, label: string, note: string) {
+    setSectionNotes(prev => ({ ...prev, [position]: note }))
+    clearTimeout(noteSaveTimers.current[position])
+    noteSaveTimers.current[position] = setTimeout(() => {
+      saveSectionNote(position, label, note)
+    }, 800)
+  }
+
+  function flushSectionNote(position: number, label: string, note: string) {
+    clearTimeout(noteSaveTimers.current[position])
+    saveSectionNote(position, label, note)
+  }
+
+  useEffect(() => {
+    const timers = noteSaveTimers.current
+    return () => { Object.values(timers).forEach(clearTimeout) }
+  }, [])
 
   function handleStatusClick(status: 'completed' | 'partially_completed' | 'skipped') {
     if (status === 'skipped') {
@@ -465,15 +525,8 @@ export default function WorkoutCard({
                     {(() => {
                       const typeDisplay = section.section_type.replace(/_/g, ' ')
                       const isDefault = section.label.toLowerCase().replace(/[^a-z]/g, '') === typeDisplay.toLowerCase().replace(/[^a-z]/g, '')
-                      return isDefault ? (
-                        <span className="text-lime">{typeDisplay}</span>
-                      ) : (
-                        <>
-                          <span className="text-lime">{typeDisplay}</span>
-                          <span className="text-white/30 mx-1">·</span>
-                          <span className="text-white/55 normal-case tracking-normal font-semibold">{section.label}</span>
-                        </>
-                      )
+                      // Custom label replaces the type badge entirely — no "WOD · " prefix
+                      return <span className="text-lime">{isDefault ? typeDisplay : section.label}</span>
                     })()}
                     {section.modality_tags && section.modality_tags.length > 0 && (
                       <span className="ml-2 text-white/25 normal-case font-normal tracking-normal">
@@ -533,6 +586,37 @@ export default function WorkoutCard({
                   <p className="text-muted-gray/50 text-xs italic border-t border-white/5 pt-2">
                     {section.notes}
                   </p>
+                )}
+
+                {/* Athlete's own note for this section — what worked, reps done, how it felt.
+                    Once the workout is closed (feedback given), the note becomes read-only. */}
+                {canFeedback && !localFeedback && (
+                  <div className="pt-2 border-t border-white/5">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label htmlFor={`section-note-${section.position}`} className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-muted-gray/35">Your note</label>
+                      {sectionNoteStatus[section.position] && (
+                        <p className="text-[9px] font-semibold text-muted-gray/40 lowercase">
+                          {sectionNoteStatus[section.position] === 'saving' ? 'Saving…' : 'Saved'}
+                        </p>
+                      )}
+                    </div>
+                    <textarea
+                      id={`section-note-${section.position}`}
+                      value={sectionNotes[section.position] ?? ''}
+                      onChange={e => handleSectionNoteChange(section.position, section.label, e.target.value)}
+                      onBlur={e => flushSectionNote(section.position, section.label, e.target.value)}
+                      placeholder="What happened here? Reps done, how it felt..."
+                      rows={2}
+                      maxLength={300}
+                      className="w-full bg-white/[0.03] border border-white/8 px-2.5 py-2 text-[12px] text-soft-white placeholder:text-muted-gray/25 resize-none focus:outline-none focus:border-lime/30 transition-colors"
+                    />
+                  </div>
+                )}
+                {canFeedback && localFeedback && sectionNotes[section.position] && (
+                  <div className="pt-2 border-t border-white/5">
+                    <p className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-muted-gray/35 mb-1.5">Your note</p>
+                    <p className="text-[12px] text-muted-gray/60 leading-relaxed">{sectionNotes[section.position]}</p>
+                  </div>
                 )}
               </div>
               )

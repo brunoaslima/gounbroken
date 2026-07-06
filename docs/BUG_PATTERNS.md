@@ -127,6 +127,23 @@ desatualizada gerava "Workout not found" e potencial perda de dado.
   **seguir em frente e criar o novo** em vez de lançar exceção — trata como
   idempotente, não como erro.
 
+**Variante descoberta depois (IDs instáveis em cascata):** mesmo quando o
+delete+insert já está numa função SQL só (`personal_save_workout`,
+`personal-save-workout-atomic-replace.sql`), o **id da tabela pai também é
+recriado**, não só o da tabela filha — `prescribed_workouts.id` muda a cada
+edição do treino, não só `workout_sections.id`. Qualquer feature que grave
+uma referência por FK pra esses ids (ex: feedback do atleta, notas por seção)
+fica órfã silenciosamente na próxima edição do coach — o registro antigo é
+apagado via `ON DELETE CASCADE`, sem aviso nenhum pro usuário que o dado
+"sumiu". Isso já afeta `workout_feedback` hoje (upsert por
+`(workout_id, student_id)`) — não foi corrigido nesta sessão, é um achado
+separado, registrado aqui pra não se perder.
+**Como evitar:** para dados que precisam sobreviver a reedições do recurso
+pai, chavear por uma identidade **lógica e estável** (ex:
+`(athlete_id, workout_date)`, como `personal_set_workout_student_note` já faz)
+em vez do id gerado pelo delete+recreate. Ver `workout-section-notes.sql`
+para o mesmo padrão aplicado a notas por seção.
+
 ---
 
 ## 5. Checagem de permissão pelo papel errado (role global vs. dono do recurso)

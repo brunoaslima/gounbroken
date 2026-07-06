@@ -74,6 +74,11 @@ test.describe('Training — fluxo de PR', () => {
 
     await page.getByRole('button', { name: 'Save PR' }).click()
 
+    // Score que não é PR faz navigate(-1) em vez de ir pro /movement/:id —
+    // só espera sair da tela de add antes de assentar
+    await page.waitForURL(url => !url.pathname.startsWith('/athlete/add'), { timeout: 10_000 })
+    await page.waitForLoadState('networkidle')
+
     // Não deve mostrar celebração — deve apenas voltar para o histórico
     await expect(page.getByText('New Personal Record')).not.toBeVisible()
   })
