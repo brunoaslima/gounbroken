@@ -41,6 +41,8 @@ interface DraftSection {
   type: string
   label: string
   content: string
+  sets?: number
+  sectionNotes?: string
 }
 
 const SECTION_PICKER_OPTIONS = [
@@ -476,7 +478,13 @@ export default function WorkoutImportSheet({
       editingWorkout.sections
         .slice()
         .sort((a, b) => a.position - b.position)
-        .map(s => ({ tempId: crypto.randomUUID(), type: s.section_type, label: s.label, content: sectionToContent(s) }))
+        .map(s => ({
+          tempId: crypto.randomUUID(),
+          type: s.section_type,
+          label: s.label,
+          content: sectionToContent(s),
+          sets: (s.format_config as { sets?: number } | null)?.sets ?? undefined,
+        }))
     )
     setState('manual')
   }, [open, editingWorkout])
@@ -598,9 +606,9 @@ export default function WorkoutImportSheet({
           section_type: s.type,
           label: s.label,
           position: i,
-          notes: s.content.trim(),
-          format_type: 'LIVRE',
-          format_config: null,
+          notes: [s.content.trim(), s.sectionNotes?.trim() ? `obs: ${s.sectionNotes.trim()}` : ''].filter(Boolean).join('\n'),
+          format_type: s.sets ? 'sets' : 'LIVRE',
+          format_config: s.sets ? { sets: s.sets } : null,
           modality_tags: [],
           exercises: [],
         }))
@@ -651,17 +659,6 @@ export default function WorkoutImportSheet({
         {/* Header */}
         <div className="flex items-center justify-between px-5 pb-4 shrink-0" style={{ borderBottom: '1px solid #2A2A2A' }}>
           <div>
-            {!editingWorkout && state !== 'menu' && state !== 'processing' && (
-              <button
-                onClick={() => { setState('menu'); setOcrError(null) }}
-                className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#6B6B68] active:text-soft-white flex items-center gap-1 mb-1"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M15 19l-7-7 7-7" />
-                </svg>
-                Back
-              </button>
-            )}
             <span className="font-mono font-bold uppercase tracking-[0.18em] text-[11px] text-[#A8A8A4] block">
               {editingWorkout          ? 'Edit workout' :
                state === 'menu'       ? 'Add workout' :
@@ -804,26 +801,28 @@ export default function WorkoutImportSheet({
                   <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#6B6B68]">
                     {explicitSections.length > 0 ? 'Sections' : 'Workout content'}
                   </span>
-                  {explicitSections.length === 0 && (
-                    <div className="flex" style={{ border: '1px solid #2A2A2A' }}>
-                      <button onClick={() => setViewMode('edit')}
-                        className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-3 py-1"
-                        style={{ background: viewMode === 'edit' ? '#D4FF3A' : '#1A1A1A', color: viewMode === 'edit' ? '#0A0A0A' : '#6B6B68' }}>
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => text.trim() && setViewMode('preview')}
-                        className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-3 py-1"
-                        style={{
-                          background: viewMode === 'preview' ? '#D4FF3A' : '#1A1A1A',
-                          color: viewMode === 'preview' ? '#0A0A0A' : text.trim() ? '#6B6B68' : '#3D3D3B',
-                          borderLeft: '1px solid #2A2A2A',
-                          cursor: text.trim() ? 'pointer' : 'default',
-                        }}>
-                        Preview
-                      </button>
-                    </div>
-                  )}
+                  <div className="flex" style={{ border: '1px solid #2A2A2A' }}>
+                    <button onClick={() => setViewMode('edit')}
+                      className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-3 py-1"
+                      style={{ background: viewMode === 'edit' ? '#D4FF3A' : '#1A1A1A', color: viewMode === 'edit' ? '#0A0A0A' : '#6B6B68' }}>
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => {
+                        const hasContent = explicitSections.length > 0
+                          ? explicitSections.some(s => s.content.trim())
+                          : text.trim().length > 0
+                        if (hasContent) setViewMode('preview')
+                      }}
+                      className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-3 py-1"
+                      style={{
+                        background: viewMode === 'preview' ? '#D4FF3A' : '#1A1A1A',
+                        color: viewMode === 'preview' ? '#0A0A0A' : '#6B6B68',
+                        borderLeft: '1px solid #2A2A2A',
+                      }}>
+                      Preview
+                    </button>
+                  </div>
                 </div>
 
                 {explicitSections.length > 0 ? (
@@ -855,6 +854,23 @@ export default function WorkoutImportSheet({
                                 {s.label}
                               </span>
                             </button>
+                            {/* Sets input */}
+                            <div className="flex items-center shrink-0" style={{ gap: 4 }}>
+                              <input
+                                type="number"
+                                min={1}
+                                max={99}
+                                value={s.sets ?? ''}
+                                onChange={e => {
+                                  const v = parseInt(e.target.value)
+                                  setExplicitSections(prev => prev.map(x => x.tempId === s.tempId ? { ...x, sets: isNaN(v) ? undefined : v } : x))
+                                }}
+                                placeholder="—"
+                                className="font-mono font-bold uppercase tracking-[0.1em] text-[10px] bg-transparent text-center outline-none w-5"
+                                style={{ color: '#A8A8A4', borderBottom: '1px solid #2A2A2A', colorScheme: 'dark' }}
+                              />
+                              <span className="font-mono font-bold uppercase tracking-[0.1em] text-[10px] text-[#3D3D3B]">sets</span>
+                            </div>
                             {/* Move + remove */}
                             <div className="flex items-center shrink-0" style={{ gap: 2 }}>
                               <button
@@ -889,18 +905,43 @@ export default function WorkoutImportSheet({
                               </button>
                             </div>
                           </div>
-                          {/* Content textarea — hidden when collapsed */}
+                          {/* Content — hidden when collapsed */}
                           {!collapsed && (
-                            <textarea
-                              value={s.content}
-                              onChange={e => setExplicitSections(prev =>
-                                prev.map(x => x.tempId === s.tempId ? { ...x, content: e.target.value } : x)
-                              )}
-                              placeholder={`Write ${s.label} content here...`}
-                              rows={6}
-                              className="w-full bg-transparent font-mono text-[13px] text-soft-white outline-none resize-none"
-                              style={{ padding: '10px 12px', lineHeight: 1.6 }}
-                            />
+                            viewMode === 'preview' ? (
+                              <div style={{ padding: '10px 12px' }}>
+                                <WorkoutPreview text={s.content} />
+                                {s.sectionNotes?.trim() && (
+                                  <p className="font-mono text-[11px] italic mt-3" style={{ color: '#6B6B68' }}>
+                                    {s.sectionNotes}
+                                  </p>
+                                )}
+                              </div>
+                            ) : (
+                              <>
+                                <textarea
+                                  value={s.content}
+                                  onChange={e => setExplicitSections(prev =>
+                                    prev.map(x => x.tempId === s.tempId ? { ...x, content: e.target.value } : x)
+                                  )}
+                                  placeholder={`Write ${s.label} content here...`}
+                                  rows={6}
+                                  className="w-full bg-transparent font-mono text-[13px] text-soft-white outline-none resize-none"
+                                  style={{ padding: '10px 12px', lineHeight: 1.6 }}
+                                />
+                                <div style={{ borderTop: '1px solid #1A1A1A', padding: '8px 12px' }}>
+                                  <input
+                                    type="text"
+                                    value={s.sectionNotes ?? ''}
+                                    onChange={e => setExplicitSections(prev =>
+                                      prev.map(x => x.tempId === s.tempId ? { ...x, sectionNotes: e.target.value } : x)
+                                    )}
+                                    placeholder="Section notes..."
+                                    className="w-full bg-transparent font-mono text-[11px] italic outline-none"
+                                    style={{ color: '#6B6B68' }}
+                                  />
+                                </div>
+                              </>
+                            )
                           )}
                         </div>
                       )
