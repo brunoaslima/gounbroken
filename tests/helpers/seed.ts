@@ -79,3 +79,49 @@ export async function seedTestCompetitions(): Promise<{ compA: string; compB: st
 
   return { compA: rowA.id as string, compB: rowB.id as string }
 }
+
+// ─── Cria uma divisão + WOD + time aprovado, prontos pro judge lançar score ────
+// Times/WODs/divisões são apagados em cascata quando a competição é removida
+// por cleanTestCompetitions — não precisa de limpeza própria.
+export async function seedApprovedTeamWithWod(
+  competitionId: string
+): Promise<{ teamId: string; teamName: string; wodId: string }> {
+  const db = getServiceClient()
+
+  const { data: division, error: divErr } = await db
+    .from('competition_divisions')
+    .insert({ competition_id: competitionId, format: 'individual', composition: 'male', category: 'RX' })
+    .select('id')
+    .single()
+  if (divErr || !division) throw new Error(`seedApprovedTeamWithWod division: ${divErr?.message}`)
+
+  const teamName = `${TEST_PREFIX} Team ${Date.now()}`
+  const { data: team, error: teamErr } = await db
+    .from('competition_teams')
+    .insert({
+      competition_id: competitionId,
+      name: teamName,
+      captain_user_id: process.env.TEST_QA_USER_ID!,
+      division_id: division.id,
+      status: 'approved',
+    })
+    .select('id')
+    .single()
+  if (teamErr || !team) throw new Error(`seedApprovedTeamWithWod team: ${teamErr?.message}`)
+
+  const { data: wod, error: wodErr } = await db
+    .from('competition_wods')
+    .insert({
+      competition_id: competitionId,
+      name: `${TEST_PREFIX} WOD`,
+      score_type: 'time',
+      score_order: 'asc',
+      status: 'draft',
+      order_index: 0,
+    })
+    .select('id')
+    .single()
+  if (wodErr || !wod) throw new Error(`seedApprovedTeamWithWod wod: ${wodErr?.message}`)
+
+  return { teamId: team.id as string, teamName, wodId: wod.id as string }
+}
