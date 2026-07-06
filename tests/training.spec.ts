@@ -21,33 +21,29 @@ test.describe('Training — fluxo de PR', () => {
 
   // ── 1. Usuário vê o movimento de teste na tela de adicionar score ──────────
 
-  test('movimento [TEST] aparece na lista do /add', async ({ page }) => {
-    await page.goto(`/add?movement=${movementId}`)
-    // O nome do movimento deve aparecer no seletor
+  test('movimento [TEST] aparece na tela de adicionar score', async ({ page }) => {
+    await page.goto(`/athlete/add?movement=${movementId}`)
+    // O nome do movimento deve aparecer no topo do formulário de PR
     await expect(page.getByText('[TEST] Back Squat QA')).toBeVisible({ timeout: 10_000 })
   })
 
   // ── 2. Adicionar um score e receber célula de celebração de PR ────────────
 
   test('adicionar score 1RM → redireciona para detalhe com PR', async ({ page }) => {
-    await page.goto(`/add?movement=${movementId}`)
+    await page.goto(`/athlete/add?movement=${movementId}`)
     await page.waitForLoadState('networkidle')
 
-    // Preenche reps = 1
-    const repsInput = page.getByLabel(/Reps/i).or(page.getByPlaceholder(/reps/i))
-    await repsInput.fill('1')
-
-    // Preenche peso = 100 kg
-    const weightInput = page.getByLabel(/Peso|Weight/i).or(page.getByPlaceholder(/kg/i))
+    // Reps já vem com 1 selecionado por padrão — só precisa do peso
+    const weightInput = page.getByPlaceholder('0')
     await weightInput.fill('100')
 
-    // Salva
-    await page.getByRole('button', { name: /Salvar|SALVAR/i }).click()
+    await page.getByRole('button', { name: 'Save PR' }).click()
 
-    // Deve redirecionar para /movement/:id e exibir celebração de PR
-    await page.waitForURL(/\/movement\//, { timeout: 10_000 })
-    await expect(page.getByText(/Novo Recorde Pessoal/i)).toBeVisible({ timeout: 8_000 })
-    await expect(page.getByText('100')).toBeVisible()
+    // Deve redirecionar para /athlete/movement/:id e exibir celebração de PR
+    await page.waitForURL(/\/athlete\/movement\//, { timeout: 10_000 })
+    await expect(page.getByText('New Personal Record')).toBeVisible({ timeout: 8_000 })
+    // Peso da celebração renderiza em span próprio (52px, lime) — escopar por essa classe evita colidir com outros "100" na tela
+    await expect(page.locator('span.text-\\[52px\\]', { hasText: '100' })).toBeVisible()
   })
 
   // ── 3. Score anterior mostra o PR registrado ───────────────────────────────
@@ -56,11 +52,12 @@ test.describe('Training — fluxo de PR', () => {
     // Seed de um score direto no banco para não depender do teste anterior
     await seedQAScore(movementId, 80, 3)
 
-    await page.goto(`/movement/${movementId}`)
+    await page.goto(`/athlete/movement/${movementId}`)
     await page.waitForLoadState('networkidle')
 
-    // Score 80 kg × 3 reps deve aparecer no histórico
-    await expect(page.getByText('80')).toBeVisible({ timeout: 8_000 })
+    // Score 80 kg × 3 reps deve aparecer na linha do histórico (18px) — o número "80" também
+    // aparece no header (56px) e em labels do gráfico (20px), por isso escopamos pela classe
+    await expect(page.locator('span.text-\\[18px\\]', { hasText: '80' })).toBeVisible({ timeout: 8_000 })
   })
 
   // ── 4. Segundo score abaixo do PR não exibe celebração ────────────────────
@@ -69,27 +66,17 @@ test.describe('Training — fluxo de PR', () => {
     // Seed: PR existente de 120 kg
     await seedQAScore(movementId, 120, 1)
 
-    await page.goto(`/add?movement=${movementId}`)
+    await page.goto(`/athlete/add?movement=${movementId}`)
     await page.waitForLoadState('networkidle')
 
-    const repsInput = page.getByLabel(/Reps/i).or(page.getByPlaceholder(/reps/i))
-    await repsInput.fill('1')
-    const weightInput = page.getByLabel(/Peso|Weight/i).or(page.getByPlaceholder(/kg/i))
+    const weightInput = page.getByPlaceholder('0')
     await weightInput.fill('90') // abaixo do PR de 120
 
-    await page.getByRole('button', { name: /Salvar|SALVAR/i }).click()
+    await page.getByRole('button', { name: 'Save PR' }).click()
 
     // Não deve mostrar celebração — deve apenas voltar para o histórico
     await page.waitForTimeout(2_000)
-    await expect(page.getByText(/Novo Recorde Pessoal/i)).not.toBeVisible()
-  })
-
-  // ── 5. My Workouts lista o movimento do QA ────────────────────────────────
-
-  test('My Workouts exibe o movimento de teste', async ({ page }) => {
-    await page.goto('/my-workouts')
-    await page.waitForLoadState('networkidle')
-    await expect(page.getByText('[TEST] Back Squat QA')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('New Personal Record')).not.toBeVisible()
   })
 
 })

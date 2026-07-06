@@ -8,6 +8,7 @@ import { useUnbrokenSets } from '@/hooks/useUnbrokenSets'
 import { analyzeStrength, TIER_LABELS } from '@/lib/strengthStandards'
 import { epley1RM } from '@/lib/scoreUtils'
 import TierBar from '@/components/TierBar'
+import StickyFooter from '@/components/StickyFooter'
 import { phCapture } from '@/lib/posthog'
 import { BENCHMARK_WODS } from '@/lib/benchmarkWods'
 import WodCard from '@/components/WodCard'
@@ -423,7 +424,7 @@ export default function AddScore() {
           )}
         </div>
 
-        <div className="px-5 pb-8 pt-4">
+        <StickyFooter className="px-5 pt-4">
           {saveError && (
             <div className="mb-3 px-4 py-3 bg-[#1A0F0F] border border-[#4A1A1A]">
               <span className="font-mono text-[11px] text-[#FF6B6B]">{saveError}</span>
@@ -437,7 +438,7 @@ export default function AddScore() {
             {savingTime && <span className="w-3.5 h-3.5 border-2 border-graphite/40 border-t-graphite rounded-full animate-spin" />}
             {savingTime ? 'Saving...' : 'Save Time'}
           </button>
-        </div>
+        </StickyFooter>
       </div>
     )
   }
@@ -577,7 +578,7 @@ export default function AddScore() {
           </div>
         </div>
 
-        <div className="px-5 pb-8 pt-4">
+        <StickyFooter className="px-5 pt-4">
           <button
             type="submit"
             disabled={saving || !movementId || weight <= 0}
@@ -586,7 +587,7 @@ export default function AddScore() {
             {saving && <span className="w-3.5 h-3.5 border-2 border-graphite/40 border-t-graphite rounded-full animate-spin" />}
             {saving ? 'Saving...' : 'Save PR'}
           </button>
-        </div>
+        </StickyFooter>
       </form>
     </div>
   )
