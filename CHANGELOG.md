@@ -6,6 +6,23 @@ Formato de versão: `## [versão] — AAAA-MM-DD`
 
 ---
 
+## [1.4.7] — 2026-07-06
+
+### Athlete → Report: fix stale WRAPPED route
+
+- `WRAPPED` button navigated to `/wrapped(/:athleteId)` instead of `/athlete/wrapped(/:athleteId)` — a leftover from before the `/athlete` prefix refactor. On mobile it fell through to the catch-all route → `/home` → redirected to `/login` (desktop-only gate), so the button silently kicked the user out instead of opening the annual summary
+
+### QA → E2E Playwright: cobertura de Build-up, Timer, Invites, Report/Wrapped e Admin
+
+- `tests/buildup.spec.ts`: seleção de movimento + cálculo de ladder de aquecimento + validação de peso abaixo da barra
+- `tests/timer.spec.ts`: troca entre os 6 modos de timer + ciclo completo start/pause/resume/reset
+- `tests/invites.spec.ts`: convite de equipe pendente na inbox, aceite e transição pro histórico
+- `tests/report.spec.ts` / `tests/admin.spec.ts`: estado vazio + navegação do report mensal, botão WRAPPED, gate de role, abas e busca do painel admin
+- `tests/helpers/seedRoles.ts`: helper genérico `ensureRole`/`revertRole` pra conceder e reverter roles temporárias da conta de QA (reutilizado por report e admin)
+- `training.spec.ts` corrigido: rotas e seletores desatualizados (pré-i18n) + `AddScore.tsx` tinha os botões "Save PR"/"Save Time" escondidos atrás do BottomNav fixo (mesmo padrão do BUG_PATTERNS.md #7)
+
+---
+
 ## [1.4.6] — 2026-07-06
 
 ### Code Quality → Multiple: CodeRabbit fixes
