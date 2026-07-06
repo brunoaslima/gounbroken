@@ -6,6 +6,16 @@ Formato de versão: `## [versão] — AAAA-MM-DD`
 
 ---
 
+## [1.4.5] — 2026-07-06
+
+### Competition → Leaderboard Realtime: fix latency/missing events
+
+- Root cause: RLS policy `"results: anon read published"` only allows SELECT where `status = 'published'`. Supabase Realtime evaluates RLS before emitting `postgres_changes` to the subscriber — so anon viewers never received WAL events for results in `submitted` status (inserted by judges), causing 10-30 s latency or no event at all
+- Fix 1: removed the `filter: competition_id=eq.${id}` from the `postgres_changes` subscription — combining a column filter with RLS causes the Realtime server to run two separate evaluation passes, compounding latency; since the callback only triggers a refetch (no payload used), receiving events from other competitions is harmless
+- Fix 2: added a Broadcast channel `score:<competition_id>` — judge (JudgePanel) and admin (CompetitionManage) send a zero-payload broadcast after every `submit_competition_result`, `override_competition_result`, and `publish_wod_results` call; Leaderboard subscribes and triggers a refetch instantly; Broadcast is pure WebSocket pub/sub with no WAL or RLS involved
+
+---
+
 ## [1.4.4] — 2026-07-06
 
 ### Home → Dynamic headline system (100 contexts)

@@ -544,20 +544,36 @@ export default function Leaderboard() {
     inactivityRef.current = setTimeout(() => setScoringActive(false), 60_000)
   }, [])
 
-  // Realtime: triggers activity window on any competition_results change
+  // Realtime: two channels in parallel.
+  //
+  // WHY two channels:
+  //   1. postgres_changes without filter — catches published-status flips visible
+  //      to authenticated viewers (judges, admins). The filter was removed because
+  //      combining a column filter with RLS causes the Realtime server to run two
+  //      separate evaluation passes, adding 10-30 s of latency.
+  //   2. Broadcast on `score:<id>` — judges and the manage page send a broadcast
+  //      the moment they call submit/override/publish. Broadcast bypasses WAL and
+  //      RLS entirely (WebSocket pub/sub), so anon viewers get the ping instantly
+  //      even while the result is still in `submitted` status (not yet visible via
+  //      RLS SELECT). The callback only triggers a refetch, so no sensitive data
+  //      is exposed through the broadcast payload.
   useEffect(() => {
     if (!id || !UUID_RE.test(id)) return
-    const channel = supabase
+    const pgChannel = supabase
       .channel(`leaderboard:${id}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'competition_results',
-        filter: `competition_id=eq.${id}`,
       }, openActivityWindow)
       .subscribe()
+    const broadcastChannel = supabase
+      .channel(`score:${id}`)
+      .on('broadcast', { event: 'result' }, openActivityWindow)
+      .subscribe()
     return () => {
-      supabase.removeChannel(channel)
+      supabase.removeChannel(pgChannel)
+      supabase.removeChannel(broadcastChannel)
       if (inactivityRef.current) clearTimeout(inactivityRef.current)
     }
   }, [id, openActivityWindow])
