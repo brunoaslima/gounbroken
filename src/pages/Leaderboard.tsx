@@ -534,7 +534,17 @@ export default function Leaderboard() {
 
   const triggerRefresh = useCallback(() => setRefreshKey(k => k + 1), [])
 
-  // Realtime: fires immediately when competition_results change (best-effort, latency varies)
+  const [scoringActive, setScoringActive] = useState(false)
+  const inactivityRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const openActivityWindow = useCallback(() => {
+    setScoringActive(true)
+    setRefreshKey(k => k + 1)
+    if (inactivityRef.current) clearTimeout(inactivityRef.current)
+    inactivityRef.current = setTimeout(() => setScoringActive(false), 60_000)
+  }, [])
+
+  // Realtime: triggers activity window on any competition_results change
   useEffect(() => {
     if (!id || !UUID_RE.test(id)) return
     const channel = supabase
@@ -544,16 +554,20 @@ export default function Leaderboard() {
         schema: 'public',
         table: 'competition_results',
         filter: `competition_id=eq.${id}`,
-      }, () => setRefreshKey(k => k + 1))
+      }, openActivityWindow)
       .subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, [id])
+    return () => {
+      supabase.removeChannel(channel)
+      if (inactivityRef.current) clearTimeout(inactivityRef.current)
+    }
+  }, [id, openActivityWindow])
 
-  // Polling fallback: Realtime has variable latency; poll every 10s as safety net
+  // Polling at 10s — only runs while scoring is active, stops after 60s of inactivity
   useEffect(() => {
+    if (!scoringActive) return
     const t = setInterval(() => setRefreshKey(k => k + 1), 10_000)
     return () => clearInterval(t)
-  }, [])
+  }, [scoringActive])
 
   // Refetch when the user returns to this tab after being away
   useEffect(() => {
