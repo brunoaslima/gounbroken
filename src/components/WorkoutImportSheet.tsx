@@ -18,6 +18,26 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10)
 }
 
+// ─── Section builder ──────────────────────────────────────────────────────────
+
+interface DraftSection {
+  tempId: string
+  type: string
+  label: string
+  content: string
+}
+
+const SECTION_PICKER_OPTIONS = [
+  { type: 'warm_up',      label: 'Warm-up' },
+  { type: 'mobility',     label: 'Mobility' },
+  { type: 'strength',     label: 'Strength' },
+  { type: 'skill',        label: 'Skill' },
+  { type: 'conditioning', label: 'Conditioning' },
+  { type: 'wod',          label: 'WOD' },
+  { type: 'accessories',  label: 'Accessories' },
+  { type: 'cool_down',    label: 'Cool Down' },
+]
+
 // ─── Workout block detector ───────────────────────────────────────────────────
 
 // Lines that ARE a real training section header (standalone keyword)
@@ -412,7 +432,31 @@ export default function WorkoutImportSheet({
   const [progress, setProgress] = useState(0)
   const [progressLabel, setProgressLabel] = useState('')
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [ocrError, setOcrError] = useState<string | null>(null)
+
+  // Section builder state
+  const [explicitSections, setExplicitSections] = useState<DraftSection[]>([])
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null)
+  const [showSectionPicker, setShowSectionPicker] = useState(false)
+  const [customLabelInput, setCustomLabelInput] = useState('')
+
+  function addSection(type: string, label: string) {
+    const tempId = crypto.randomUUID()
+    setExplicitSections(prev => [...prev, { tempId, type, label, content: '' }])
+    setSelectedSectionId(tempId)
+    setShowSectionPicker(false)
+    setCustomLabelInput('')
+  }
+
+  function removeSection(tempId: string) {
+    setExplicitSections(prev => {
+      const idx = prev.findIndex(s => s.tempId === tempId)
+      const next = prev.filter(s => s.tempId !== tempId)
+      setSelectedSectionId(next[Math.max(0, idx - 1)]?.tempId ?? next[0]?.tempId ?? null)
+      return next
+    })
+  }
 
   function reset() {
     setState('menu')
@@ -424,8 +468,13 @@ export default function WorkoutImportSheet({
     setProgress(0)
     setProgressLabel('')
     setOcrError(null)
+    setSaveError(null)
     setSaving(false)
     setDate(todayISO())
+    setExplicitSections([])
+    setSelectedSectionId(null)
+    setShowSectionPicker(false)
+    setCustomLabelInput('')
   }
 
   function handleClose() {
@@ -486,9 +535,25 @@ export default function WorkoutImportSheet({
 
   async function save() {
     setSaving(true)
+    setSaveError(null)
     try {
-      if (!text.trim()) {; setSaving(false); return }
-      const sections = parseTextIntoSections(text)
+      let sections
+      if (explicitSections.length > 0) {
+        sections = explicitSections.map((s, i) => ({
+          id: crypto.randomUUID(),
+          section_type: s.type,
+          label: s.label,
+          position: i,
+          notes: s.content.trim(),
+          format_type: 'LIVRE',
+          format_config: null,
+          modality_tags: [],
+          exercises: [],
+        }))
+      } else {
+        if (!text.trim()) { setSaving(false); return }
+        sections = parseTextIntoSections(text)
+      }
 
       const { error } = await supabase.rpc('personal_save_workout', {
         p_athlete_id: userId,
@@ -501,6 +566,7 @@ export default function WorkoutImportSheet({
       reset()
       onDone()
     } catch (err: unknown) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save workout')
     } finally {
       setSaving(false)
     }
@@ -676,35 +742,130 @@ export default function WorkoutImportSheet({
                 />
               </div>
 
-              {/* Content */}
+              {/* Content / Sections */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#6B6B68]">Workout content</span>
-                  <div className="flex" style={{ border: '1px solid #2A2A2A' }}>
-                    <button onClick={() => setViewMode('edit')}
-                      className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-3 py-1"
-                      style={{ background: viewMode === 'edit' ? '#D4FF3A' : '#1A1A1A', color: viewMode === 'edit' ? '#0A0A0A' : '#6B6B68' }}>
-                      Edit
+                  <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#6B6B68]">
+                    {explicitSections.length > 0 ? 'Sections' : 'Workout content'}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowSectionPicker(true)}
+                      className="font-mono font-bold uppercase tracking-[0.14em] text-[10px]"
+                      style={{ color: '#D4FF3A' }}
+                    >
+                      + Section
                     </button>
-                    <button onClick={() => setViewMode('preview')}
-                      className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-3 py-1"
-                      style={{ background: viewMode === 'preview' ? '#D4FF3A' : '#1A1A1A', color: viewMode === 'preview' ? '#0A0A0A' : '#6B6B68', borderLeft: '1px solid #2A2A2A' }}>
-                      Preview
-                    </button>
+                    {explicitSections.length === 0 && (
+                      <div className="flex" style={{ border: '1px solid #2A2A2A' }}>
+                        <button onClick={() => setViewMode('edit')}
+                          className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-3 py-1"
+                          style={{ background: viewMode === 'edit' ? '#D4FF3A' : '#1A1A1A', color: viewMode === 'edit' ? '#0A0A0A' : '#6B6B68' }}>
+                          Edit
+                        </button>
+                        <button onClick={() => setViewMode('preview')}
+                          className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-3 py-1"
+                          style={{ background: viewMode === 'preview' ? '#D4FF3A' : '#1A1A1A', color: viewMode === 'preview' ? '#0A0A0A' : '#6B6B68', borderLeft: '1px solid #2A2A2A' }}>
+                          Preview
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
-                {viewMode === 'edit' ? (
-                  <textarea
-                    value={text}
-                    onChange={e => setText(e.target.value)}
-                    placeholder="Paste or write the workout here..."
-                    rows={12}
-                    className="w-full bg-transparent font-mono text-[13px] text-soft-white outline-none resize-none"
-                    style={{ border: '1px solid #2A2A2A', padding: '10px 12px', lineHeight: 1.6 }}
-                    autoFocus
-                  />
+
+                {explicitSections.length > 0 ? (
+                  <>
+                    {/* Section chips — iOS scroll (bug #18) */}
+                    <div
+                      className="flex mb-3"
+                      style={{
+                        gap: 6,
+                        overflowX: 'scroll',
+                        WebkitOverflowScrolling: 'touch',
+                        scrollbarWidth: 'none',
+                        msOverflowStyle: 'none',
+                        touchAction: 'pan-x',
+                      }}
+                    >
+                      {explicitSections.map(s => {
+                        const active = selectedSectionId === s.tempId
+                        return (
+                          <div key={s.tempId} className="flex shrink-0" style={{ touchAction: 'pan-x' }}>
+                            <button
+                              onClick={() => setSelectedSectionId(s.tempId)}
+                              className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-3 py-1.5"
+                              style={{
+                                touchAction: 'pan-x',
+                                background: active ? '#D4FF3A' : '#1A1A1A',
+                                color: active ? '#0A0A0A' : '#A8A8A4',
+                                border: `1px solid ${active ? '#D4FF3A' : '#2A2A2A'}`,
+                                borderRight: 'none',
+                              }}
+                            >
+                              {s.label}
+                            </button>
+                            <button
+                              onClick={() => removeSection(s.tempId)}
+                              className="flex items-center justify-center font-mono font-bold text-[12px]"
+                              style={{
+                                touchAction: 'pan-x',
+                                width: 26,
+                                background: active ? '#D4FF3A' : '#1A1A1A',
+                                color: active ? '#0A0A0A' : '#6B6B68',
+                                border: `1px solid ${active ? '#D4FF3A' : '#2A2A2A'}`,
+                              }}
+                              aria-label={`Remove ${s.label}`}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* Textarea for the active section */}
+                    {selectedSectionId ? (() => {
+                      const sec = explicitSections.find(s => s.tempId === selectedSectionId)
+                      if (!sec) return null
+                      return (
+                        <textarea
+                          key={sec.tempId}
+                          value={sec.content}
+                          onChange={e => setExplicitSections(prev =>
+                            prev.map(s => s.tempId === sec.tempId ? { ...s, content: e.target.value } : s)
+                          )}
+                          placeholder={`Write the ${sec.label} content here...`}
+                          rows={10}
+                          className="w-full bg-transparent font-mono text-[13px] text-soft-white outline-none resize-none"
+                          style={{ border: '1px solid #2A2A2A', padding: '10px 12px', lineHeight: 1.6 }}
+                          autoFocus
+                        />
+                      )
+                    })() : (
+                      <div
+                        className="flex items-center justify-center py-8"
+                        style={{ border: '1px dashed #2A2A2A' }}
+                      >
+                        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#3D3D3B]">
+                          Select a section above
+                        </span>
+                      </div>
+                    )}
+                  </>
                 ) : (
-                  <WorkoutPreview text={text} />
+                  viewMode === 'edit' ? (
+                    <textarea
+                      value={text}
+                      onChange={e => setText(e.target.value)}
+                      placeholder="Paste or write the workout here..."
+                      rows={12}
+                      className="w-full bg-transparent font-mono text-[13px] text-soft-white outline-none resize-none"
+                      style={{ border: '1px solid #2A2A2A', padding: '10px 12px', lineHeight: 1.6 }}
+                      autoFocus
+                    />
+                  ) : (
+                    <WorkoutPreview text={text} />
+                  )
                 )}
               </div>
             </div>
@@ -796,9 +957,16 @@ export default function WorkoutImportSheet({
 
         {/* ── SAVE FOOTER ─────────────────────────────────────────────── */}
         {(state === 'manual' || state === 'review') && (() => {
-          const canSave = text.trim().length > 0
+          const canSave = explicitSections.length > 0
+            ? explicitSections.some(s => s.content.trim().length > 0)
+            : text.trim().length > 0
           return (
             <div className="px-5 py-4 shrink-0" style={{ borderTop: '1px solid #2A2A2A' }}>
+              {saveError && (
+                <div className="mb-3 px-3 py-2" style={{ background: '#1A0000', border: '1px solid #FF4444' }}>
+                  <span className="font-mono text-[10px] uppercase tracking-[0.1em]" style={{ color: '#FF4444' }}>{saveError}</span>
+                </div>
+              )}
               <button
                 onClick={save}
                 disabled={saving || !canSave}
@@ -814,6 +982,84 @@ export default function WorkoutImportSheet({
           )
         })()}
       </div>
+
+      {/* ── SECTION PICKER ──────────────────────────────────────────────── */}
+      {showSectionPicker && (
+        <>
+          <div
+            className="fixed inset-0 z-[60]"
+            style={{ background: 'rgba(0,0,0,0.5)' }}
+            onClick={() => { setShowSectionPicker(false); setCustomLabelInput('') }}
+          />
+          <div
+            className="fixed bottom-0 left-0 right-0 z-[60]"
+            style={{ background: '#111111', borderTop: '2px solid #2A2A2A' }}
+          >
+            <div className="flex justify-center pt-3 pb-1">
+              <div style={{ width: 36, height: 4, background: '#2A2A2A' }} />
+            </div>
+            <div className="px-5 pb-8 pt-2">
+              <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#6B6B68] block mb-4">
+                Choose section type
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                {SECTION_PICKER_OPTIONS.map(opt => (
+                  <button
+                    key={opt.type}
+                    onClick={() => addSection(opt.type, opt.label)}
+                    className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] py-3 px-4 text-left active:opacity-70"
+                    style={{ background: '#1A1A1A', border: '1px solid #2A2A2A', color: '#F5F5F0' }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+
+                {/* Custom section */}
+                <div style={{ gridColumn: 'span 2' }}>
+                  {customLabelInput === '' ? (
+                    <button
+                      onClick={() => setCustomLabelInput(' ')}
+                      className="w-full font-mono font-bold uppercase tracking-[0.12em] text-[10px] py-3 px-4 text-left active:opacity-70"
+                      style={{ background: '#1A1A1A', border: '1px dashed #2A2A2A', color: '#6B6B68' }}
+                    >
+                      Custom name…
+                    </button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        value={customLabelInput.trimStart()}
+                        onChange={e => setCustomLabelInput(e.target.value)}
+                        placeholder="Section name…"
+                        maxLength={200}
+                        autoFocus
+                        className="flex-1 font-mono text-[13px] text-soft-white bg-transparent outline-none"
+                        style={{ border: '1px solid #D4FF3A', padding: '8px 12px' }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            const label = customLabelInput.trim()
+                            if (label) addSection('wod', label)
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={() => { const label = customLabelInput.trim(); if (label) addSection('wod', label) }}
+                        disabled={!customLabelInput.trim()}
+                        className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] px-4"
+                        style={{
+                          background: customLabelInput.trim() ? '#D4FF3A' : '#1A1A1A',
+                          color: customLabelInput.trim() ? '#0A0A0A' : '#3D3D3B',
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </>
   )
 }
