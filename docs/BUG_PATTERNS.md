@@ -225,9 +225,17 @@ chamável. Isso já causou dois problemas distintos: PostgREST fica ambíguo sob
 qual overload usar (a chamada do frontend falha ou resolve pra versão errada),
 e a versão antiga pode ter lógica de permissão mais fraca e continuar acessível.
 
-**Onde já mordeu:** `submit_competition_result` — trocar a assinatura sem
-`DROP FUNCTION` da versão antiga deixou as duas coexistindo, quebrando a
-resolução do RPC pelo PostgREST (`drop-old-submit-result-overload.sql`).
+**Onde já mordeu:**
+- `submit_competition_result` — trocar a assinatura sem `DROP FUNCTION` da
+  versão antiga deixou as duas coexistindo, quebrando a resolução do RPC pelo
+  PostgREST (`drop-old-submit-result-overload.sql`).
+- `personal_save_workout` — `workout-exercises-reps-label.sql` adicionou
+  `p_replace_workout_id` mas não removeu a versão de 5 parâmetros, deixando
+  os dois overloads coexistirem. Qualquer chamada sem esse parâmetro (o
+  fluxo de auto-registro do atleta sem PT, `WorkoutImportSheet.tsx`) virava
+  ambígua pro PostgREST e falhava sem nunca chegar a executar — sintoma
+  reportado pelo usuário como "não consigo salvar treino como atleta sem
+  PT" (`fix-personal-save-workout-overload.sql`).
 
 **Como evitar:**
 - Toda vez que uma migration mudar os PARÂMETROS de uma função existente

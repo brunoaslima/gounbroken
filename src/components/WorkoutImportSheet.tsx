@@ -561,6 +561,7 @@ export default function WorkoutImportSheet({
         p_focus: [],
         p_notes: null,
         p_sections: sections,
+        p_replace_workout_id: null,
       })
       if (error) throw error
       reset()
