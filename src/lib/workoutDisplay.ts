@@ -46,6 +46,8 @@ export function buildFormatLine(section: {
       if (fc.rest_between_rounds_seconds) parts.push(`${fc.rest_between_rounds_seconds}s rest`)
       return parts.join(' · ')
     }
+    case 'sets':
+      return fc.sets ? `${fc.sets}× SETS` : 'SETS'
     case 'UNBROKEN':
       return 'UNBROKEN'
     case 'INTERVAL': {

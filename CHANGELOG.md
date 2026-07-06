@@ -56,6 +56,7 @@ Formato de versão: `## [versão] — AAAA-MM-DD`
 
 ---
 
+
 ## [1.4.0] — 2026-07-05
 
 ### Training → Benchmark WODs (Girls & Heroes)
