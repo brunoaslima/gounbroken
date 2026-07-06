@@ -72,6 +72,9 @@ function RequireRole({ roles, children }: { children: React.ReactNode; roles: st
 }
 
 function LandingOrLogin() {
+  const { user, loading } = useAuth()
+  if (loading) return <Spinner />
+  if (user) return <Navigate to="/athlete" replace />
   if (window.innerWidth < 768) return <Navigate to="/login" replace />
   return <Landing />
 }

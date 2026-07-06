@@ -23,6 +23,16 @@ function db() {
 
 export async function cleanQAWorkouts() {
   const client = db()
+
+  // workout_section_notes isn't FK'd to prescribed_workouts (keyed by
+  // athlete_id + workout_date instead, see workout-section-notes.sql) so it
+  // needs its own cleanup rather than relying on cascade
+  await client
+    .from('workout_section_notes')
+    .delete()
+    .eq('athlete_id', QA_USER_ID)
+    .in('workout_date', [SELF_WORKOUT_DATE, COACH_WORKOUT_DATE])
+
   const { data: rows } = await client
     .from('prescribed_workouts')
     .select('id')
@@ -55,6 +65,48 @@ export async function seedSelfWorkout(): Promise<string> {
   if (sectionErr) throw new Error(`seedSelfWorkout section: ${sectionErr.message}`)
 
   return data.id
+}
+
+const TODAY_NOTES = '[TEST] today workout for section notes'
+export const TODAY_SECTION_LABEL = 'WOD'
+
+function todayISO(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+/** Self-logged workout dated today — feedback/section-notes only show for
+ * today's or past workouts (see WorkoutCard.tsx canFeedback), so the
+ * far-future SELF_WORKOUT_DATE above can't be used for those flows. */
+export async function seedTodayWorkout(): Promise<{ workoutId: string; workoutDate: string }> {
+  const client = db()
+  const workoutDate = todayISO()
+
+  await client.from('prescribed_workouts').delete()
+    .eq('athlete_id', QA_USER_ID).eq('notes', TODAY_NOTES)
+
+  const { data, error } = await client
+    .from('prescribed_workouts')
+    .insert({ trainer_id: QA_USER_ID, athlete_id: QA_USER_ID, workout_date: workoutDate, notes: TODAY_NOTES, focus: [] })
+    .select('id')
+    .single()
+  if (error || !data) throw new Error(`seedTodayWorkout: ${error?.message}`)
+
+  const { error: sectionErr } = await client
+    .from('workout_sections')
+    .insert({ workout_id: data.id, section_type: 'wod', label: TODAY_SECTION_LABEL, position: 0, notes: '[TEST] 5 rounds for time', format_type: 'LIVRE' })
+  if (sectionErr) throw new Error(`seedTodayWorkout section: ${sectionErr.message}`)
+
+  return { workoutId: data.id, workoutDate }
+}
+
+export async function cleanQATodayWorkout() {
+  const client = db()
+  await client.from('workout_section_notes').delete().eq('athlete_id', QA_USER_ID).eq('workout_date', todayISO())
+  const { data: rows } = await client.from('prescribed_workouts').select('id').eq('athlete_id', QA_USER_ID).eq('notes', TODAY_NOTES)
+  if (!rows || rows.length === 0) return
+  const ids = rows.map(r => r.id)
+  await client.from('workout_sections').delete().in('workout_id', ids)
+  await client.from('prescribed_workouts').delete().in('id', ids)
 }
 
 /** Workout prescribed by someone else (any other real account acting as
