@@ -534,7 +534,7 @@ export default function Leaderboard() {
 
   const triggerRefresh = useCallback(() => setRefreshKey(k => k + 1), [])
 
-  // Realtime: refetch immediately when competition_results change
+  // Realtime: fires immediately when competition_results change (best-effort, latency varies)
   useEffect(() => {
     if (!id || !UUID_RE.test(id)) return
     const channel = supabase
@@ -548,6 +548,12 @@ export default function Leaderboard() {
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [id])
+
+  // Polling fallback: Realtime has variable latency; poll every 10s as safety net
+  useEffect(() => {
+    const t = setInterval(() => setRefreshKey(k => k + 1), 10_000)
+    return () => clearInterval(t)
+  }, [])
 
   // Refetch when the user returns to this tab after being away
   useEffect(() => {
