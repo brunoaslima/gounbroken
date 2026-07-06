@@ -16,27 +16,22 @@ function db() {
  * message, so without this routes gated by role are unreachable. Returns
  * whether the role was actually added, so the caller can revert it in
  * afterAll and not leave the QA account in a different state than before
- * the run. */
+ * the run. Uses atomic DB-side operation to avoid race conditions. */
 export async function ensureRole(role: string): Promise<boolean> {
   const client = db()
-  const { data, error } = await client.from('profiles').select('roles').eq('user_id', QA_USER_ID).single()
-  if (error || !data) throw new Error(`ensureRole(${role}): could not read QA profile: ${error?.message}`)
-  const roles: string[] = data.roles ?? []
-  if (roles.includes(role)) return false
-
-  const { error: updErr } = await client
-    .from('profiles')
-    .update({ roles: [...roles, role] })
-    .eq('user_id', QA_USER_ID)
-  if (updErr) throw new Error(`ensureRole(${role}): ${updErr.message}`)
-  return true
+  const { data, error } = await client.rpc('test_ensure_role', {
+    p_user_id: QA_USER_ID,
+    p_role: role,
+  })
+  if (error) throw new Error(`ensureRole(${role}): ${error.message}`)
+  return data as boolean
 }
 
 export async function revertRole(role: string) {
   const client = db()
-  const { data, error } = await client.from('profiles').select('roles').eq('user_id', QA_USER_ID).single()
-  if (error || !data) throw new Error(`revertRole(${role}): could not read QA profile: ${error?.message}`)
-  const roles: string[] = data.roles ?? []
-  const { error: updErr } = await client.from('profiles').update({ roles: roles.filter(r => r !== role) }).eq('user_id', QA_USER_ID)
-  if (updErr) throw new Error(`revertRole(${role}): ${updErr.message}`)
+  const { error } = await client.rpc('test_revert_role', {
+    p_user_id: QA_USER_ID,
+    p_role: role,
+  })
+  if (error) throw new Error(`revertRole(${role}): ${error.message}`)
 }

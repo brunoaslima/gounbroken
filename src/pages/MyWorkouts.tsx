@@ -142,7 +142,7 @@ function GenerateSheet({ onClose, onDone }: GenerateSheetProps) {
               <div style={{ height: 3, background: '#1A1A1A' }}>
                 <div style={{ height: 3, background: '#D4FF3A', width: `${progress}%`, transition: 'width 0.3s' }} />
               </div>
-              <span className="font-mono text-[10px] uppercase tracking-widest text-[#6B6B68] block text-center mt-2">
+              <span className="font-mono font-bold text-[10px] uppercase tracking-[0.14em] text-[#6B6B68] block text-center mt-2">
                 {progressLabel}
               </span>
             </div>

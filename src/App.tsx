@@ -71,9 +71,7 @@ function RequireRole({ roles, children }: { children: React.ReactNode; roles: st
   return <>{children}</>
 }
 
-function LandingOrLogin() {
-  const { user, loading } = useAuth()
-  if (loading) return <Spinner />
+function LandingOrLogin({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
   if (user) return <Navigate to="/athlete" replace />
   if (window.innerWidth < 768) return <Navigate to="/login" replace />
   return <Landing />
@@ -100,14 +98,14 @@ function TabLayout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const { loading } = useAuth()
+  const { user, loading } = useAuth()
   if (loading) return <Spinner />
 
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/"                  element={<Navigate to="/home" replace />} />
-        <Route path="/home"              element={<LandingOrLogin />} />
+        <Route path="/home"              element={<LandingOrLogin user={user} />} />
         <Route path="/competition/:slug" element={<CompetitionPublic />} />
         <Route path="/comp/:code"        element={<CompetitionJoin />} />
         <Route path="/invite/:code"      element={<Invite />} />

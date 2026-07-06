@@ -25,12 +25,16 @@ CREATE TABLE IF NOT EXISTS workout_section_notes (
 
 ALTER TABLE workout_section_notes ENABLE ROW LEVEL SECURITY;
 
--- Athletes manage their own section notes
+-- Athletes read and delete their own section notes (writes via save_section_note RPC)
 DROP POLICY IF EXISTS "athletes_manage_own_section_notes" ON workout_section_notes;
 CREATE POLICY "athletes_manage_own_section_notes" ON workout_section_notes
-  FOR ALL
-  USING  (auth.uid() = athlete_id)
-  WITH CHECK (auth.uid() = athlete_id);
+  FOR SELECT
+  USING  (auth.uid() = athlete_id);
+
+DROP POLICY IF EXISTS "athletes_delete_own_section_notes" ON workout_section_notes;
+CREATE POLICY "athletes_delete_own_section_notes" ON workout_section_notes
+  FOR DELETE
+  USING  (auth.uid() = athlete_id);
 
 -- Coaches and admins can read their athletes' section notes (same read
 -- policy shape as workout_feedback.trainers_read_athlete_feedback)

@@ -999,15 +999,17 @@ export default function WorkoutImportSheet({
                     ) : (
                       <WorkoutPreview text={text} />
                     )}
-                    <button
-                      onClick={() => setShowSectionPicker(true)}
-                      className="w-full flex items-center justify-center py-3 active:opacity-70"
-                      style={{ border: '1px solid #D4FF3A' }}
-                    >
-                      <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px]" style={{ color: '#D4FF3A' }}>
-                        + Add section
-                      </span>
-                    </button>
+                    {viewMode === 'edit' && (
+                      <button
+                        onClick={() => setShowSectionPicker(true)}
+                        className="w-full flex items-center justify-center py-3 active:opacity-70"
+                        style={{ border: '1px solid #D4FF3A' }}
+                      >
+                        <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px]" style={{ color: '#D4FF3A' }}>
+                          + Add section
+                        </span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

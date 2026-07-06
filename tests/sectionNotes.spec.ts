@@ -35,7 +35,7 @@ test.describe('Nota por seção — treino do dia', () => {
     await noteField.fill('Fiz 15 reps ao invés de 20, mas terminei bem')
     await noteField.blur()
 
-    await page.waitForTimeout(500) // dá tempo pro RPC salvar
+    await expect(page.getByText('Saved')).toBeVisible({ timeout: 5000 })
 
     await page.reload()
     await page.waitForLoadState('networkidle')
@@ -53,7 +53,7 @@ test.describe('Nota por seção — treino do dia', () => {
     const noteField = page.getByPlaceholder(NOTE_PLACEHOLDER)
     await noteField.fill('Bloco tranquilo, sem dor')
     await noteField.blur()
-    await page.waitForTimeout(500)
+    await expect(page.getByText('Saved')).toBeVisible({ timeout: 5000 })
 
     await page.getByRole('button', { name: 'I did it' }).click()
     await page.getByRole('button', { name: 'Save', exact: true }).click()

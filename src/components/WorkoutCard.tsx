@@ -321,12 +321,21 @@ export default function WorkoutCard({
 
   async function saveSectionNote(position: number, label: string, note: string) {
     setSectionNoteStatus(prev => ({ ...prev, [position]: 'saving' }))
-    await supabase.rpc('save_section_note', {
+    const { error } = await supabase.rpc('save_section_note', {
       p_workout_date: workout.workout_date,
       p_section_position: position,
       p_section_label: label,
       p_note: note,
     })
+    if (error) {
+      console.error('save_section_note error:', error)
+      setSectionNoteStatus(prev => {
+        const next = { ...prev }
+        delete next[position]
+        return next
+      })
+      return
+    }
     setSectionNoteStatus(prev => ({ ...prev, [position]: 'saved' }))
   }
 
@@ -584,7 +593,7 @@ export default function WorkoutCard({
                 {canFeedback && !localFeedback && (
                   <div className="pt-2 border-t border-white/5">
                     <div className="flex items-center justify-between mb-1.5">
-                      <p className="text-[9px] font-black text-muted-gray/35 uppercase tracking-widest">Your note</p>
+                      <label htmlFor={`section-note-${section.position}`} className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-muted-gray/35">Your note</label>
                       {sectionNoteStatus[section.position] && (
                         <p className="text-[9px] font-semibold text-muted-gray/40 lowercase">
                           {sectionNoteStatus[section.position] === 'saving' ? 'Saving…' : 'Saved'}
@@ -592,19 +601,20 @@ export default function WorkoutCard({
                       )}
                     </div>
                     <textarea
+                      id={`section-note-${section.position}`}
                       value={sectionNotes[section.position] ?? ''}
                       onChange={e => handleSectionNoteChange(section.position, section.label, e.target.value)}
                       onBlur={e => flushSectionNote(section.position, section.label, e.target.value)}
                       placeholder="What happened here? Reps done, how it felt..."
                       rows={2}
                       maxLength={300}
-                      className="w-full bg-white/[0.03] border border-white/8 rounded-lg px-2.5 py-2 text-[12px] text-soft-white placeholder:text-muted-gray/25 resize-none focus:outline-none focus:border-lime/30 transition-colors"
+                      className="w-full bg-white/[0.03] border border-white/8 px-2.5 py-2 text-[12px] text-soft-white placeholder:text-muted-gray/25 resize-none focus:outline-none focus:border-lime/30 transition-colors"
                     />
                   </div>
                 )}
                 {canFeedback && localFeedback && sectionNotes[section.position] && (
                   <div className="pt-2 border-t border-white/5">
-                    <p className="text-[9px] font-black text-muted-gray/35 uppercase tracking-widest mb-1.5">Your note</p>
+                    <p className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-muted-gray/35 mb-1.5">Your note</p>
                     <p className="text-[12px] text-muted-gray/60 leading-relaxed">{sectionNotes[section.position]}</p>
                   </div>
                 )}

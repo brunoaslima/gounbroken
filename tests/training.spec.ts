@@ -74,6 +74,10 @@ test.describe('Training — fluxo de PR', () => {
 
     await page.getByRole('button', { name: 'Save PR' }).click()
 
+    // Wait for navigation to detail page to settle first
+    await page.waitForURL(/\/athlete\/movement\//, { timeout: 10_000 })
+    await page.waitForLoadState('networkidle')
+
     // Não deve mostrar celebração — deve apenas voltar para o histórico
     await expect(page.getByText('New Personal Record')).not.toBeVisible()
   })

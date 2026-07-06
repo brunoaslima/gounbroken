@@ -38,15 +38,24 @@ test.describe('Report & Wrapped', () => {
     await page.waitForURL(/\/wrapped/, { timeout: 10_000 })
   })
 
-  test('usuário sem role admin/ai é redirecionado ao acessar report diretamente', async ({ page }) => {
-    await revertRole('ai')
-    grantedRole = false
+  test.describe('redirect without role', () => {
+    let localGrantedRole = false
 
-    await page.goto('/athlete/report')
-    await page.waitForURL(url => !url.pathname.includes('/report'), { timeout: 10_000 })
+    test.beforeEach(async () => {
+      await revertRole('ai')
+      localGrantedRole = true
+    })
 
-    // Restaura pro afterAll não quebrar (garantido de novo pelo próximo beforeAll de outro describe, mas
-    // aqui já não há mais testes nesse arquivo — nada a restaurar)
+    test.afterEach(async () => {
+      if (localGrantedRole) {
+        await ensureRole('ai')
+      }
+    })
+
+    test('usuário sem role admin/ai é redirecionado ao acessar report diretamente', async ({ page }) => {
+      await page.goto('/athlete/report')
+      await page.waitForURL(url => !url.pathname.includes('/report'), { timeout: 10_000 })
+    })
   })
 
 })
