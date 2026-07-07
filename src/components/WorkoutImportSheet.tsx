@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { createWorker } from 'tesseract.js'
 import { supabase } from '@/lib/supabase'
 import { buildPrescription } from '@/lib/workoutDisplay'
+import { classifyWorkoutLine } from '@/lib/workoutLineParser'
+import { FormatLineContent, ExerciseLineContent, WorkoutNotesRenderer } from '@/components/WorkoutNotesRenderer'
 import type { PrescribedWorkoutData, WorkoutSectionData } from '@/types'
 type SheetState = 'menu' | 'manual' | 'processing' | 'review'
 type ViewMode = 'edit' | 'preview'
@@ -70,8 +72,8 @@ const WORKOUT_SIGNALS = [
   /\d+\s*rep(etições?|s)?/i,
   /\d+[\s,]*kg/i,
   /\b(amrap|emom|for[\s-]?time|tabata|rounds?|chipper)\b/i,
-  /\b(squat|deadlift|clean|snatch|jerk|press|pull[\s-]?up|push[\s-]?up|lunge|row|run|bike|jump|burpee|thruster|swing|box[\s-]?jump)\b/i,
-  /\b(agachamento|terra|supino|remada|corrida|polichinelo|desenvolvimento|levantamento)\b/i,
+  /\b(squat|deadlift|clean|snatch|jerk|press|pull[\s-]?up|push[\s-]?up|lunge|row|run|bike|jump|burpee|thruster|swing|box[\s-]?jump)\w*\b/i,
+  /\b(agachamento|terra|supino|remada|corrida|polichinelo|desenvolvimento|levantamento)\w*\b/i,
   /\d+\s*min(utos?)?/i,
   /@\d+%/i,
   /\b(sets?|séries?)\s*[:=]\s*\d/i,
@@ -149,74 +151,8 @@ export function detectWorkoutBlock(raw: string): string | null {
 }
 
 // ─── Workout syntax highlight ─────────────────────────────────────────────────
-
-type LineType = 'title' | 'format' | 'exercise' | 'note' | 'empty' | 'plain'
-
-function classifyLine(line: string): LineType {
-  const t = line.trim()
-  if (!t) return 'empty'
-
-  // Block titles: exact match to known section keywords
-  if (BLOCK_HEADER_RE.test(t)) return 'title'
-  // Short all-caps line without digits (e.g. "METCON", "WOD", "STRENGTH")
-  if (t.length <= 35 && /^[A-ZÁÉÍÓÚÀÂÊÔÃÕÇ\s\-\/\.]+$/.test(t) && !/\d/.test(t) && t.length > 2) return 'title'
-
-  // Format lines: AMRAP, EMOM, For Time, Rounds, rep schemes, etc.
-  if (/\b(amrap|emom|for[\s-]?time|for[\s-]?load|for[\s-]?quality|tabata|every|e\.m\.o\.m|a\.m\.r\.a\.p|chipper|ladder)\b/i.test(t)) return 'format'
-  if (/^\d+\s*rounds?\s*(of|de|:)?\s*/i.test(t)) return 'format'
-  if (/^(each\s+for\s+time|for\s+load|build\s+to|time\s+cap)/i.test(t)) return 'format'
-  if (/^\d+r\b.*\b(each|for|time)\b/i.test(t)) return 'format'  // 5R, EACH FOR TIME
-  if (/^\d+-\d+(-\d+)+/.test(t)) return 'format'                  // 21-15-9
-
-  // Note lines: rest, scale, instructions
-  if (/^(\d+['´']\s*)?(rest|descanso)\b/i.test(t)) return 'note'
-  if (/^(obs|scale|note|nota|objetivo|goal|atenção|time[\s-]?cap|rx\+?|scaled|cap|moderate|focus|technique|score|build)\b/i.test(t)) return 'note'
-  if (/^[-–*]\s*(rest|descanso|obs|note|nota|scale)\b/i.test(t)) return 'note'
-
-  // Exercise lines: anything with reps, loads, distances, cals, or movement names
-  if (/\d+\s*[x×]\s*\d+/i.test(t)) return 'exercise'
-  if (/\d+\s*rep(etições?|s)?/i.test(t)) return 'exercise'
-  if (/\d+[\s,]*kg/i.test(t)) return 'exercise'
-  if (/\d+[/\d]*\s*m\b/i.test(t)) return 'exercise'   // 500/425m
-  if (/\d+\s*cal\b/i.test(t)) return 'exercise'
-  if (/\b(squat|deadlift|clean|snatch|jerk|press|pull[\s-]?up|push[\s-]?up|lunge|row|run|bike|jump|burpee|thruster|swing|box[\s-]?jump|muscle[\s-]?up|handstand|toes[\s-]?to[\s-]?bar|knees[\s-]?to|sit[\s-]?up|double[\s-]?under|rope|kettlebell|wall[\s-]?ball|kang|turkish|romanian|rdl)\b/i.test(t)) return 'exercise'
-  if (/\b(agachamento|terra|supino|remada|corrida|polichinelo|desenvolvimento|levantamento|barra|halter|sino)\b/i.test(t)) return 'exercise'
-  if (/^\d+\s+[a-z]/i.test(t)) return 'exercise'
-
-  return 'plain'
-}
-
-function highlightSpans(text: string, pattern: RegExp, style: React.CSSProperties): React.ReactNode {
-  const parts: React.ReactNode[] = []
-  const re = new RegExp(pattern.source, 'gi')
-  let last = 0
-  let m: RegExpExecArray | null
-  while ((m = re.exec(text)) !== null) {
-    if (m.index > last) parts.push(<span key={`t${last}`}>{text.slice(last, m.index)}</span>)
-    parts.push(<span key={`h${m.index}`} style={style}>{m[0]}</span>)
-    last = m.index + m[0].length
-  }
-  if (last < text.length) parts.push(<span key={`t${last}`}>{text.slice(last)}</span>)
-  return <>{parts}</>
-}
-
-function FormatLineContent({ text }: { text: string }) {
-  // Highlight format keywords, rep schemes, and time expressions
-  return <>{highlightSpans(
-    text,
-    /\b(AMRAP|EMOM|For\s+Time|For\s+Load|For\s+Quality|Tabata|Every|Rounds?|Chipper|Ladder|Each\s+For\s+Time|Time\s+Cap|E\.M\.O\.M|A\.M\.R\.A\.P|Min\s+\d+)\b|\d+r\b|\d+-\d+(-\d+)+|\d+[''´`]?\s*(min\.?)?|\d+:\d{2}/i,
-    { color: '#D4FF3A', fontWeight: 700 },
-  )}</>
-}
-
-function ExerciseLineContent({ text }: { text: string }) {
-  // Highlight numbers, loads, reps, distances, cals
-  return <>{highlightSpans(
-    text,
-    /\d+\s*[x×]\s*\d+|\d+[/\d]*\s*m\b|\d+[\s,]*kg|\d+[\s,]*lb|\d+\s*cal(?:ories?)?\b|\d+\s*rep(?:etições?|s)?|\d+\s*min(?:utos?)?|\d+\s*seg(?:undos?)?|@\s*\d+%|\d+%|\d+[''´`]/,
-    { color: '#D4FF3A' },
-  )}</>
-}
+// classifyWorkoutLine + highlightSpans + FormatLineContent/ExerciseLineContent
+// imported from shared workoutLineParser / WorkoutNotesRenderer
 
 function WorkoutPreview({ text, notes }: { text: string; notes?: string }) {
   const hasNotes = !!notes?.trim()
@@ -239,7 +175,7 @@ function WorkoutPreview({ text, notes }: { text: string; notes?: string }) {
   return (
     <div style={{ border: '1px solid #2A2A2A', padding: '10px 12px', minHeight: 192, lineHeight: 1.75, display: 'flex', flexDirection: 'column' }}>
       {lines.map((line, i) => {
-        const type = classifyLine(line)
+        const type = classifyWorkoutLine(line)
         const trimmed = line.trimStart()
         const indent = line.length - trimmed.length
 
@@ -786,7 +722,14 @@ export default function WorkoutImportSheet({
             <div className="flex flex-col items-center justify-center py-16 px-5 gap-6">
               <div className="w-10 h-10 border-2 border-lime border-t-transparent rounded-full animate-spin" />
               <div className="w-full" style={{ maxWidth: 260 }}>
-                <div style={{ height: 3, background: '#1A1A1A' }}>
+                <div
+                  role="progressbar"
+                  aria-valuenow={progress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={progressLabel || 'Preparando…'}
+                  style={{ height: 3, background: '#1A1A1A' }}
+                >
                   <div style={{ height: 3, background: '#D4FF3A', width: `${progress}%`, transition: 'width 0.3s' }} />
                 </div>
                 <span className="font-mono text-[10px] uppercase tracking-widest text-[#6B6B68] block text-center mt-2">
@@ -872,30 +815,36 @@ export default function WorkoutImportSheet({
                                   {s.label}
                                 </span>
                                 {viewMode === 'preview' && s.sets && (
-                                  <span className="font-mono font-semibold uppercase tracking-[0.1em] text-[10px]" style={{ color: '#6B6B68' }}>
+                                  <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px]" style={{ color: '#6B6B68' }}>
                                     {s.sets}× sets
                                   </span>
                                 )}
                               </span>
                             </button>
-                            {/* Sets input — editing only */}
+                            {/* Sets stepper — editing only */}
                             {viewMode === 'edit' && (
-                              <div className="flex items-center shrink-0" style={{ gap: 4 }}>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  max={99}
-                                  value={s.sets ?? ''}
-                                  aria-label={`Sets for ${s.label}`}
-                                  onChange={e => {
-                                    const v = parseInt(e.target.value)
-                                    setExplicitSections(prev => prev.map(x => x.tempId === s.tempId ? { ...x, sets: isNaN(v) ? undefined : v } : x))
-                                  }}
-                                  placeholder="—"
-                                  className="font-mono font-bold uppercase tracking-[0.1em] text-[10px] bg-transparent text-center outline-none w-5"
-                                  style={{ color: '#A8A8A4', borderBottom: '1px solid #2A2A2A', colorScheme: 'dark' }}
-                                />
-                                <span className="font-mono font-bold uppercase tracking-[0.1em] text-[10px] text-[#3D3D3B]">sets</span>
+                              <div className="flex items-center shrink-0 gap-1">
+                                <div className="flex items-center" style={{ border: '1px solid #2A2A2A', height: 28 }}>
+                                  <button
+                                    type="button"
+                                    aria-label="Decrease sets"
+                                    onClick={() => setExplicitSections(prev => prev.map(x => x.tempId === s.tempId ? { ...x, sets: (x.sets ?? 1) <= 1 ? undefined : (x.sets ?? 1) - 1 } : x))}
+                                    className="flex items-center justify-center font-mono font-bold"
+                                    style={{ width: 26, height: '100%', color: '#6B6B68', borderRight: '1px solid #2A2A2A', fontSize: 16, lineHeight: 1 }}
+                                  >−</button>
+                                  <span
+                                    className="font-mono font-bold text-center"
+                                    style={{ width: 30, fontSize: 13, color: s.sets ? '#D4FF3A' : '#3D3D3B' }}
+                                  >{s.sets ?? '—'}</span>
+                                  <button
+                                    type="button"
+                                    aria-label="Increase sets"
+                                    onClick={() => setExplicitSections(prev => prev.map(x => x.tempId === s.tempId ? { ...x, sets: Math.min(99, (x.sets ?? 0) + 1) } : x))}
+                                    className="flex items-center justify-center font-mono font-bold"
+                                    style={{ width: 26, height: '100%', color: '#6B6B68', borderLeft: '1px solid #2A2A2A', fontSize: 16, lineHeight: 1 }}
+                                  >+</button>
+                                </div>
+                                <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px]" style={{ color: '#3D3D3B' }}>sets</span>
                               </div>
                             )}
                             {/* Move + remove — editing only */}
@@ -973,6 +922,7 @@ export default function WorkoutImportSheet({
                     {/* Add another section — editing only */}
                     {viewMode === 'edit' && (
                       <button
+                        type="button"
                         onClick={() => setShowSectionPicker(true)}
                         className="w-full flex items-center justify-center py-3 active:opacity-70"
                         style={{ border: '1px solid #D4FF3A' }}
@@ -1001,6 +951,7 @@ export default function WorkoutImportSheet({
                     )}
                     {viewMode === 'edit' && (
                       <button
+                        type="button"
                         onClick={() => setShowSectionPicker(true)}
                         className="w-full flex items-center justify-center py-3 active:opacity-70"
                         style={{ border: '1px solid #D4FF3A' }}

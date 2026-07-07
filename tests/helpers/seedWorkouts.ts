@@ -70,8 +70,12 @@ export async function seedSelfWorkout(): Promise<string> {
 const TODAY_NOTES = '[TEST] today workout for section notes'
 export const TODAY_SECTION_LABEL = 'WOD'
 
+// Local calendar date, not UTC (toISOString() can land on tomorrow near
+// midnight in non-UTC timezones) — matches WorkoutCard.tsx's own todayStr,
+// which is what canFeedback compares workout_date against.
 function todayISO(): string {
-  return new Date().toISOString().slice(0, 10)
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 }
 
 /** Self-logged workout dated today — feedback/section-notes only show for

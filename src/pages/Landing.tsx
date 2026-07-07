@@ -128,7 +128,7 @@ function useTypeOn(text: string, speed = 40, reducedMotion = false) {
 }
 
 // section reveal: dry 120ms step, not a soft fade
-function Section({ children, id, style, reducedMotion = false }: { children: React.ReactNode; id?: string; style?: React.CSSProperties; reducedMotion?: boolean }) {
+function Section({ children, id, className, style, reducedMotion = false }: { children: React.ReactNode; id?: string; className?: string; style?: React.CSSProperties; reducedMotion?: boolean }) {
   const ref = useRef<HTMLElement>(null)
   const [vis, setVis] = useState(false)
   useEffect(() => {
@@ -146,6 +146,7 @@ function Section({ children, id, style, reducedMotion = false }: { children: Rea
     <section
       ref={ref}
       id={id}
+      className={className}
       style={{
         ...style,
         opacity: vis ? 1 : 0,
@@ -191,7 +192,7 @@ function StatCard({ num, label, color, live, last }: { num: number; label: strin
   }, [active, live, reducedMotion])
 
   return (
-    <div ref={ref} style={{ padding: '36px 32px', borderRight: last ? undefined : '1px solid #2A2A2A', textAlign: 'center' }}>
+    <div ref={ref} className="lp-stat-card" style={{ padding: '36px 32px', borderRight: last ? undefined : '1px solid #2A2A2A', textAlign: 'center' }}>
       <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 46, fontWeight: 800, lineHeight: 1, color: flash ? '#F5F5F0' : color }}>
         {(val + extra).toLocaleString('en-US')}
       </div>
@@ -300,10 +301,10 @@ function ScriptedBoard() {
 
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 32px', background: '#D4FF3A', color: '#0A0A0A' }}>
+      <div className="lp-board-header" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 32px', background: '#D4FF3A', color: '#0A0A0A' }}>
         <span style={{ width: 8, height: 8, background: '#0A0A0A', display: 'inline-block', animation: 'blink 1.4s ease-in-out infinite' }} />
         <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em' }}>COMPETITION DAY</span>
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: 'rgba(0,0,0,0.55)', marginLeft: 'auto' }}>
+        <span className="lp-board-header-status" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: 'rgba(0,0,0,0.55)', marginLeft: 'auto' }}>
           OPEN BOX CHAMPIONSHIP 2026 · {status}
         </span>
       </div>
@@ -329,6 +330,7 @@ function ScriptedBoard() {
                 if (el) rowRefs.current.set(row.team, el)
                 else rowRefs.current.delete(row.team)
               }}
+              className="lp-board-row"
               style={{ display: 'grid', gridTemplateColumns: '56px 1fr 160px 70px', alignItems: 'center', gap: 14, padding: '13px 32px', borderBottom: '1px solid #161616', background: rowBg, transition: 'background 0.25s' }}
             >
               {medal ? (
@@ -353,7 +355,7 @@ function ScriptedBoard() {
                   </span>
                 )}
               </span>
-              <div style={{ height: 8, background: '#1c1c1c' }}>
+              <div className="lp-board-bar" style={{ height: 8, background: '#1c1c1c' }}>
                 <div style={{ height: '100%', width: `${Math.round((row.pts / maxPts) * 100)}%`, background: rank === 1 ? '#D4FF3A' : rank <= 3 ? '#A8A8A4' : '#3D3D3B', transition: 'width 0.5s cubic-bezier(0.2,0.8,0.2,1)' }} />
               </div>
               <RollingPts value={row.pts} color="#D4FF3A" />
@@ -411,22 +413,22 @@ export default function Landing() {
     <div className="landing-root" style={{ fontFamily: "'Space Grotesk', sans-serif", background: '#0A0A0A', color: '#F5F5F0', minHeight: '100vh' }}>
 
       {/* NAV */}
-      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 18, paddingLeft: 32, paddingRight: 32, borderBottom: '1px solid #2A2A2A', position: 'sticky', top: 0, background: 'rgba(10,10,10,0.92)', backdropFilter: 'blur(6px)', zIndex: 40 }}>
-        <button onClick={() => go('/landing')} style={{ display: 'flex', alignItems: 'center', gap: 9, fontWeight: 700, fontSize: 17, background: 'transparent', border: 'none', color: '#F5F5F0', cursor: 'pointer' }}>
+      <nav className="lp-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 18, paddingLeft: 32, paddingRight: 32, borderBottom: '1px solid #2A2A2A', position: 'sticky', top: 0, background: '#0A0A0A', zIndex: 40 }}>
+        <button type="button" onClick={() => go('/landing')} style={{ display: 'flex', alignItems: 'center', gap: 9, fontWeight: 700, fontSize: 17, background: 'transparent', border: 'none', color: '#F5F5F0', cursor: 'pointer' }}>
           GO<span style={{ width: 18, height: 5, background: '#D4FF3A', display: 'inline-block' }} />UNBROKEN
         </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em' }}>
-          <a href="#journey" style={{ color: '#A8A8A4', textDecoration: 'none' }}>JOURNEY</a>
-          <a href="#leaderboard" style={{ color: '#A8A8A4', textDecoration: 'none' }}>COMPETITION</a>
-          <a href="#faq" style={{ color: '#A8A8A4', textDecoration: 'none' }}>FAQ</a>
-          <button onClick={() => go('/login')} style={{ background: '#D4FF3A', color: '#0A0A0A', border: 'none', padding: '11px 18px', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', cursor: 'pointer' }}>
+        <div className="lp-nav-links" style={{ display: 'flex', alignItems: 'center', gap: 24, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em' }}>
+          <a href="#journey" className="lp-nav-anchor" style={{ color: '#A8A8A4', textDecoration: 'none' }}>JOURNEY</a>
+          <a href="#leaderboard" className="lp-nav-anchor" style={{ color: '#A8A8A4', textDecoration: 'none' }}>COMPETITION</a>
+          <a href="#faq" className="lp-nav-anchor" style={{ color: '#A8A8A4', textDecoration: 'none' }}>FAQ</a>
+          <button type="button" onClick={() => go('/login')} className="lp-nav-cta" style={{ background: '#D4FF3A', color: '#0A0A0A', border: 'none', padding: '11px 18px', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', cursor: 'pointer' }}>
             CREATE FREE ACCOUNT →
           </button>
         </div>
       </nav>
 
       {/* HERO */}
-      <section style={{ padding: '64px 32px 56px', borderBottom: '1px solid #2A2A2A', textAlign: 'center' }}>
+      <section className="lp-hero" style={{ padding: '64px 32px 56px', borderBottom: '1px solid #2A2A2A', textAlign: 'center' }}>
         <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: '#4DA3FF', marginBottom: 26 }}>
           FROM FIRST PR TO COMPETITION FLOOR
         </div>
@@ -464,18 +466,19 @@ export default function Landing() {
           </div>
         </div>
 
-        <button onClick={() => go('/login')} style={{ display: 'inline-block', marginTop: 40, background: '#D4FF3A', color: '#0A0A0A', border: 'none', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 800, letterSpacing: '0.14em', padding: '16px 30px', cursor: 'pointer' }}>
+        <button type="button" onClick={() => go('/login')} style={{ display: 'inline-block', marginTop: 40, background: '#D4FF3A', color: '#0A0A0A', border: 'none', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 800, letterSpacing: '0.14em', padding: '16px 30px', cursor: 'pointer' }}>
           START LOGGING FREE →
         </button>
       </section>
 
       {/* JOURNEY — the thesis of the page */}
-      <Section id="journey" reducedMotion={reducedMotion} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '1px solid #2A2A2A' }}>
+      <Section id="journey" reducedMotion={reducedMotion} className="lp-journey" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '1px solid #2A2A2A' }}>
         {JOURNEY.map((s, i) => {
           const active = journeyCurrent === i
           return (
             <div
               key={s.label}
+              className="lp-journey-card"
               onMouseEnter={() => setJourneyHover(i)}
               onMouseLeave={() => setJourneyHover(null)}
               style={{
@@ -487,7 +490,7 @@ export default function Landing() {
                 cursor: 'default',
               }}
             >
-              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 84, fontWeight: 800, lineHeight: 1, color: active ? s.color : '#2A2A2A', transition: 'color 120ms linear' }}>
+              <div className="lp-journey-num" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 84, fontWeight: 800, lineHeight: 1, color: active ? s.color : '#2A2A2A', transition: 'color 120ms linear' }}>
                 {s.num}
               </div>
               <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: s.color, margin: '18px 0 12px' }}>
@@ -509,7 +512,7 @@ export default function Landing() {
       </Section>
 
       {/* STATS */}
-      <Section reducedMotion={reducedMotion} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '1px solid #2A2A2A', background: '#111111' }}>
+      <Section reducedMotion={reducedMotion} className="lp-stats" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '1px solid #2A2A2A', background: '#111111' }}>
         <StatCard num={12847} label="PRs LOGGED" color="#D4FF3A" live />
         <StatCard num={1203} label="ATHLETES RANKED" color="#4DA3FF" />
         <StatCard num={47} label="COMPETITIONS RUN" color="#FF8A00" last />
@@ -536,8 +539,8 @@ export default function Landing() {
       </Section>
 
       {/* COACH & ORGANIZER */}
-      <Section reducedMotion={reducedMotion} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #2A2A2A' }}>
-        <div style={{ padding: '44px 32px', borderRight: '1px solid #2A2A2A' }}>
+      <Section reducedMotion={reducedMotion} className="lp-coach-organizer" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #2A2A2A' }}>
+        <div className="lp-coach-card" style={{ padding: '44px 32px', borderRight: '1px solid #2A2A2A' }}>
           <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: '#4DA3FF', marginBottom: 16 }}>COACH</div>
           <h3 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 12px', letterSpacing: '-0.01em' }}>Program 40 athletes from one screen.</h3>
           <p style={{ fontSize: 13.5, lineHeight: 1.65, color: '#6B6B68', margin: '0 0 20px' }}>
@@ -549,7 +552,7 @@ export default function Landing() {
             › ADJUST: AI SUGGESTIONS ON TAP
           </div>
         </div>
-        <div style={{ padding: '44px 32px' }}>
+        <div className="lp-coach-card" style={{ padding: '44px 32px' }}>
           <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: '#FF8A00', marginBottom: 16 }}>ORGANIZER</div>
           <h3 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 12px', letterSpacing: '-0.01em' }}>Run a throwdown without spreadsheets.</h3>
           <p style={{ fontSize: 13.5, lineHeight: 1.65, color: '#6B6B68', margin: '0 0 20px' }}>
@@ -564,13 +567,13 @@ export default function Landing() {
       </Section>
 
       {/* TESTIMONIALS */}
-      <Section reducedMotion={reducedMotion} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '1px solid #2A2A2A' }}>
+      <Section reducedMotion={reducedMotion} className="lp-testimonials" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '1px solid #2A2A2A' }}>
         {[
           { quote: '"I stopped guessing. Every cycle ends with a number that used to be a maybe."', name: 'MARINA C.', badge: 'TOP 9%', badgeColor: '#D4FF3A' },
           { quote: '"Programming 40 athletes is one screen now, with a live board on comp day."', name: 'COACH RAFA', badge: 'BOX OWNER', badgeColor: '#4DA3FF' },
           { quote: '"Ran a 24-team throwdown with zero spreadsheets. Scores in, board moves, done."', name: 'PAULA S.', badge: 'EVENT ORGANIZER', badgeColor: '#FF8A00' },
         ].map((t, i) => (
-          <div key={t.name} style={{ padding: '34px 32px', borderRight: i < 2 ? '1px solid #2A2A2A' : undefined }}>
+          <div key={t.name} className="lp-testimonial-card" style={{ padding: '34px 32px', borderRight: i < 2 ? '1px solid #2A2A2A' : undefined }}>
             <p style={{ fontSize: 15, lineHeight: 1.55, fontWeight: 500, margin: '0 0 18px' }}>{t.quote}</p>
             <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#6B6B68' }}>
               {t.name} · <span style={{ color: t.badgeColor }}>{t.badge}</span>
@@ -580,8 +583,8 @@ export default function Landing() {
       </Section>
 
       {/* FAQ */}
-      <Section id="faq" reducedMotion={reducedMotion} style={{ display: 'grid', gridTemplateColumns: '280px 1fr', borderBottom: '1px solid #2A2A2A' }}>
-        <div style={{ padding: '44px 32px', borderRight: '1px solid #2A2A2A' }}>
+      <Section id="faq" reducedMotion={reducedMotion} className="lp-faq" style={{ display: 'grid', gridTemplateColumns: '280px 1fr', borderBottom: '1px solid #2A2A2A' }}>
+        <div className="lp-faq-col-left" style={{ padding: '44px 32px', borderRight: '1px solid #2A2A2A' }}>
           <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: '#D4FF3A', marginBottom: 14 }}>FAQ</div>
           <h2 style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1, margin: 0 }}>Good<br />to know.</h2>
         </div>
@@ -590,7 +593,7 @@ export default function Landing() {
             const open = openFaq === i
             return (
               <div key={i} style={{ borderBottom: '1px solid #1c1c1c' }}>
-                <button
+                <button type="button"
                   onClick={() => setOpenFaq(open ? null : i)}
                   style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: '22px 32px', textAlign: 'left' }}
                 >
@@ -607,7 +610,7 @@ export default function Landing() {
       </Section>
 
       {/* CTA FINAL */}
-      <section style={{ background: '#D4FF3A', color: '#0A0A0A', padding: '80px 32px', textAlign: 'center' }}>
+      <section className="lp-cta-final" style={{ background: '#D4FF3A', color: '#0A0A0A', padding: '80px 32px', textAlign: 'center' }}>
         <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', marginBottom: 20 }}>FROM FIRST PR TO PODIUM</div>
         <h2 style={{ fontSize: 'clamp(40px,6vw,74px)', fontWeight: 700, lineHeight: 0.92, letterSpacing: '-0.03em', margin: '0 0 30px' }}>
           Start your{' '}
@@ -616,7 +619,7 @@ export default function Landing() {
           </span>
           {' '}today.
         </h2>
-        <button onClick={() => go('/login')} style={{ background: '#0A0A0A', color: '#D4FF3A', border: 'none', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 800, letterSpacing: '0.14em', padding: '18px 42px', cursor: 'pointer' }}>
+        <button type="button" onClick={() => go('/login')} style={{ background: '#0A0A0A', color: '#D4FF3A', border: 'none', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 800, letterSpacing: '0.14em', padding: '18px 42px', cursor: 'pointer' }}>
           CREATE FREE ACCOUNT →
         </button>
         <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', marginTop: 22, color: 'rgba(0,0,0,0.5)' }}>
@@ -625,8 +628,8 @@ export default function Landing() {
       </section>
 
       {/* FOOTER */}
-      <footer style={{ padding: '40px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
-        <button onClick={() => go('/landing')} style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 15, background: 'transparent', border: 'none', color: '#F5F5F0', cursor: 'pointer' }}>
+      <footer className="lp-footer" style={{ padding: '40px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+        <button type="button" onClick={() => go('/landing')} style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 15, background: 'transparent', border: 'none', color: '#F5F5F0', cursor: 'pointer' }}>
           GO<span style={{ width: 15, height: 4, background: '#D4FF3A', display: 'inline-block' }} />UNBROKEN
         </button>
         <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: '#3D3D3B' }}>
@@ -639,6 +642,45 @@ export default function Landing() {
         @keyframes landing-marquee { from { transform: translateX(0) } to { transform: translateX(-50%) } }
         @media (prefers-reduced-motion: reduce) {
           .landing-root * { animation-play-state: paused !important; }
+        }
+
+        @media (max-width: 767px) {
+          .lp-nav, .lp-hero, .lp-cta-final,
+          .lp-journey-card, .lp-stat-card, .lp-board-header, .lp-board-row,
+          .lp-coach-card, .lp-testimonial-card, .lp-faq-col-left, .lp-footer {
+            padding-left: 20px !important;
+            padding-right: 20px !important;
+          }
+          .lp-nav-anchor { display: none !important; }
+          .lp-nav-links { gap: 12px !important; }
+          .lp-nav-cta { padding: 9px 14px !important; font-size: 9px !important; }
+
+          .lp-hero { padding-top: 48px !important; padding-bottom: 40px !important; }
+
+          .lp-journey, .lp-stats, .lp-coach-organizer, .lp-testimonials {
+            grid-template-columns: 1fr !important;
+          }
+          .lp-journey-card, .lp-coach-card, .lp-testimonial-card, .lp-stat-card {
+            border-right: none !important;
+            border-bottom: 1px solid #2A2A2A;
+          }
+          .lp-journey-num { font-size: 56px !important; }
+
+          .lp-faq { grid-template-columns: 1fr !important; }
+          .lp-faq-col-left {
+            border-right: none !important;
+            border-bottom: 1px solid #2A2A2A;
+            padding-bottom: 24px !important;
+          }
+
+          .lp-board-header-status { display: none !important; }
+          .lp-board-row {
+            grid-template-columns: 28px 1fr 56px !important;
+            gap: 10px !important;
+          }
+          .lp-board-bar { display: none !important; }
+
+          .lp-footer { flex-direction: column; align-items: flex-start !important; gap: 12px !important; }
         }
       `}</style>
     </div>

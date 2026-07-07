@@ -73,7 +73,6 @@ function RequireRole({ roles, children }: { children: React.ReactNode; roles: st
 
 function LandingOrLogin({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
   if (user) return <Navigate to="/athlete" replace />
-  if (window.innerWidth < 768) return <Navigate to="/login" replace />
   return <Landing />
 }
 
