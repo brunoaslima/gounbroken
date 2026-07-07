@@ -223,7 +223,7 @@ export default function WorkoutCard({
   const [localFeedback, setLocalFeedback] = useState<WorkoutFeedback | null>(workout.feedback ?? null)
   const [pendingStatus, setPendingStatus] = useState<'completed' | 'partially_completed' | 'skipped' | null>(null)
   const [sectionNotes, setSectionNotes] = useState<Record<number, string>>({})
-  const [sectionNoteStatus, setSectionNoteStatus] = useState<Record<number, 'saving' | 'saved'>>({})
+  const [sectionNoteStatus, setSectionNoteStatus] = useState<Record<number, 'saving' | 'saved' | 'error'>>({})
   const noteSaveTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
 
   const today = new Date()
@@ -246,31 +246,38 @@ export default function WorkoutCard({
       .select('section_position, note')
       .eq('athlete_id', userId)
       .eq('workout_date', workout.workout_date)
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('load section notes error:', error)
+          return
+        }
         const map: Record<number, string> = {}
         for (const row of data ?? []) map[row.section_position] = row.note
         setSectionNotes(map)
       })
   }, [canFeedback, expanded, userId, workout.workout_date])
 
+  // Serialized per position: if the debounced save is still in flight when
+  // the user blurs (triggering flushSectionNote), queuing behind it instead
+  // of firing a second concurrent request prevents an older response from
+  // resolving after a newer one and silently clobbering the latest text.
+  const noteSaveInFlight = useRef<Record<number, Promise<void>>>({})
+
   async function saveSectionNote(position: number, label: string, note: string) {
-    setSectionNoteStatus(prev => ({ ...prev, [position]: 'saving' }))
-    const { error } = await supabase.rpc('save_section_note', {
-      p_workout_date: workout.workout_date,
-      p_section_position: position,
-      p_section_label: label,
-      p_note: note,
-    })
-    if (error) {
-      console.error('save_section_note error:', error)
-      setSectionNoteStatus(prev => {
-        const next = { ...prev }
-        delete next[position]
-        return next
+    const prior = noteSaveInFlight.current[position] ?? Promise.resolve()
+    const run = prior.then(async () => {
+      setSectionNoteStatus(prev => ({ ...prev, [position]: 'saving' }))
+      const { error } = await supabase.rpc('save_section_note', {
+        p_workout_date: workout.workout_date,
+        p_section_position: position,
+        p_section_label: label,
+        p_note: note,
       })
-      return
-    }
-    setSectionNoteStatus(prev => ({ ...prev, [position]: 'saved' }))
+      if (error) console.error('save_section_note error:', error)
+      setSectionNoteStatus(prev => ({ ...prev, [position]: error ? 'error' : 'saved' }))
+    })
+    noteSaveInFlight.current[position] = run
+    await run
   }
 
   function handleSectionNoteChange(position: number, label: string, note: string) {
@@ -529,8 +536,11 @@ export default function WorkoutCard({
                     <div className="flex items-center justify-between mb-1.5">
                       <label htmlFor={`section-note-${section.position}`} className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-muted-gray/35">Your note</label>
                       {sectionNoteStatus[section.position] && (
-                        <p className="text-[9px] font-semibold text-muted-gray/40 lowercase">
-                          {sectionNoteStatus[section.position] === 'saving' ? 'Saving…' : 'Saved'}
+                        <p className={`font-mono font-bold uppercase tracking-[0.14em] text-[9px] ${
+                          sectionNoteStatus[section.position] === 'error' ? 'text-warning' : 'text-muted-gray/40'
+                        }`}>
+                          {sectionNoteStatus[section.position] === 'saving' ? 'Saving…'
+                            : sectionNoteStatus[section.position] === 'error' ? 'Failed to save' : 'Saved'}
                         </p>
                       )}
                     </div>

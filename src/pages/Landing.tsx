@@ -413,15 +413,15 @@ export default function Landing() {
     <div className="landing-root" style={{ fontFamily: "'Space Grotesk', sans-serif", background: '#0A0A0A', color: '#F5F5F0', minHeight: '100vh' }}>
 
       {/* NAV */}
-      <nav className="lp-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 18, paddingLeft: 32, paddingRight: 32, borderBottom: '1px solid #2A2A2A', position: 'sticky', top: 0, background: 'rgba(10,10,10,0.92)', backdropFilter: 'blur(6px)', zIndex: 40 }}>
-        <button onClick={() => go('/landing')} style={{ display: 'flex', alignItems: 'center', gap: 9, fontWeight: 700, fontSize: 17, background: 'transparent', border: 'none', color: '#F5F5F0', cursor: 'pointer' }}>
+      <nav className="lp-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 18, paddingLeft: 32, paddingRight: 32, borderBottom: '1px solid #2A2A2A', position: 'sticky', top: 0, background: '#0A0A0A', zIndex: 40 }}>
+        <button type="button" onClick={() => go('/landing')} style={{ display: 'flex', alignItems: 'center', gap: 9, fontWeight: 700, fontSize: 17, background: 'transparent', border: 'none', color: '#F5F5F0', cursor: 'pointer' }}>
           GO<span style={{ width: 18, height: 5, background: '#D4FF3A', display: 'inline-block' }} />UNBROKEN
         </button>
         <div className="lp-nav-links" style={{ display: 'flex', alignItems: 'center', gap: 24, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em' }}>
           <a href="#journey" className="lp-nav-anchor" style={{ color: '#A8A8A4', textDecoration: 'none' }}>JOURNEY</a>
           <a href="#leaderboard" className="lp-nav-anchor" style={{ color: '#A8A8A4', textDecoration: 'none' }}>COMPETITION</a>
           <a href="#faq" className="lp-nav-anchor" style={{ color: '#A8A8A4', textDecoration: 'none' }}>FAQ</a>
-          <button onClick={() => go('/login')} className="lp-nav-cta" style={{ background: '#D4FF3A', color: '#0A0A0A', border: 'none', padding: '11px 18px', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', cursor: 'pointer' }}>
+          <button type="button" onClick={() => go('/login')} className="lp-nav-cta" style={{ background: '#D4FF3A', color: '#0A0A0A', border: 'none', padding: '11px 18px', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', cursor: 'pointer' }}>
             CREATE FREE ACCOUNT →
           </button>
         </div>
@@ -466,7 +466,7 @@ export default function Landing() {
           </div>
         </div>
 
-        <button onClick={() => go('/login')} style={{ display: 'inline-block', marginTop: 40, background: '#D4FF3A', color: '#0A0A0A', border: 'none', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 800, letterSpacing: '0.14em', padding: '16px 30px', cursor: 'pointer' }}>
+        <button type="button" onClick={() => go('/login')} style={{ display: 'inline-block', marginTop: 40, background: '#D4FF3A', color: '#0A0A0A', border: 'none', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 800, letterSpacing: '0.14em', padding: '16px 30px', cursor: 'pointer' }}>
           START LOGGING FREE →
         </button>
       </section>
@@ -593,7 +593,7 @@ export default function Landing() {
             const open = openFaq === i
             return (
               <div key={i} style={{ borderBottom: '1px solid #1c1c1c' }}>
-                <button
+                <button type="button"
                   onClick={() => setOpenFaq(open ? null : i)}
                   style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: '22px 32px', textAlign: 'left' }}
                 >
@@ -619,7 +619,7 @@ export default function Landing() {
           </span>
           {' '}today.
         </h2>
-        <button onClick={() => go('/login')} style={{ background: '#0A0A0A', color: '#D4FF3A', border: 'none', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 800, letterSpacing: '0.14em', padding: '18px 42px', cursor: 'pointer' }}>
+        <button type="button" onClick={() => go('/login')} style={{ background: '#0A0A0A', color: '#D4FF3A', border: 'none', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 800, letterSpacing: '0.14em', padding: '18px 42px', cursor: 'pointer' }}>
           CREATE FREE ACCOUNT →
         </button>
         <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', marginTop: 22, color: 'rgba(0,0,0,0.5)' }}>
@@ -629,7 +629,7 @@ export default function Landing() {
 
       {/* FOOTER */}
       <footer className="lp-footer" style={{ padding: '40px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
-        <button onClick={() => go('/landing')} style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 15, background: 'transparent', border: 'none', color: '#F5F5F0', cursor: 'pointer' }}>
+        <button type="button" onClick={() => go('/landing')} style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 15, background: 'transparent', border: 'none', color: '#F5F5F0', cursor: 'pointer' }}>
           GO<span style={{ width: 15, height: 4, background: '#D4FF3A', display: 'inline-block' }} />UNBROKEN
         </button>
         <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: '#3D3D3B' }}>

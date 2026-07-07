@@ -100,4 +100,4 @@ export const EXERCISE_HIGHLIGHT_RE =
 
 // Leading numeric prefix of an exercise line ("30/24 Cal", "3×10", "50 ft", "15")
 export const EXERCISE_PREFIX_RE =
-  /^(\d+[""''′″]?(?:[\/\-]\d+[""''′″]?)*(?:\s*(?:sec|min|cal|kg|lb|ft|m|reps?|x|×))?)\s+(.+)/i
+  /^(\d+[""''′″]?(?:[\/\-x×]\d+[""''′″]?)*(?:\s*(?:sec|min|cal|kg|lb|ft|m|reps?|x|×))?)\s+(.+)/i

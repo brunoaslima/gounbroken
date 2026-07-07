@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { classifyWorkoutLine } from '@/lib/workoutLineParser'
+import { classifyWorkoutLine, FORMAT_HIGHLIGHT_RE, EXERCISE_HIGHLIGHT_RE, EXERCISE_PREFIX_RE } from '@/lib/workoutLineParser'
 
 // Helper
 const c = (line: string) => classifyWorkoutLine(line)
@@ -179,5 +179,36 @@ describe('classifyWorkoutLine — edge cases', () => {
   })
   it('plain lines fall through', () => {
     expect(c('good form throughout')).toBe('plain')
+  })
+})
+
+describe('EXERCISE_PREFIX_RE', () => {
+  it('matches x/× as prefix separators, not just slash/dash', () => {
+    expect('3x10 Back Squat').toMatch(EXERCISE_PREFIX_RE)
+    expect('3×10 Back Squat'.match(EXERCISE_PREFIX_RE)?.[1]).toBe('3×10')
+    expect('3x10 Back Squat'.match(EXERCISE_PREFIX_RE)?.[1]).toBe('3x10')
+  })
+  it('still matches slash/dash separated prefixes', () => {
+    expect('30/24 Cal Row'.match(EXERCISE_PREFIX_RE)?.[1]).toBe('30/24 Cal')
+  })
+  it('matches a bare leading number', () => {
+    expect('15 Pull-ups'.match(EXERCISE_PREFIX_RE)?.[1]).toBe('15')
+  })
+})
+
+describe('FORMAT_HIGHLIGHT_RE', () => {
+  it('matches known format keywords', () => {
+    expect('AMRAP 20'.match(FORMAT_HIGHLIGHT_RE)?.[0]).toBe('AMRAP')
+    expect('For Time'.match(FORMAT_HIGHLIGHT_RE)?.[0]).toBe('For Time')
+  })
+  it('matches rep-scheme number sequences', () => {
+    expect('21-15-9'.match(FORMAT_HIGHLIGHT_RE)?.[0]).toBe('21-15-9')
+  })
+})
+
+describe('EXERCISE_HIGHLIGHT_RE', () => {
+  it('matches load and rep quantities', () => {
+    expect('60kg Deadlift'.match(EXERCISE_HIGHLIGHT_RE)?.[0]).toBe('60kg')
+    expect('21 Pull-ups'.match(EXERCISE_HIGHLIGHT_RE)?.[0]).toBe('21')
   })
 })

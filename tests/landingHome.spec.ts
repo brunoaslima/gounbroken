@@ -4,6 +4,7 @@ import { loginAsAdmin } from './helpers/auth'
 test.describe('Landing / Home — detecção de login', () => {
 
   test('usuário deslogado vê a landing page mesmo em mobile', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 })
     await page.goto('/home')
     await page.waitForLoadState('networkidle')
 

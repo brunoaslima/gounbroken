@@ -6,11 +6,14 @@ const NOTE_PLACEHOLDER = 'What happened here? Reps done, how it felt...'
 
 // The single test workout auto-expands (MyWorkouts sets
 // defaultExpanded={workouts.length === 1}) — only click to expand if it
-// isn't already open, so the test doesn't depend on that count staying 1.
+// isn't already open. Scoped by "Hoje" (today's date badge text) rather than
+// a raw Tailwind class, so it targets today's seeded card specifically even
+// if other QA fixture workouts (far-future SELF_WORKOUT_DATE etc.) are also
+// present on the page.
 async function ensureExpanded(page: Page) {
   const noteField = page.getByPlaceholder(NOTE_PLACEHOLDER)
   if (await noteField.isVisible().catch(() => false)) return
-  await page.locator('button.w-full.flex.items-start').first().click()
+  await page.locator('button.w-full.flex.items-start', { hasText: 'Hoje' }).first().click()
   await expect(noteField).toBeVisible()
 }
 

@@ -257,7 +257,14 @@ function SuggestSheet({
           <div className="absolute inset-0 z-10 bg-graphite/95 flex flex-col items-center justify-center gap-4">
             <div className="w-10 h-10 border-2 border-lime border-t-transparent animate-spin" />
             <div className="w-full px-5" style={{ maxWidth: 260 }}>
-              <div style={{ height: 3, background: 'rgba(255,255,255,0.08)' }}>
+              <div
+                role="progressbar"
+                aria-valuenow={progress}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={progressLabel}
+                style={{ height: 3, background: 'rgba(255,255,255,0.08)' }}
+              >
                 <div style={{ height: 3, background: '#D4FF3A', width: `${progress}%`, transition: 'width 0.3s' }} />
               </div>
               <span className="font-mono font-bold text-[10px] uppercase tracking-[0.14em] text-muted-gray/60 block text-center mt-2">

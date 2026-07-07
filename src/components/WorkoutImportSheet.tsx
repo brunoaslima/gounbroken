@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { createWorker } from 'tesseract.js'
 import { supabase } from '@/lib/supabase'
 import { buildPrescription } from '@/lib/workoutDisplay'
-import { classifyWorkoutLine, FORMAT_HIGHLIGHT_RE, EXERCISE_HIGHLIGHT_RE } from '@/lib/workoutLineParser'
-import { highlightSpans, WorkoutNotesRenderer } from '@/components/WorkoutNotesRenderer'
+import { classifyWorkoutLine } from '@/lib/workoutLineParser'
+import { FormatLineContent, ExerciseLineContent, WorkoutNotesRenderer } from '@/components/WorkoutNotesRenderer'
 import type { PrescribedWorkoutData, WorkoutSectionData } from '@/types'
 type SheetState = 'menu' | 'manual' | 'processing' | 'review'
 type ViewMode = 'edit' | 'preview'
@@ -151,15 +151,8 @@ export function detectWorkoutBlock(raw: string): string | null {
 }
 
 // ─── Workout syntax highlight ─────────────────────────────────────────────────
-// classifyWorkoutLine + highlightSpans imported from shared workoutLineParser / WorkoutNotesRenderer
-
-function FormatLineContent({ text }: { text: string }) {
-  return <>{highlightSpans(text, FORMAT_HIGHLIGHT_RE, { color: '#D4FF3A', fontWeight: 700 })}</>
-}
-
-function ExerciseLineContent({ text }: { text: string }) {
-  return <>{highlightSpans(text, EXERCISE_HIGHLIGHT_RE, { color: '#D4FF3A' })}</>
-}
+// classifyWorkoutLine + highlightSpans + FormatLineContent/ExerciseLineContent
+// imported from shared workoutLineParser / WorkoutNotesRenderer
 
 function WorkoutPreview({ text, notes }: { text: string; notes?: string }) {
   const hasNotes = !!notes?.trim()
@@ -729,7 +722,14 @@ export default function WorkoutImportSheet({
             <div className="flex flex-col items-center justify-center py-16 px-5 gap-6">
               <div className="w-10 h-10 border-2 border-lime border-t-transparent rounded-full animate-spin" />
               <div className="w-full" style={{ maxWidth: 260 }}>
-                <div style={{ height: 3, background: '#1A1A1A' }}>
+                <div
+                  role="progressbar"
+                  aria-valuenow={progress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={progressLabel || 'Preparando…'}
+                  style={{ height: 3, background: '#1A1A1A' }}
+                >
                   <div style={{ height: 3, background: '#D4FF3A', width: `${progress}%`, transition: 'width 0.3s' }} />
                 </div>
                 <span className="font-mono text-[10px] uppercase tracking-widest text-[#6B6B68] block text-center mt-2">
@@ -815,7 +815,7 @@ export default function WorkoutImportSheet({
                                   {s.label}
                                 </span>
                                 {viewMode === 'preview' && s.sets && (
-                                  <span className="font-mono font-semibold uppercase tracking-[0.1em] text-[10px]" style={{ color: '#6B6B68' }}>
+                                  <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px]" style={{ color: '#6B6B68' }}>
                                     {s.sets}× sets
                                   </span>
                                 )}
@@ -844,7 +844,7 @@ export default function WorkoutImportSheet({
                                     style={{ width: 26, height: '100%', color: '#6B6B68', borderLeft: '1px solid #2A2A2A', fontSize: 16, lineHeight: 1 }}
                                   >+</button>
                                 </div>
-                                <span className="font-mono font-bold uppercase tracking-[0.1em] text-[10px]" style={{ color: '#3D3D3B' }}>sets</span>
+                                <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px]" style={{ color: '#3D3D3B' }}>sets</span>
                               </div>
                             )}
                             {/* Move + remove — editing only */}
@@ -922,6 +922,7 @@ export default function WorkoutImportSheet({
                     {/* Add another section — editing only */}
                     {viewMode === 'edit' && (
                       <button
+                        type="button"
                         onClick={() => setShowSectionPicker(true)}
                         className="w-full flex items-center justify-center py-3 active:opacity-70"
                         style={{ border: '1px solid #D4FF3A' }}
@@ -950,6 +951,7 @@ export default function WorkoutImportSheet({
                     )}
                     {viewMode === 'edit' && (
                       <button
+                        type="button"
                         onClick={() => setShowSectionPicker(true)}
                         className="w-full flex items-center justify-center py-3 active:opacity-70"
                         style={{ border: '1px solid #D4FF3A' }}
