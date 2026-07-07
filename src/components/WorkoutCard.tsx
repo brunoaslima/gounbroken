@@ -2,73 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { PrescribedWorkoutData, WorkoutFeedback } from '@/types'
 import { buildFormatLine, buildPrescriptionParts, dayLabel, formatDateBR } from '@/lib/workoutDisplay'
-
-// ── Free-text workout renderer ────────────────────────────────────────
-// Used when a section has notes but no structured exercises (imported/manual workouts)
-
-type WLineType = 'format' | 'exercise' | 'note' | 'title' | 'plain' | 'empty'
-
-function wClassify(line: string): WLineType {
-  const t = line.trim()
-  if (!t) return 'empty'
-  // Block sub-headers
-  if (/^(warm[\s-]?up|aquecimento|wod|strength|força|skill|conditioning|condicionamento|metcon|accessory|acessório|mobility|mobilidade|cardio)\s*[:\-–]?\s*$/i.test(t)) return 'title'
-  if (t.length <= 35 && /^[A-ZÁÉÍÓÚÀÂÊÔÃÕÇ\s\-\/\.]+$/.test(t) && !/\d/.test(t) && t.length > 2) return 'title'
-  // Format lines
-  if (/\b(amrap|emom|for[\s-]?time|for[\s-]?load|tabata|every|chipper|ladder)\b/i.test(t)) return 'format'
-  if (/^\d+\s*rounds?\s*(of|de|:)?\s*/i.test(t)) return 'format'
-  if (/^\d+\s*[x×]?\s*sets?\b/i.test(t)) return 'format'
-  if (/^(each\s+for\s+time|for\s+load|build\s+to|time\s+cap)/i.test(t)) return 'format'
-  if (/^\d+r\b.*\b(each|for|time)\b/i.test(t)) return 'format'
-  if (/^\d+-\d+(-\d+)+/.test(t)) return 'format'
-  // Notes
-  if (/^(\d+['´']\s*)?(rest|descanso)\b/i.test(t)) return 'note'
-  if (/^(obs|scale|note|nota|objetivo|goal|time[\s-]?cap|rx\+?|scaled|cap|moderate|focus|technique|score|build)\b/i.test(t)) return 'note'
-  // Exercises
-  if (/\d+\s*[x×]\s*\d+/i.test(t)) return 'exercise'
-  if (/\d+\s*rep(?:etições?|s)?/i.test(t)) return 'exercise'
-  if (/\d+[\s,]*kg/i.test(t)) return 'exercise'
-  if (/\d+[/\d]*\s*m\b/i.test(t)) return 'exercise'
-  if (/\d+\s*cal\b/i.test(t)) return 'exercise'
-  if (/\b(squat|deadlift|clean|snatch|jerk|press|pull[\s-]?up|push[\s-]?up|lunge|row|run|bike|jump|burpee|thruster|swing|box[\s-]?jump|muscle[\s-]?up|handstand|toes[\s-]?to[\s-]?bar|sit[\s-]?up|double[\s-]?under|rope|kettlebell|wall[\s-]?ball|kang|romanian)\b/i.test(t)) return 'exercise'
-  if (/\b(agachamento|terra|supino|remada|corrida|polichinelo|desenvolvimento|levantamento|barra|halter|sino)\b/i.test(t)) return 'exercise'
-  if (/^\d+\s+[a-z]/i.test(t)) return 'exercise'
-  return 'plain'
-}
-
-function WorkoutNotesRenderer({ notes }: { notes: string }) {
-  return (
-    <div className="space-y-1.5">
-      {notes.split('\n').map((line, i) => {
-        const type = wClassify(line)
-        const t = line.trim()
-        if (type === 'empty') return <div key={i} style={{ height: 4 }} />
-        if (type === 'format') return (
-          <p key={i} className="text-white/40 text-[11px] font-semibold tracking-wider mt-0.5 uppercase">{t}</p>
-        )
-        if (type === 'exercise' || type === 'plain') {
-          const m = t.match(/^(\d+[""''′″]?(?:[\/\-]\d+[""''′″]?)?(?:\s*(?:sec|min|cal|kg|m|reps?|x|×))?)\s+(.+)/i)
-          if (m) return (
-            <p key={i} className="flex items-baseline gap-1.5 flex-wrap leading-snug">
-              <span className="text-lime font-black text-[13px] tracking-wide shrink-0 uppercase">{m[1]}</span>
-              <span className="text-soft-white font-bold text-[15px] uppercase tracking-wide">{m[2]}</span>
-            </p>
-          )
-          return <p key={i} className="text-soft-white font-bold text-[15px] leading-snug uppercase tracking-wide">{t}</p>
-        }
-        if (type === 'note') return (
-          // "obs: " is an internal marker WorkoutImportSheet uses to fold section notes
-          // into this same free-text field for round-tripping — strip it, athletes never typed it
-          <p key={i} className="text-muted-gray/50 text-xs italic">{t.replace(/^obs:\s*/i, '')}</p>
-        )
-        if (type === 'title') return (
-          <p key={i} className="text-[11px] font-black text-muted-gray tracking-[0.12em] uppercase mt-2">{t}:</p>
-        )
-        return <p key={i} className="text-soft-white font-bold text-[15px] leading-snug uppercase tracking-wide">{t}</p>
-      })}
-    </div>
-  )
-}
+import { WorkoutNotesRenderer } from '@/components/WorkoutNotesRenderer'
 
 const FOCUS_LABELS: Record<string, string> = {
   superior: 'Upper', inferior: 'Lower', full_body: 'Full Body',
