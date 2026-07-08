@@ -10,8 +10,7 @@ export function fmtTime(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds))
   const mm = Math.floor(s / 60)
   const ss = s % 60
-  if (mm > 0) return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
-  return String(ss).padStart(2, '0')
+  return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
 }
 
 export function useTimer() {
@@ -25,6 +24,7 @@ export function useTimer() {
   const [finalDisplay, setFinalDisplay] = useState('')
   const [cappedOut, setCappedOut] = useState(false)
   const [amrapRounds, setAmrapRounds] = useState(0)
+  const [flashToken, setFlashToken] = useState(0)
 
   // ── Refs (read inside setInterval without stale closures) ─────────────────
   const configRef    = useRef<TimerConfig>(DEFAULT_CONFIG)
@@ -54,6 +54,13 @@ export function useTimer() {
   function syncConfig(cfg: TimerConfig) {
     configRef.current = cfg
     setConfigState(cfg)
+  }
+
+  // Visual reinforcement for the final-countdown beeps, which get masked by
+  // loud music — bumped once per second in the last 5s so TimerDisplay can
+  // flash the screen red
+  function triggerFlash() {
+    setFlashToken(t => t + 1)
   }
 
   async function acquireWakeLock() {
@@ -119,20 +126,22 @@ export function useTimer() {
         if (remCeil <= 10 && remCeil !== lastTickSecRef.current) {
           lastTickSecRef.current = remCeil
           beepTick()
+          if (remCeil <= 5) triggerFlash()
         }
         break
       }
       case 'emom': {
+        const intervalSec = cfg.workSeconds || 60
         const elapsedSec = (now - timerStartRef.current) / 1000
-        const currentMin = Math.floor(elapsedSec / 60)
-        if (currentMin >= cfg.rounds) {
+        const currentInterval = Math.floor(elapsedSec / intervalSec)
+        if (currentInterval >= cfg.rounds) {
           doFinish(false, elapsedSec)
           return
         }
-        const withinMin = elapsedSec % 60
-        const remaining = Math.ceil(60 - withinMin)
+        const withinInterval = elapsedSec % intervalSec
+        const remaining = Math.ceil(intervalSec - withinInterval)
         setDisplaySeconds(remaining)
-        const newRound = currentMin + 1
+        const newRound = currentInterval + 1
         if (newRound !== prevRoundRef.current) {
           prevRoundRef.current = newRound
           roundRef.current = newRound
@@ -143,6 +152,7 @@ export function useTimer() {
         if (remaining <= 10 && remaining !== lastTickSecRef.current) {
           lastTickSecRef.current = remaining
           beepTick()
+          if (remaining <= 5) triggerFlash()
         }
         break
       }
@@ -161,6 +171,7 @@ export function useTimer() {
         if (remCeil <= 10 && remCeil !== lastTickSecRef.current) {
           lastTickSecRef.current = remCeil
           beepTick()
+          if (remCeil <= 5) triggerFlash()
         }
         break
       }
@@ -189,6 +200,7 @@ export function useTimer() {
       if (count <= 0) {
         clearInterval(countdownRef.current)
         beepGo()
+        triggerFlash()
         const now = Date.now()
         timerStartRef.current = now
         phaseStartRef.current = now
@@ -285,6 +297,7 @@ export function useTimer() {
     finalDisplay,
     cappedOut,
     amrapRounds,
+    flashToken,
     // Actions
     start,
     pause,

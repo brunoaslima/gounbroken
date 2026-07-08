@@ -62,7 +62,7 @@ function TimeStepper({
         <button
           type="button"
           disabled={editing}
-          onClick={() => onChange(Math.max(min, value - 15))}
+          onClick={() => onChange(Math.max(min, value - 5))}
           style={{ width: 44, background: '#111111', border: 'none', borderRight: '1px solid #2A2A2A', color: editing ? '#2A2A2A' : '#F5F5F0', fontSize: 20, cursor: editing ? 'not-allowed' : 'pointer', flexShrink: 0 }}
         >−</button>
 
@@ -94,7 +94,7 @@ function TimeStepper({
         <button
           type="button"
           disabled={editing}
-          onClick={() => onChange(Math.min(max, value + 15))}
+          onClick={() => onChange(Math.min(max, value + 5))}
           style={{ width: 44, background: '#111111', border: 'none', borderLeft: '1px solid #2A2A2A', color: editing ? '#2A2A2A' : '#F5F5F0', fontSize: 20, cursor: editing ? 'not-allowed' : 'pointer', flexShrink: 0 }}
         >+</button>
       </div>
@@ -231,8 +231,29 @@ export function TimerConfig({ config, onChange }: Props) {
       return <TimeStepper label="Time Cap" value={config.capSeconds} onChange={v => set({ capSeconds: v })} min={60} max={7200} />
     case 'amrap':
       return <TimeStepper label="Duration" value={config.capSeconds} onChange={v => set({ capSeconds: v })} min={60} max={7200} />
-    case 'emom':
-      return <IntStepper label="Minutes" value={config.rounds} onChange={v => set({ rounds: v })} min={1} max={60} />
+    case 'emom': {
+      const intervalSec = config.workSeconds || 60
+      const totalSec = intervalSec * config.rounds
+      const totalMM = Math.floor(totalSec / 60)
+      const totalSS = totalSec % 60
+      const totalFmt = totalSS === 0 ? `${totalMM}:00` : `${totalMM}:${String(totalSS).padStart(2,'0')}`
+      return (
+        <div className="flex flex-col gap-4">
+          <TimeStepper
+            label="Interval" value={intervalSec}
+            onChange={v => set({ workSeconds: v })}
+            min={15} max={600}
+            quickAdd={[15, 30, 60, 120]} quickAddLabels={['+15s', '+30s', '+1m', '+2m']}
+          />
+          <IntStepper label="Rounds" value={config.rounds} onChange={v => set({ rounds: v })} min={1} max={99} />
+          <div style={{ border: '1px solid #2A2A2A', background: '#111111', padding: '10px 14px' }}>
+            <span className="font-mono text-[11px] text-[#6B6B68]">
+              Total: <span style={{ color: '#F5F5F0' }}>{totalFmt}</span>
+            </span>
+          </div>
+        </div>
+      )
+    }
     case 'tabata':
       return (
         <div className="flex flex-col gap-4">

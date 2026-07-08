@@ -15,7 +15,7 @@ test.describe('Timer', () => {
     await expect(page.getByText('Time Cap')).toBeVisible()
 
     await page.getByRole('button', { name: 'EMOM' }).click()
-    await expect(page.getByText('Minutes')).toBeVisible()
+    await expect(page.getByText('Interval', { exact: true })).toBeVisible()
 
     await page.getByRole('button', { name: 'TABATA' }).click()
     await expect(page.getByText('Work 20s · Rest 10s · Fixed')).toBeVisible()
