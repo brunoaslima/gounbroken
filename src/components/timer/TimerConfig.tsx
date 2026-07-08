@@ -9,6 +9,8 @@ interface TimeStepperProps {
   onChange: (v: number) => void
   min?: number
   max?: number
+  quickAdd?: number[]
+  quickAddLabels?: string[]
 }
 
 function parseMMSS(raw: string): number | null {
@@ -33,12 +35,13 @@ function toMMSS(s: number): string {
   return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
 }
 
-function TimeStepper({ label, value, onChange, min = 15, max = 7200 }: TimeStepperProps) {
+function TimeStepper({
+  label, value, onChange, min = 15, max = 7200,
+  quickAdd = [15, 30, 60, 300],
+  quickAddLabels = ['+15s', '+30s', '+1m', '+5m'],
+}: TimeStepperProps) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
-
-  const quickAdd = [15, 30, 60, 300]
-  const quickAddLabels = ['+15s', '+30s', '+1m', '+5m']
 
   function startEdit() { setDraft(toMMSS(value)); setEditing(true) }
 
@@ -244,8 +247,14 @@ export function TimerConfig({ config, onChange }: Props) {
     case 'interval':
       return (
         <div className="flex flex-col gap-4">
-          <TimeStepper label="Work Time" value={config.workSeconds} onChange={v => set({ workSeconds: v })} min={5} max={1800} />
-          <TimeStepper label="Rest Time" value={config.restSeconds} onChange={v => set({ restSeconds: v })} min={5} max={1800} />
+          <TimeStepper
+            label="Work Time" value={config.workSeconds} onChange={v => set({ workSeconds: v })}
+            min={5} max={1800} quickAdd={[5, 15, 30, 60]} quickAddLabels={['+5s', '+15s', '+30s', '+1m']}
+          />
+          <TimeStepper
+            label="Rest Time" value={config.restSeconds} onChange={v => set({ restSeconds: v })}
+            min={0} max={1800} quickAdd={[5, 15, 30, 60]} quickAddLabels={['+5s', '+15s', '+30s', '+1m']}
+          />
           <IntStepper label="Rounds" value={config.rounds} onChange={v => set({ rounds: v })} min={1} max={99} />
         </div>
       )
