@@ -13,7 +13,7 @@ const NOTE_PLACEHOLDER = 'What happened here? Reps done, how it felt...'
 async function ensureExpanded(page: Page) {
   const noteField = page.getByPlaceholder(NOTE_PLACEHOLDER)
   if (await noteField.isVisible().catch(() => false)) return
-  await page.locator('button.w-full.flex.items-start', { hasText: 'Hoje' }).first().click()
+  await page.getByRole('button', { name: /Hoje/ }).first().click()
   await expect(noteField).toBeVisible()
 }
 

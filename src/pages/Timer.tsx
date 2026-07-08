@@ -47,7 +47,11 @@ export default function Timer() {
           </span>
           <TimerTypePicker
             value={draftConfig.mode}
-            onChange={mode => setDraftConfig(c => ({ ...c, mode }))}
+            onChange={mode => setDraftConfig(c => ({
+              ...c,
+              mode,
+              workSeconds: mode === 'emom' && c.workSeconds < 30 ? 60 : c.workSeconds,
+            }))}
           />
         </div>
 
@@ -82,6 +86,7 @@ export default function Timer() {
           finalDisplay={timer.finalDisplay}
           cappedOut={timer.cappedOut}
           amrapRounds={timer.amrapRounds}
+          flashToken={timer.flashToken}
           onPause={timer.pause}
           onResume={timer.resume}
           onReset={timer.reset}

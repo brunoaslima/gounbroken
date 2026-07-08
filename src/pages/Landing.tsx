@@ -651,7 +651,6 @@ export default function Landing() {
             padding-left: 20px !important;
             padding-right: 20px !important;
           }
-          .lp-nav-anchor { display: none !important; }
           .lp-nav-links { gap: 12px !important; }
           .lp-nav-cta { padding: 9px 14px !important; font-size: 9px !important; }
 

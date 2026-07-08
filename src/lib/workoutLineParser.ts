@@ -25,8 +25,8 @@ export function classifyWorkoutLine(line: string): WorkoutLineType {
   if (BLOCK_HEADER_RE.test(t)) return 'title'
 
   // ── Format lines ─────────────────────────────────────────────────────────
-  // Classic modalities
-  if (/\b(amrap|emom|for[\s-]?time|for[\s-]?load|for[\s-]?quality|tabata|chipper|ladder|afap|nft|otm|eotm)\b/i.test(t)) return 'format'
+  // Classic modalities (including dotted abbreviations like A.M.R.A.P. and E.M.O.M.)
+  if (/\b(amrap|a\.m\.r\.a\.p\.?|emom|e\.m\.o\.m\.?|for[\s-]?time|for[\s-]?load|for[\s-]?quality|tabata|chipper|ladder|afap|nft|otm|eotm)\b/i.test(t)) return 'format'
   // EMOM variants: E2MOM, E3MOM, E90S, E2MIN, every 90 seconds…
   if (/\bE\d+(?:MOM|S|MIN)\b/i.test(t)) return 'format'
   if (/\bevery\s+\d+/i.test(t)) return 'format'
@@ -36,11 +36,12 @@ export function classifyWorkoutLine(line: string): WorkoutLineType {
   if (/\bbuy[\s-]?(?:in|out)\b/i.test(t)) return 'format'
   // Partner / team formats
   if (/\b(partner|i\s+go\s+you\s+go|alternating|in\s+teams?\s+of)\b/i.test(t)) return 'format'
-  // Round / set counts
-  if (/^\d+\s*rounds?\s*(of|de|:)?\s*/i.test(t)) return 'format'
-  if (/^\d+\s*[x×]?\s*sets?\b/i.test(t)) return 'format'
-  // "5 rounds for time:", "3 rounds NFT"
+  // "5 rounds for time:", "3 rounds NFT" (specific patterns before generic round count)
   if (/^\d+\s*rounds?\s*(for\s+time|nft|not\s+for\s+time)/i.test(t)) return 'format'
+  // Generic round / set counts (only if not already caught by specific patterns) —
+  // anchored to end-of-line so it only matches bare "N rounds[ of/de][:]" lines
+  if (/^\d+\s*rounds?(?:\s*(?:of|de))?\s*:?\s*$/i.test(t)) return 'format'
+  if (/^\d+\s*[x×]?\s*sets?\b/i.test(t)) return 'format'
   // EMOM interval labels: "Min 1:", "Min 2:"
   if (/^Min\s+\d+\s*:/i.test(t)) return 'format'
   // "On a 20 min clock" / "With a running clock"
@@ -55,7 +56,7 @@ export function classifyWorkoutLine(line: string): WorkoutLineType {
 
   // ── Notes ────────────────────────────────────────────────────────────────
   if (/^(\d+[''´`]?\s*)?(rest|descanso)\b/i.test(t)) return 'note'
-  if (/^(obs|scale|note|nota|objetivo|goal|atenção|time[\s-]?cap|rx\+?|scaled|cap|moderate|focus|technique|score|build|stimulus|target|standard|tie[\s-]?break|modifications?|coach|scaling)\b/i.test(t)) return 'note'
+  if (/^(obs|scale|note|nota|objetivo|goal|atenção|rx\+?|scaled|cap|moderate|focus|technique|score|build|stimulus|target|standard|tie[\s-]?break|modifications?|coach|scaling)\b/i.test(t)) return 'note'
   if (/^score\s*[=:]/i.test(t)) return 'note'
   if (/^[-–*]\s*(rest|descanso|obs|note|nota|scale|stimulus|target)\b/i.test(t)) return 'note'
 
