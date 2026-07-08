@@ -112,7 +112,7 @@ export default function Stats() {
   for (const m of movements) {
     const pr1rm = getPRsForMovement(m.id)[1]
     if (!pr1rm) continue
-    const ratio = Math.round((pr1rm / profile.body_weight_kg) * 100) / 100
+    const ratio = Math.round((pr1rm / (profile.body_weight_kg ?? 1)) * 100) / 100
     if (!bestRatio || ratio > bestRatio.ratio) {
       bestRatio = { name: m.name, ratio, weight: pr1rm, movementId: m.id }
     }
@@ -145,7 +145,9 @@ export default function Stats() {
     .map(m => {
       const pr1rm = getPRsForMovement(m.id)[1]
       if (!pr1rm || !hasStrengthStandard(m.name)) return null
-      const analysis = analyzeStrength(m.name, pr1rm, profile.body_weight_kg, profile.gender)
+      if (!profile.body_weight_kg || !profile.gender) return null
+      const genderForStats = profile.gender === 'prefer_not_to_say' ? 'other' : profile.gender
+      const analysis = analyzeStrength(m.name, pr1rm, profile.body_weight_kg, genderForStats)
       if (!analysis) return null
       return { movement: m, analysis, pr1rm }
     })

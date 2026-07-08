@@ -1,6 +1,20 @@
 import type { TimerStatus, TimerPhase, TimerConfig, TimerMode } from '@/lib/timerTypes'
 import { MODE_LABELS } from '@/lib/timerTypes'
 import { fmtTime } from '@/hooks/useTimer'
+import { useEffect, useState } from 'react'
+
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const onChange = () => setReduced(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+  return reduced
+}
 
 interface Props {
   status: TimerStatus
@@ -14,6 +28,7 @@ interface Props {
   finalDisplay: string
   cappedOut: boolean
   amrapRounds: number
+  flashToken: number
   onPause: () => void
   onResume: () => void
   onReset: () => void
@@ -67,58 +82,44 @@ function PhaseLabel({ config, phase, status }: { config: TimerConfig; phase: Tim
 }
 
 function SecondaryInfo({
-  status, config, currentRound, totalRounds, phase,
+  status, config, currentRound, totalRounds,
 }: {
   status: TimerStatus
   config: TimerConfig
   currentRound: number
   totalRounds: number
-  phase: TimerPhase
 }) {
   if (status === 'countdown' || status === 'idle' || status === 'done') return null
   const mode: TimerMode = config.mode
 
-  if (mode === 'emom') {
-    return (
-      <div className="flex gap-5">
-        <Stat label="MIN" value={`${currentRound}`} />
-        <Stat label="OF" value={`${totalRounds}`} />
-        <Stat label="FORMAT" value="EMOM" />
-      </div>
-    )
-  }
-  if (mode === 'tabata' || mode === 'interval') {
-    return (
-      <div className="flex gap-5">
-        <Stat label="ROUND" value={`${currentRound}`} />
-        <Stat label="OF" value={`${totalRounds}`} />
-        <Stat label="PHASE" value={phase === 'work' ? 'WORK' : 'REST'} color={phase === 'work' ? '#FF8A00' : '#4DA3FF'} />
-      </div>
-    )
-  }
-  if (mode === 'for_time') {
-    return (
-      <div className="flex gap-5">
-        <Stat label="CAP" value={fmtTime(config.capSeconds)} />
-        <Stat label="MODE" value="FOR TIME" />
-      </div>
-    )
-  }
-  if (mode === 'amrap') {
-    return (
-      <div className="flex gap-5">
-        <Stat label="DURATION" value={fmtTime(config.capSeconds)} />
-      </div>
-    )
-  }
+  // Mode label ("EMOM"/"FOR TIME"/etc) is already shown in the header, so
+  // secondary info only surfaces what isn't visible elsewhere — round
+  // progress gets a single bigger stat instead of three cramped ones
+  if (mode === 'emom') return <RoundStat label="ROUND" current={currentRound} total={totalRounds} />
+  if (mode === 'tabata' || mode === 'interval') return <RoundStat label="ROUND" current={currentRound} total={totalRounds} />
+  if (mode === 'for_time') return <Stat label="CAP" value={fmtTime(config.capSeconds)} />
+  if (mode === 'amrap') return <Stat label="DURATION" value={fmtTime(config.capSeconds)} />
   return null
 }
 
 function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div className="flex flex-col items-center">
-      <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#3D3D3B]">{label}</span>
-      <span className="font-mono font-bold text-[14px]" style={{ color: color ?? '#6B6B68' }}>{value}</span>
+    <div className="flex flex-col items-center gap-1">
+      <span className="font-mono font-bold uppercase tracking-[0.14em] text-[11px] text-[#6B6B68]">{label}</span>
+      <span className="font-mono font-black text-[22px]" style={{ color: color ?? '#A8A8A4' }}>{value}</span>
+    </div>
+  )
+}
+
+function RoundStat({ label, current, total }: { label: string; current: number; total: number }) {
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <span className="font-mono font-bold uppercase tracking-[0.14em] text-[11px] text-[#6B6B68]">{label}</span>
+      <span className="font-mono font-black" style={{ fontSize: 64, color: '#A8A8A4', letterSpacing: '-0.01em' }}>
+        {current}
+        <span style={{ color: '#3D3D3B', fontSize: 40, margin: '0 6px' }}>/</span>
+        {total}
+      </span>
     </div>
   )
 }
@@ -157,7 +158,7 @@ function ControlBtn({
 
 export function TimerDisplay({
   status, config, displayFormatted, displaySeconds, currentRound, totalRounds,
-  phase, countdownValue, finalDisplay, cappedOut, amrapRounds,
+  phase, countdownValue, finalDisplay, cappedOut, amrapRounds, flashToken,
   onPause, onResume, onReset, onBack, onFinishEarly, onSkipPhase, onAddMinute, onAddAmrapRound,
 }: Props) {
   const bg = getBg(status, config, displaySeconds, phase)
@@ -167,6 +168,7 @@ export function TimerDisplay({
   const isAmrap = config.mode === 'amrap'
   const isRunning = status === 'running'
   const isPaused = status === 'paused'
+  const reducedMotion = usePrefersReducedMotion()
 
   const pulseStyle = isRunning && displaySeconds <= 10 && displaySeconds > 0 && !isPhased
     ? { animation: 'timerPulse 1s ease-in-out infinite' }
@@ -181,6 +183,18 @@ export function TimerDisplay({
         transition: 'background 0.3s',
       }}
     >
+      {/* Screen flash — reinforces the final-countdown beeps that get masked by loud music */}
+      {flashToken > 0 && !reducedMotion && (
+        <div
+          key={flashToken}
+          style={{
+            position: 'absolute', inset: 0, zIndex: 5,
+            background: '#FF3B30', pointerEvents: 'none',
+            animation: 'timerFlash 300ms ease-out forwards',
+          }}
+        />
+      )}
+
       {/* Header */}
       <div
         style={{
@@ -226,7 +240,7 @@ export function TimerDisplay({
           <span
             className="font-mono font-black"
             style={{
-              fontSize: 'clamp(72px, 22vw, 140px)',
+              fontSize: 'clamp(96px, 28vw, 132px)',
               color: numColor,
               lineHeight: 1,
               letterSpacing: '-0.02em',
@@ -292,7 +306,7 @@ export function TimerDisplay({
         )}
 
         {/* Secondary info */}
-        <SecondaryInfo status={status} config={config} currentRound={currentRound} totalRounds={totalRounds} phase={phase} />
+        <SecondaryInfo status={status} config={config} currentRound={currentRound} totalRounds={totalRounds} />
       </div>
 
       {/* Controls */}
@@ -355,6 +369,10 @@ export function TimerDisplay({
         @keyframes timerPulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.55; }
+        }
+        @keyframes timerFlash {
+          0% { opacity: 0.55; }
+          100% { opacity: 0; }
         }
       `}</style>
     </div>

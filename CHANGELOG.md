@@ -6,6 +6,129 @@ Formato de versão: `## [versão] — AAAA-MM-DD`
 
 ---
 
+## [1.5.2] — 2026-07-08
+
+### PRs → Onboarding: lista de exercícios em ordem alfabética
+
+- Step "First PR" agora exibe os exercícios em ordem alfabética (antes seguia a ordem de inserção dos grupos)
+
+### Athlete → Profile: redesign completo (opção 1B — Dashboard Grid)
+
+- Identity block compacto: avatar 44px + nome + role badge + `@username` em duas linhas
+- **Strength Level hero**: barra segmentada 6 tiers (Foundation → World Class), headline "You're in the top X% of humanity.", strongest/focus category, confidence footnote; empty state quando < 2 PRs em categorias distintas
+- **Physical Data** com ícones por linha (email, peso, altura, idade, gênero); edit (lápis) no header → `/onboarding`
+- **Tools** como lista vertical de rows com ícone colorido + título + subtítulo + chevron; fundo `#141414` nos headers de seção
+- Bell icon no TopBar → `/athlete/invites`; `InviteSection` mantida abaixo das tools
+
+### Timer → EMOM: intervalo configurável
+
+- Intervalo do EMOM agora é configurável (E2MOM, E90s, etc.) — antes fixo em 1 minuto
+- Config reutiliza o campo `workSeconds`; `TimerDisplay` mostra o intervalo real (ex: `2M`, `90S`)
+- TimerConfig exibe Interval stepper + Rounds stepper + preview do tempo total
+
+### Timer → Configuração: incremento de 5s nos botões −/+
+
+- Botões `−` e `+` no stepper de tempo agora incrementam/decrementam 5s (era 15s)
+
+---
+
+## [1.5.1] — 2026-07-08
+
+### Training → WorkoutCard + WorkoutImportSheet: display de partes A/B dentro de uma seção
+
+- Seções com padrão `A. ...` / `B. ...` (2+ partes) são detectadas automaticamente e renderizadas com separador visual — label lime `PART A` / `PART B` com borda esquerda lime 2px, separador horizontal `#2A2A2A` entre partes
+- Lógica centralizada em `splitIntoParts()` exportada de `WorkoutNotesRenderer.tsx` — compartilhada com o `WorkoutPreview` do import sheet (preview sincronizado com display, conforme BUG_PATTERNS)
+- Seções sem padrão A/B continuam renderizando normalmente — nenhuma quebra de compatibilidade
+
+---
+
+## [1.5.0] — 2026-07-07
+
+### Auth → Sign-up: data de nascimento + nacionalidade obrigatórios
+
+- Campos **Date of Birth** e **Nationality** (flag + nome, 193 países) movidos para o formulário de sign-up — coletados no momento do cadastro, não mais no onboarding
+- `signUpBasic` recebe `date_of_birth` e `nationality`; valores salvos na tabela `profiles` (RLS) — jamais em `user_metadata` (JWT), seguindo BUG_PATTERNS #21
+- Seletor de nacionalidade em bottom sheet: 6 países populares (BR, US, GB, PT, ES, AR) + busca em 193 países; destaque lime na linha selecionada
+- Validações front-end: DOB com faixa de 10–100 anos; nationality obrigatória
+- Constraints no banco: `nationality ~ '^[A-Z]{2}$'` e `avatar_url LIKE 'https://%'` (migration `onboarding-v3.sql`)
+
+### Onboarding → Step 2: foto de perfil
+
+- Novo passo "Profile photo" com copy hero: _"The leaderboard has your name. Now give it a face."_
+- Compressão client-side antes do upload: 600px máx · WebP 85% → ~150–300 KB
+- Storage bucket `avatars` público criado via migration; RLS: cada usuário só escreve/deleta na própria pasta `{userId}/`
+- Passo é opcional — botão "Skip" no TopBar
+- DOB removido do Step "Your numbers" (agora pede apenas gender, weight, height)
+
+### Onboarding → Persistência por step + resume
+
+- Cada clique em "Next" persiste `onboarding_step` no banco — se o usuário fechar o app durante o onboarding, retoma no step correto ao reabrir
+- Total de steps: 6 (Welcome · Photo · Physical · Training · First PR · Done)
+- Coluna `onboarding_step INT NOT NULL DEFAULT 0` adicionada à tabela `profiles`
+- Campos `nationality TEXT`, `avatar_url TEXT`, `training_types TEXT[]` adicionados ao tipo `Profile`
+
+---
+
+## [1.4.7] — 2026-07-06
+
+### Athlete → Report: fix stale WRAPPED route
+
+- `WRAPPED` button navigated to `/wrapped(/:athleteId)` instead of `/athlete/wrapped(/:athleteId)` — a leftover from before the `/athlete` prefix refactor. On mobile it fell through to the catch-all route → `/home` → redirected to `/login` (desktop-only gate), so the button silently kicked the user out instead of opening the annual summary
+
+### QA → E2E Playwright: cobertura de Build-up, Timer, Invites, Report/Wrapped e Admin
+
+- `tests/buildup.spec.ts`: seleção de movimento + cálculo de ladder de aquecimento + validação de peso abaixo da barra
+- `tests/timer.spec.ts`: troca entre os 6 modos de timer + ciclo completo start/pause/resume/reset
+- `tests/invites.spec.ts`: convite de equipe pendente na inbox, aceite e transição pro histórico
+- `tests/report.spec.ts` / `tests/admin.spec.ts`: estado vazio + navegação do report mensal, botão WRAPPED, gate de role, abas e busca do painel admin
+- `tests/helpers/seedRoles.ts`: helper genérico `ensureRole`/`revertRole` pra conceder e reverter roles temporárias da conta de QA (reutilizado por report e admin)
+- `training.spec.ts` corrigido: rotas e seletores desatualizados (pré-i18n) + `AddScore.tsx` tinha os botões "Save PR"/"Save Time" escondidos atrás do BottomNav fixo (mesmo padrão do BUG_PATTERNS.md #7)
+
+---
+
+## [1.4.6] — 2026-07-06
+
+### Code Quality → Multiple: CodeRabbit fixes
+
+- Training → WorkoutImportSheet: restore `sectionNotes` in edit prefill — notes with `obs:` suffix no longer duplicated on re-save
+- Training → WorkoutImportSheet: add `aria-label` to sets number input
+- Training → Unbroken: `deleteSet` now returns `{ error }` like `addSet`, surfaces RLS/network failures instead of silently proceeding
+- Competition → CompetitionManage: extract `broadcastResult()` helper that calls `removeChannel` after send — prevents stale channel accumulation on repeated judge actions
+- Competition → JudgePanel: same channel cleanup after broadcast
+- Home → Headlines: fix unreachable no-data fallback (`pool.length < 5` → `!hasData`)
+
+---
+
+## [1.4.5] — 2026-07-06
+
+### Competition → Leaderboard Realtime: fix latency/missing events
+
+- Root cause: RLS policy `"results: anon read published"` only allows SELECT where `status = 'published'`. Supabase Realtime evaluates RLS before emitting `postgres_changes` to the subscriber — so anon viewers never received WAL events for results in `submitted` status (inserted by judges), causing 10-30 s latency or no event at all
+- Fix 1: removed the `filter: competition_id=eq.${id}` from the `postgres_changes` subscription — combining a column filter with RLS causes the Realtime server to run two separate evaluation passes, compounding latency; since the callback only triggers a refetch (no payload used), receiving events from other competitions is harmless
+- Fix 2: added a Broadcast channel `score:<competition_id>` — judge (JudgePanel) and admin (CompetitionManage) send a zero-payload broadcast after every `submit_competition_result`, `override_competition_result`, and `publish_wod_results` call; Leaderboard subscribes and triggers a refetch instantly; Broadcast is pure WebSocket pub/sub with no WAL or RLS involved
+
+---
+
+## [1.4.4] — 2026-07-06
+
+### Home → Dynamic headline system (100 contexts)
+
+- Headline da Home agora rotaciona entre 100 contextos diferentes baseados nos dados do atleta
+- Prioridade: PR hoje → próximo de subir tier → PRs no mês → Elite → volume → ratio corporal → advanced spread → tier/standing → filosófico
+- Rotação diária determinística (muda a cada dia, nunca aleatório) — usuário nunca vê o mesmo headline dois dias seguidos
+- Sem nova query ao Supabase — usa exclusivamente dados já carregados
+
+---
+
+## [1.4.3] — 2026-07-06
+
+### Training → Gymnastics: delete set
+
+- UnbrokenDetail: botão de delete em cada row do histórico (tap → confirma DEL / cancela)
+- `useUnbrokenSets`: novo método `deleteSet(setId)`
+
+---
+
 ## [1.4.2] — 2026-07-05
 
 ### UI → English strings sweep

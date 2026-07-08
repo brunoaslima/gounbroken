@@ -69,6 +69,8 @@ export function useAuth() {
     password: string
     name: string
     username: string
+    date_of_birth: string
+    nationality: string | null
   }): Promise<{ emailConfirmationRequired: boolean }> {
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: data.email,
@@ -98,20 +100,21 @@ export function useAuth() {
     // trigger or RPC on the server), but we never block signup on failure.
     const emailConfirmationRequired = !authData.session
 
-    // Best-effort profile row creation.
-    // Errors are intentionally swallowed — Onboarding upserts the full profile.
-    await supabase.from('profiles').insert({
+    // Best-effort profile row creation — DOB/nationality NOT in user_metadata (JWT).
+    // Error is logged but not thrown; Onboarding will upsert the profile on Welcome step.
+    const { error: profileInsertError } = await supabase.from('profiles').insert({
       user_id: userId,
       name: data.name,
       username: data.username,
       roles: ['user'],
-      date_of_birth: '2000-01-01',
-      body_weight_kg: 0,
-      height_cm: 0,
-      gender: 'other',
+      date_of_birth: data.date_of_birth,
+      nationality: data.nationality,
+      onboarding_step: 1,
       onboarding_completed: false,
       updated_at: new Date().toISOString(),
     })
+
+    if (profileInsertError) console.error('[signUp] profile insert failed:', profileInsertError)
 
     return { emailConfirmationRequired }
   }

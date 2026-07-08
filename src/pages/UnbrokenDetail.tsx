@@ -23,7 +23,7 @@ function rpsStr(reps: number, secs: number): string {
 function formatDateShort(iso: string): { day: string; mon: string } {
   const d = new Date(iso)
   const day = String(d.getDate()).padStart(2, '0')
-  const mon = d.toLocaleString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()
+  const mon = d.toLocaleString('en-US', { month: 'short' }).toUpperCase()
   return { day, mon }
 }
 
@@ -32,7 +32,7 @@ export default function UnbrokenDetail() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { movements } = useMovements(user?.id)
-  const { getSetsForMovement, getPRForMovement, addSet } = useUnbrokenSets(user?.id)
+  const { getSetsForMovement, getPRForMovement, addSet, deleteSet } = useUnbrokenSets(user?.id)
 
   const [chartMode, setChartMode] = useState<ChartMode>('reps')
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -41,6 +41,7 @@ export default function UnbrokenDetail() {
   const [shSec, setShSec] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const repsInputRef = useRef<HTMLInputElement>(null)
 
   const movement = movements.find(m => m.id === movementId && m.user_id === user?.id)
@@ -124,17 +125,18 @@ export default function UnbrokenDetail() {
         {sets.length === 0 ? (
           <p className="px-5 py-6 font-mono text-[10px] uppercase tracking-widest text-[#444]">Sem sets ainda</p>
         ) : (
-          [...sets].map((s, i) => {
+          [...sets].map((s) => {
             const isPR = s.reps === prReps
             const rank = sortedByReps.findIndex(x => x.reps === s.reps)
             const rpsColor = isPR ? '#D4FF3A' : rank < 3 ? '#888' : '#555'
             const { day, mon } = formatDateShort(s.created_at)
+            const confirming = confirmDeleteId === s.id
             return (
               <div
                 key={s.id}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '44px 56px 60px 1fr',
+                  gridTemplateColumns: '44px 56px 60px 1fr auto',
                   alignItems: 'center',
                   height: 52,
                   padding: '0 16px',
@@ -148,6 +150,34 @@ export default function UnbrokenDetail() {
                 <span className="font-bold text-[22px] text-soft-white">{s.reps}</span>
                 <span className="font-mono font-bold text-[13px] text-[#888]">{fmtTime(s.time_seconds)}</span>
                 <span className="font-mono text-[11px] text-right" style={{ color: rpsColor }}>{rpsStr(s.reps, s.time_seconds)}/s</span>
+                {confirming ? (
+                  <div className="flex items-center gap-2 ml-3">
+                    <button
+                      onClick={() => { setConfirmDeleteId(null); deleteSet(s.id).then(r => { if (r.error) console.error('deleteSet error:', r.error) }) }}
+                      className="font-mono font-bold uppercase text-[9px] tracking-[0.1em] px-2 py-1"
+                      style={{ background: '#FF3B30', color: '#fff' }}
+                    >
+                      DEL
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeleteId(null)}
+                      className="font-mono font-bold uppercase text-[9px] tracking-[0.1em] text-[#555]"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDeleteId(s.id)}
+                    className="ml-3 flex items-center justify-center text-[#333] active:text-[#FF3B30] transition-colors"
+                    style={{ width: 28, height: 28, background: 'transparent', border: 'none', flexShrink: 0 }}
+                    aria-label="Delete set"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square">
+                      <path d="M1 1l10 10M11 1L1 11" />
+                    </svg>
+                  </button>
+                )}
               </div>
             )
           })

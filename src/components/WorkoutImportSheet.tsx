@@ -1,6 +1,10 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createWorker } from 'tesseract.js'
 import { supabase } from '@/lib/supabase'
+import { buildPrescription } from '@/lib/workoutDisplay'
+import { classifyWorkoutLine } from '@/lib/workoutLineParser'
+import { FormatLineContent, ExerciseLineContent, WorkoutNotesRenderer, splitIntoParts } from '@/components/WorkoutNotesRenderer'
+import type { PrescribedWorkoutData, WorkoutSectionData } from '@/types'
 type SheetState = 'menu' | 'manual' | 'processing' | 'review'
 type ViewMode = 'edit' | 'preview'
 
@@ -12,11 +16,47 @@ interface Props {
   hasAIRole?: boolean
   generatedThisWeek?: boolean
   onOpenGenerate?: () => void
+  /** When set, the sheet opens directly into edit mode for this workout
+   * instead of the create flow — prefills the section builder from its
+   * saved sections and saves via personal_save_workout's replace path. */
+  editingWorkout?: PrescribedWorkoutData | null
+}
+
+// Reconstructs a saved section back into the manual builder's free-text
+// format. Self-registered workouts never populate exercises[] (the manual
+// builder always saves everything as notes), but render them as readable
+// lines as a safety net in case a section ever does have structured data.
+function sectionToContent(s: WorkoutSectionData): string {
+  const lines = s.exercises.map(ex => [ex.movement_name, ...buildPrescription(ex)].filter(Boolean).join(' '))
+  if (s.notes) lines.push(s.notes)
+  return lines.join('\n')
 }
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
 }
+
+// ─── Section builder ──────────────────────────────────────────────────────────
+
+interface DraftSection {
+  tempId: string
+  type: string
+  label: string
+  content: string
+  sets?: number
+  sectionNotes?: string
+}
+
+const SECTION_PICKER_OPTIONS = [
+  { type: 'warm_up',      label: 'Warm-up' },
+  { type: 'mobility',     label: 'Mobility' },
+  { type: 'strength',     label: 'Strength' },
+  { type: 'skill',        label: 'Skill' },
+  { type: 'conditioning', label: 'Conditioning' },
+  { type: 'wod',          label: 'WOD' },
+  { type: 'accessories',  label: 'Accessories' },
+  { type: 'cool_down',    label: 'Cool Down' },
+]
 
 // ─── Workout block detector ───────────────────────────────────────────────────
 
@@ -32,8 +72,8 @@ const WORKOUT_SIGNALS = [
   /\d+\s*rep(etições?|s)?/i,
   /\d+[\s,]*kg/i,
   /\b(amrap|emom|for[\s-]?time|tabata|rounds?|chipper)\b/i,
-  /\b(squat|deadlift|clean|snatch|jerk|press|pull[\s-]?up|push[\s-]?up|lunge|row|run|bike|jump|burpee|thruster|swing|box[\s-]?jump)\b/i,
-  /\b(agachamento|terra|supino|remada|corrida|polichinelo|desenvolvimento|levantamento)\b/i,
+  /\b(squat|deadlift|clean|snatch|jerk|press|pull[\s-]?up|push[\s-]?up|lunge|row|run|bike|jump|burpee|thruster|swing|box[\s-]?jump)\w*\b/i,
+  /\b(agachamento|terra|supino|remada|corrida|polichinelo|desenvolvimento|levantamento)\w*\b/i,
   /\d+\s*min(utos?)?/i,
   /@\d+%/i,
   /\b(sets?|séries?)\s*[:=]\s*\d/i,
@@ -111,142 +151,45 @@ export function detectWorkoutBlock(raw: string): string | null {
 }
 
 // ─── Workout syntax highlight ─────────────────────────────────────────────────
+// classifyWorkoutLine + highlightSpans + FormatLineContent/ExerciseLineContent
+// imported from shared workoutLineParser / WorkoutNotesRenderer
 
-type LineType = 'title' | 'format' | 'exercise' | 'note' | 'empty' | 'plain'
-
-function classifyLine(line: string): LineType {
-  const t = line.trim()
-  if (!t) return 'empty'
-
-  // Block titles: exact match to known section keywords
-  if (BLOCK_HEADER_RE.test(t)) return 'title'
-  // Short all-caps line without digits (e.g. "METCON", "WOD", "STRENGTH")
-  if (t.length <= 35 && /^[A-ZÁÉÍÓÚÀÂÊÔÃÕÇ\s\-\/\.]+$/.test(t) && !/\d/.test(t) && t.length > 2) return 'title'
-
-  // Format lines: AMRAP, EMOM, For Time, Rounds, rep schemes, etc.
-  if (/\b(amrap|emom|for[\s-]?time|for[\s-]?load|for[\s-]?quality|tabata|every|e\.m\.o\.m|a\.m\.r\.a\.p|chipper|ladder)\b/i.test(t)) return 'format'
-  if (/^\d+\s*rounds?\s*(of|de|:)?\s*/i.test(t)) return 'format'
-  if (/^(each\s+for\s+time|for\s+load|build\s+to|time\s+cap)/i.test(t)) return 'format'
-  if (/^\d+r\b.*\b(each|for|time)\b/i.test(t)) return 'format'  // 5R, EACH FOR TIME
-  if (/^\d+-\d+(-\d+)+/.test(t)) return 'format'                  // 21-15-9
-
-  // Note lines: rest, scale, instructions
-  if (/^(\d+['´']\s*)?(rest|descanso)\b/i.test(t)) return 'note'
-  if (/^(obs|scale|note|nota|objetivo|goal|atenção|time[\s-]?cap|rx\+?|scaled|cap|moderate|focus|technique|score|build)\b/i.test(t)) return 'note'
-  if (/^[-–*]\s*(rest|descanso|obs|note|nota|scale)\b/i.test(t)) return 'note'
-
-  // Exercise lines: anything with reps, loads, distances, cals, or movement names
-  if (/\d+\s*[x×]\s*\d+/i.test(t)) return 'exercise'
-  if (/\d+\s*rep(etições?|s)?/i.test(t)) return 'exercise'
-  if (/\d+[\s,]*kg/i.test(t)) return 'exercise'
-  if (/\d+[/\d]*\s*m\b/i.test(t)) return 'exercise'   // 500/425m
-  if (/\d+\s*cal\b/i.test(t)) return 'exercise'
-  if (/\b(squat|deadlift|clean|snatch|jerk|press|pull[\s-]?up|push[\s-]?up|lunge|row|run|bike|jump|burpee|thruster|swing|box[\s-]?jump|muscle[\s-]?up|handstand|toes[\s-]?to[\s-]?bar|knees[\s-]?to|sit[\s-]?up|double[\s-]?under|rope|kettlebell|wall[\s-]?ball|kang|turkish|romanian|rdl)\b/i.test(t)) return 'exercise'
-  if (/\b(agachamento|terra|supino|remada|corrida|polichinelo|desenvolvimento|levantamento|barra|halter|sino)\b/i.test(t)) return 'exercise'
-  if (/^\d+\s+[a-z]/i.test(t)) return 'exercise'
-
-  return 'plain'
-}
-
-function highlightSpans(text: string, pattern: RegExp, style: React.CSSProperties): React.ReactNode {
-  const parts: React.ReactNode[] = []
-  const re = new RegExp(pattern.source, 'gi')
-  let last = 0
-  let m: RegExpExecArray | null
-  while ((m = re.exec(text)) !== null) {
-    if (m.index > last) parts.push(<span key={`t${last}`}>{text.slice(last, m.index)}</span>)
-    parts.push(<span key={`h${m.index}`} style={style}>{m[0]}</span>)
-    last = m.index + m[0].length
-  }
-  if (last < text.length) parts.push(<span key={`t${last}`}>{text.slice(last)}</span>)
-  return <>{parts}</>
-}
-
-function FormatLineContent({ text }: { text: string }) {
-  // Highlight format keywords, rep schemes, and time expressions
-  return <>{highlightSpans(
-    text,
-    /\b(AMRAP|EMOM|For\s+Time|For\s+Load|For\s+Quality|Tabata|Every|Rounds?|Chipper|Ladder|Each\s+For\s+Time|Time\s+Cap|E\.M\.O\.M|A\.M\.R\.A\.P|Min\s+\d+)\b|\d+r\b|\d+-\d+(-\d+)+|\d+[''´`]?\s*(min\.?)?|\d+:\d{2}/i,
-    { color: '#D4FF3A', fontWeight: 700 },
-  )}</>
-}
-
-function ExerciseLineContent({ text }: { text: string }) {
-  // Highlight numbers, loads, reps, distances, cals
-  return <>{highlightSpans(
-    text,
-    /\d+\s*[x×]\s*\d+|\d+[/\d]*\s*m\b|\d+[\s,]*kg|\d+[\s,]*lb|\d+\s*cal(?:ories?)?\b|\d+\s*rep(?:etições?|s)?|\d+\s*min(?:utos?)?|\d+\s*seg(?:undos?)?|@\s*\d+%|\d+%|\d+[''´`]/,
-    { color: '#D4FF3A' },
-  )}</>
-}
-
-function WorkoutPreview({ text }: { text: string }) {
-  if (!text.trim()) {
-    return (
-      <div style={{ border: '1px solid #2A2A2A', padding: '10px 12px', minHeight: 192 }}>
-        <span className="font-mono text-[12px]" style={{ color: '#3D3D3B' }}>No content yet.</span>
-      </div>
-    )
-  }
-
-  const lines = text.split('\n')
-
+function WorkoutPreviewLines({ lines }: { lines: string[] }) {
   return (
-    <div style={{ border: '1px solid #2A2A2A', padding: '10px 12px', minHeight: 192, lineHeight: 1.75 }}>
+    <>
       {lines.map((line, i) => {
-        const type = classifyLine(line)
+        const type = classifyWorkoutLine(line)
         const trimmed = line.trimStart()
         const indent = line.length - trimmed.length
 
         if (type === 'empty') return <div key={i} style={{ height: '0.5em' }} />
 
-        if (type === 'title') {
-          return (
-            <div
-              key={i}
-              className="font-mono font-bold uppercase tracking-[0.16em]"
-              style={{ color: '#D4FF3A', fontSize: 11, marginTop: i > 0 ? 10 : 0, marginBottom: 1 }}
-            >
-              {trimmed}
-            </div>
-          )
-        }
+        if (type === 'title') return (
+          <div key={i} className="font-mono font-bold uppercase tracking-[0.16em]"
+            style={{ color: '#D4FF3A', fontSize: 11, marginTop: i > 0 ? 10 : 0, marginBottom: 1 }}>
+            {trimmed}
+          </div>
+        )
 
-        if (type === 'format') {
-          return (
-            <div
-              key={i}
-              className="font-mono font-bold"
-              style={{ color: '#FFFFFF', fontSize: 13, paddingLeft: indent * 7, marginTop: 2 }}
-            >
-              <FormatLineContent text={trimmed} />
-            </div>
-          )
-        }
+        if (type === 'format') return (
+          <div key={i} className="font-mono font-bold"
+            style={{ color: '#FFFFFF', fontSize: 13, paddingLeft: indent * 7, marginTop: 2 }}>
+            <FormatLineContent text={trimmed} />
+          </div>
+        )
 
-        if (type === 'exercise') {
-          return (
-            <div
-              key={i}
-              className="font-mono"
-              style={{ color: '#E5E5E3', fontSize: 13, paddingLeft: indent * 7 }}
-            >
-              <ExerciseLineContent text={trimmed} />
-            </div>
-          )
-        }
+        if (type === 'exercise') return (
+          <div key={i} className="font-mono" style={{ color: '#E5E5E3', fontSize: 13, paddingLeft: indent * 7 }}>
+            <ExerciseLineContent text={trimmed} />
+          </div>
+        )
 
-        if (type === 'note') {
-          return (
-            <div
-              key={i}
-              className="font-mono"
-              style={{ color: '#6B6B68', fontSize: 12, paddingLeft: indent * 7, fontStyle: 'italic' }}
-            >
-              {trimmed}
-            </div>
-          )
-        }
+        if (type === 'note') return (
+          <div key={i} className="font-mono"
+            style={{ color: '#6B6B68', fontSize: 12, paddingLeft: indent * 7, fontStyle: 'italic' }}>
+            {trimmed}
+          </div>
+        )
 
         return (
           <div key={i} className="font-mono" style={{ color: '#A8A8A4', fontSize: 13, paddingLeft: indent * 7 }}>
@@ -254,6 +197,54 @@ function WorkoutPreview({ text }: { text: string }) {
           </div>
         )
       })}
+    </>
+  )
+}
+
+function WorkoutPreview({ text, notes }: { text: string; notes?: string }) {
+  const hasNotes = !!notes?.trim()
+
+  if (!text.trim()) {
+    return (
+      <div style={{ border: '1px solid #2A2A2A', padding: '10px 12px', minHeight: 192, display: 'flex', flexDirection: 'column' }}>
+        <span className="font-mono text-[12px]" style={{ color: '#3D3D3B' }}>No content yet.</span>
+        {hasNotes && (
+          <div className="font-mono" style={{ color: '#6B6B68', fontSize: 12, fontStyle: 'italic', marginTop: 'auto', paddingTop: 8 }}>
+            Note: {notes}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const parts = splitIntoParts(text)
+
+  return (
+    <div style={{ border: '1px solid #2A2A2A', padding: '10px 12px', minHeight: 192, lineHeight: 1.75, display: 'flex', flexDirection: 'column' }}>
+      {parts ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {parts.map((part, pi) => (
+            <div key={pi}>
+              {pi > 0 && <div style={{ height: 1, background: '#2A2A2A', margin: '0 0 8px' }} />}
+              <div style={{ borderLeft: '2px solid #D4FF3A', paddingLeft: 8, marginBottom: 5 }}>
+                <span className="font-mono font-black uppercase tracking-[0.16em]" style={{ fontSize: 10, color: '#D4FF3A' }}>
+                  Part {part.label}
+                </span>
+              </div>
+              <div style={{ paddingLeft: 10 }}>
+                <WorkoutPreviewLines lines={part.lines} />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <WorkoutPreviewLines lines={text.split('\n')} />
+      )}
+      {hasNotes && (
+        <div className="font-mono" style={{ color: '#6B6B68', fontSize: 12, fontStyle: 'italic', marginTop: 'auto', paddingTop: 8 }}>
+          Note: {notes}
+        </div>
+      )}
     </div>
   )
 }
@@ -398,9 +389,11 @@ function parseTextIntoSections(text: string) {
 export default function WorkoutImportSheet({
   open, onClose, onDone, userId,
   hasAIRole, generatedThisWeek, onOpenGenerate,
+  editingWorkout,
 }: Props) {
   const cameraRef = useRef<HTMLInputElement>(null)
   const galleryRef = useRef<HTMLInputElement>(null)
+  const sectionsEndRef = useRef<HTMLDivElement>(null)
 
   const [state, setState] = useState<SheetState>('menu')
   const [viewMode, setViewMode] = useState<ViewMode>('edit')
@@ -412,7 +405,78 @@ export default function WorkoutImportSheet({
   const [progress, setProgress] = useState(0)
   const [progressLabel, setProgressLabel] = useState('')
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [ocrError, setOcrError] = useState<string | null>(null)
+
+  // Section builder state
+  const [explicitSections, setExplicitSections] = useState<DraftSection[]>([])
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
+  const [showSectionPicker, setShowSectionPicker] = useState(false)
+  const [customLabelInput, setCustomLabelInput] = useState('')
+  const prevSectionCountRef = useRef(0)
+
+  useEffect(() => {
+    if (explicitSections.length > prevSectionCountRef.current) {
+      sectionsEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    }
+    prevSectionCountRef.current = explicitSections.length
+  }, [explicitSections.length])
+
+  // Prefill the section builder from the workout being edited, and jump
+  // straight past the camera/gallery/manual menu into the builder itself.
+  useEffect(() => {
+    if (!open || !editingWorkout) return
+    setDate(editingWorkout.workout_date)
+    setExplicitSections(
+      editingWorkout.sections
+        .slice()
+        .sort((a, b) => a.position - b.position)
+        .map(s => {
+          const raw = sectionToContent(s)
+          const obsIdx = raw.search(/\nobs: /)
+          return {
+            tempId: crypto.randomUUID(),
+            type: s.section_type,
+            label: s.label,
+            content: obsIdx >= 0 ? raw.slice(0, obsIdx).trim() : raw,
+            sets: (s.format_config as { sets?: number } | null)?.sets ?? undefined,
+            sectionNotes: obsIdx >= 0 ? raw.slice(obsIdx + 6).trim() || undefined : undefined,
+          }
+        })
+    )
+    setState('manual')
+  }, [open, editingWorkout])
+
+  function addSection(type: string, label: string) {
+    const tempId = crypto.randomUUID()
+    setExplicitSections(prev => [...prev, { tempId, type, label, content: '' }])
+    setShowSectionPicker(false)
+    setCustomLabelInput('')
+  }
+
+  function removeSection(tempId: string) {
+    setExplicitSections(prev => prev.filter(s => s.tempId !== tempId))
+    setCollapsedSections(prev => { const n = new Set(prev); n.delete(tempId); return n })
+  }
+
+  function toggleCollapse(tempId: string) {
+    setCollapsedSections(prev => {
+      const n = new Set(prev)
+      n.has(tempId) ? n.delete(tempId) : n.add(tempId)
+      return n
+    })
+  }
+
+  function moveSection(tempId: string, dir: -1 | 1) {
+    setExplicitSections(prev => {
+      const idx = prev.findIndex(s => s.tempId === tempId)
+      const swap = idx + dir
+      if (swap < 0 || swap >= prev.length) return prev
+      const next = [...prev];
+      [next[idx], next[swap]] = [next[swap], next[idx]]
+      return next
+    })
+  }
 
   function reset() {
     setState('menu')
@@ -424,8 +488,13 @@ export default function WorkoutImportSheet({
     setProgress(0)
     setProgressLabel('')
     setOcrError(null)
+    setSaveError(null)
     setSaving(false)
     setDate(todayISO())
+    setExplicitSections([])
+    setCollapsedSections(new Set())
+    setShowSectionPicker(false)
+    setCustomLabelInput('')
   }
 
   function handleClose() {
@@ -486,9 +555,25 @@ export default function WorkoutImportSheet({
 
   async function save() {
     setSaving(true)
+    setSaveError(null)
     try {
-      if (!text.trim()) {; setSaving(false); return }
-      const sections = parseTextIntoSections(text)
+      let sections
+      if (explicitSections.length > 0) {
+        sections = explicitSections.map((s, i) => ({
+          id: crypto.randomUUID(),
+          section_type: s.type,
+          label: s.label,
+          position: i,
+          notes: [s.content.trim(), s.sectionNotes?.trim() ? `obs: ${s.sectionNotes.trim()}` : ''].filter(Boolean).join('\n'),
+          format_type: s.sets ? 'sets' : 'LIVRE',
+          format_config: s.sets ? { sets: s.sets } : null,
+          modality_tags: [],
+          exercises: [],
+        }))
+      } else {
+        if (!text.trim()) { setSaving(false); return }
+        sections = parseTextIntoSections(text)
+      }
 
       const { error } = await supabase.rpc('personal_save_workout', {
         p_athlete_id: userId,
@@ -496,11 +581,13 @@ export default function WorkoutImportSheet({
         p_focus: [],
         p_notes: null,
         p_sections: sections,
+        p_replace_workout_id: editingWorkout?.id ?? null,
       })
       if (error) throw error
       reset()
       onDone()
     } catch (err: unknown) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save workout')
     } finally {
       setSaving(false)
     }
@@ -530,19 +617,9 @@ export default function WorkoutImportSheet({
         {/* Header */}
         <div className="flex items-center justify-between px-5 pb-4 shrink-0" style={{ borderBottom: '1px solid #2A2A2A' }}>
           <div>
-            {state !== 'menu' && state !== 'processing' && (
-              <button
-                onClick={() => { setState('menu'); setOcrError(null) }}
-                className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#6B6B68] active:text-soft-white flex items-center gap-1 mb-1"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M15 19l-7-7 7-7" />
-                </svg>
-                Back
-              </button>
-            )}
             <span className="font-mono font-bold uppercase tracking-[0.18em] text-[11px] text-[#A8A8A4] block">
-              {state === 'menu'       ? 'Add workout' :
+              {editingWorkout          ? 'Edit workout' :
+               state === 'menu'       ? 'Add workout' :
                state === 'manual'    ? 'Write manually' :
                state === 'processing'? 'Processing image…' :
                                        'Review workout'}
@@ -650,7 +727,14 @@ export default function WorkoutImportSheet({
             <div className="flex flex-col items-center justify-center py-16 px-5 gap-6">
               <div className="w-10 h-10 border-2 border-lime border-t-transparent rounded-full animate-spin" />
               <div className="w-full" style={{ maxWidth: 260 }}>
-                <div style={{ height: 3, background: '#1A1A1A' }}>
+                <div
+                  role="progressbar"
+                  aria-valuenow={progress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={progressLabel || 'Preparando…'}
+                  style={{ height: 3, background: '#1A1A1A' }}
+                >
                   <div style={{ height: 3, background: '#D4FF3A', width: `${progress}%`, transition: 'width 0.3s' }} />
                 </div>
                 <span className="font-mono text-[10px] uppercase tracking-widest text-[#6B6B68] block text-center mt-2">
@@ -676,35 +760,213 @@ export default function WorkoutImportSheet({
                 />
               </div>
 
-              {/* Content */}
+              {/* Content / Sections */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#6B6B68]">Workout content</span>
+                  <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#6B6B68]">
+                    {explicitSections.length > 0 ? 'Sections' : 'Workout content'}
+                  </span>
                   <div className="flex" style={{ border: '1px solid #2A2A2A' }}>
                     <button onClick={() => setViewMode('edit')}
                       className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-3 py-1"
                       style={{ background: viewMode === 'edit' ? '#D4FF3A' : '#1A1A1A', color: viewMode === 'edit' ? '#0A0A0A' : '#6B6B68' }}>
                       Edit
                     </button>
-                    <button onClick={() => setViewMode('preview')}
+                    <button
+                      onClick={() => {
+                        const hasContent = explicitSections.length > 0
+                          ? explicitSections.some(s => s.content.trim())
+                          : text.trim().length > 0
+                        if (hasContent) setViewMode('preview')
+                      }}
                       className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] px-3 py-1"
-                      style={{ background: viewMode === 'preview' ? '#D4FF3A' : '#1A1A1A', color: viewMode === 'preview' ? '#0A0A0A' : '#6B6B68', borderLeft: '1px solid #2A2A2A' }}>
+                      style={{
+                        background: viewMode === 'preview' ? '#D4FF3A' : '#1A1A1A',
+                        color: viewMode === 'preview' ? '#0A0A0A' : '#6B6B68',
+                        borderLeft: '1px solid #2A2A2A',
+                      }}>
                       Preview
                     </button>
                   </div>
                 </div>
-                {viewMode === 'edit' ? (
-                  <textarea
-                    value={text}
-                    onChange={e => setText(e.target.value)}
-                    placeholder="Paste or write the workout here..."
-                    rows={12}
-                    className="w-full bg-transparent font-mono text-[13px] text-soft-white outline-none resize-none"
-                    style={{ border: '1px solid #2A2A2A', padding: '10px 12px', lineHeight: 1.6 }}
-                    autoFocus
-                  />
+
+                {explicitSections.length > 0 ? (
+                  <div className="flex flex-col gap-3">
+                    {explicitSections.map((s, idx) => {
+                      const collapsed = collapsedSections.has(s.tempId)
+                      const isFirst = idx === 0
+                      const isLast = idx === explicitSections.length - 1
+                      return (
+                        <div key={s.tempId} style={{ border: '1px solid #2A2A2A' }}>
+                          {/* Card header */}
+                          <div
+                            className="flex items-center gap-2 px-3 py-2"
+                            style={{ background: '#1A1A1A', borderBottom: collapsed ? 'none' : '1px solid #2A2A2A' }}
+                          >
+                            {/* Collapse toggle + label (+ read-only sets subtitle in preview) */}
+                            <button
+                              onClick={() => toggleCollapse(s.tempId)}
+                              className="flex items-center gap-2 flex-1 min-w-0"
+                              aria-label={collapsed ? 'Expand' : 'Collapse'}
+                            >
+                              <svg
+                                width="10" height="10" viewBox="0 0 10 10" fill="none"
+                                style={{ flexShrink: 0, transition: 'transform 0.15s', transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}
+                              >
+                                <path d="M2 3.5L5 6.5L8 3.5" stroke="#6B6B68" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                              <span className="flex flex-col items-start min-w-0">
+                                <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] truncate" style={{ color: '#D4FF3A' }}>
+                                  {s.label}
+                                </span>
+                                {viewMode === 'preview' && s.sets && (
+                                  <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px]" style={{ color: '#6B6B68' }}>
+                                    {s.sets}× sets
+                                  </span>
+                                )}
+                              </span>
+                            </button>
+                            {/* Sets stepper — editing only */}
+                            {viewMode === 'edit' && (
+                              <div className="flex items-center shrink-0 gap-1">
+                                <div className="flex items-center" style={{ border: '1px solid #2A2A2A', height: 28 }}>
+                                  <button
+                                    type="button"
+                                    aria-label="Decrease sets"
+                                    onClick={() => setExplicitSections(prev => prev.map(x => x.tempId === s.tempId ? { ...x, sets: (x.sets ?? 1) <= 1 ? undefined : (x.sets ?? 1) - 1 } : x))}
+                                    className="flex items-center justify-center font-mono font-bold"
+                                    style={{ width: 26, height: '100%', color: '#6B6B68', borderRight: '1px solid #2A2A2A', fontSize: 16, lineHeight: 1 }}
+                                  >−</button>
+                                  <span
+                                    className="font-mono font-bold text-center"
+                                    style={{ width: 30, fontSize: 13, color: s.sets ? '#D4FF3A' : '#3D3D3B' }}
+                                  >{s.sets ?? '—'}</span>
+                                  <button
+                                    type="button"
+                                    aria-label="Increase sets"
+                                    onClick={() => setExplicitSections(prev => prev.map(x => x.tempId === s.tempId ? { ...x, sets: Math.min(99, (x.sets ?? 0) + 1) } : x))}
+                                    className="flex items-center justify-center font-mono font-bold"
+                                    style={{ width: 26, height: '100%', color: '#6B6B68', borderLeft: '1px solid #2A2A2A', fontSize: 16, lineHeight: 1 }}
+                                  >+</button>
+                                </div>
+                                <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px]" style={{ color: '#3D3D3B' }}>sets</span>
+                              </div>
+                            )}
+                            {/* Move + remove — editing only */}
+                            {viewMode === 'edit' && (
+                            <div className="flex items-center shrink-0" style={{ gap: 2 }}>
+                              <button
+                                onClick={() => moveSection(s.tempId, -1)}
+                                disabled={isFirst}
+                                className="flex items-center justify-center"
+                                style={{ width: 24, height: 24, opacity: isFirst ? 0.2 : 1 }}
+                                aria-label="Move up"
+                              >
+                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                  <path d="M2 6.5L5 3.5L8 6.5" stroke="#6B6B68" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => moveSection(s.tempId, 1)}
+                                disabled={isLast}
+                                className="flex items-center justify-center"
+                                style={{ width: 24, height: 24, opacity: isLast ? 0.2 : 1 }}
+                                aria-label="Move down"
+                              >
+                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                  <path d="M2 3.5L5 6.5L8 3.5" stroke="#6B6B68" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => removeSection(s.tempId)}
+                                className="flex items-center justify-center font-mono font-bold text-[14px] text-[#6B6B68] active:text-soft-white"
+                                style={{ width: 24, height: 24 }}
+                                aria-label={`Remove ${s.label}`}
+                              >
+                                ×
+                              </button>
+                            </div>
+                            )}
+                          </div>
+                          {/* Content — hidden when collapsed */}
+                          {!collapsed && (
+                            viewMode === 'preview' ? (
+                              <div style={{ padding: '10px 12px' }}>
+                                <WorkoutPreview text={s.content} notes={s.sectionNotes} />
+                              </div>
+                            ) : (
+                              <>
+                                <textarea
+                                  value={s.content}
+                                  onChange={e => setExplicitSections(prev =>
+                                    prev.map(x => x.tempId === s.tempId ? { ...x, content: e.target.value } : x)
+                                  )}
+                                  placeholder={`Write ${s.label} content here...`}
+                                  rows={6}
+                                  className="w-full bg-transparent font-mono text-[13px] text-soft-white outline-none resize-none"
+                                  style={{ padding: '10px 12px', lineHeight: 1.6 }}
+                                />
+                                <div style={{ borderTop: '1px solid #1A1A1A', padding: '8px 12px' }}>
+                                  <input
+                                    type="text"
+                                    value={s.sectionNotes ?? ''}
+                                    onChange={e => setExplicitSections(prev =>
+                                      prev.map(x => x.tempId === s.tempId ? { ...x, sectionNotes: e.target.value } : x)
+                                    )}
+                                    placeholder="Section notes..."
+                                    className="w-full bg-transparent font-mono text-[11px] italic outline-none"
+                                    style={{ color: '#6B6B68' }}
+                                  />
+                                </div>
+                              </>
+                            )
+                          )}
+                        </div>
+                      )
+                    })}
+                    {/* Add another section — editing only */}
+                    {viewMode === 'edit' && (
+                      <button
+                        type="button"
+                        onClick={() => setShowSectionPicker(true)}
+                        className="w-full flex items-center justify-center py-3 active:opacity-70"
+                        style={{ border: '1px solid #D4FF3A' }}
+                      >
+                        <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px]" style={{ color: '#D4FF3A' }}>
+                          + Add section
+                        </span>
+                      </button>
+                    )}
+                    <div ref={sectionsEndRef} />
+                  </div>
                 ) : (
-                  <WorkoutPreview text={text} />
+                  <div className="flex flex-col gap-3">
+                    {viewMode === 'edit' ? (
+                      <textarea
+                        value={text}
+                        onChange={e => setText(e.target.value)}
+                        placeholder="Paste or write the workout here..."
+                        rows={5}
+                        className="w-full bg-transparent font-mono text-[13px] text-soft-white outline-none resize-none"
+                        style={{ border: '1px solid #2A2A2A', padding: '10px 12px', lineHeight: 1.6 }}
+                        autoFocus
+                      />
+                    ) : (
+                      <WorkoutPreview text={text} />
+                    )}
+                    {viewMode === 'edit' && (
+                      <button
+                        type="button"
+                        onClick={() => setShowSectionPicker(true)}
+                        className="w-full flex items-center justify-center py-3 active:opacity-70"
+                        style={{ border: '1px solid #D4FF3A' }}
+                      >
+                        <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px]" style={{ color: '#D4FF3A' }}>
+                          + Add section
+                        </span>
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -796,9 +1058,16 @@ export default function WorkoutImportSheet({
 
         {/* ── SAVE FOOTER ─────────────────────────────────────────────── */}
         {(state === 'manual' || state === 'review') && (() => {
-          const canSave = text.trim().length > 0
+          const canSave = explicitSections.length > 0
+            ? explicitSections.some(s => s.content.trim().length > 0)
+            : text.trim().length > 0
           return (
             <div className="px-5 py-4 shrink-0" style={{ borderTop: '1px solid #2A2A2A' }}>
+              {saveError && (
+                <div className="mb-3 px-3 py-2" style={{ background: '#1A0000', border: '1px solid #FF4444' }}>
+                  <span className="font-mono text-[10px] uppercase tracking-[0.1em]" style={{ color: '#FF4444' }}>{saveError}</span>
+                </div>
+              )}
               <button
                 onClick={save}
                 disabled={saving || !canSave}
@@ -814,6 +1083,84 @@ export default function WorkoutImportSheet({
           )
         })()}
       </div>
+
+      {/* ── SECTION PICKER ──────────────────────────────────────────────── */}
+      {showSectionPicker && (
+        <>
+          <div
+            className="fixed inset-0 z-[60]"
+            style={{ background: 'rgba(0,0,0,0.5)' }}
+            onClick={() => { setShowSectionPicker(false); setCustomLabelInput('') }}
+          />
+          <div
+            className="fixed bottom-0 left-0 right-0 z-[60]"
+            style={{ background: '#111111', borderTop: '2px solid #2A2A2A' }}
+          >
+            <div className="flex justify-center pt-3 pb-1">
+              <div style={{ width: 36, height: 4, background: '#2A2A2A' }} />
+            </div>
+            <div className="px-5 pb-8 pt-2">
+              <span className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#6B6B68] block mb-4">
+                Choose section type
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                {SECTION_PICKER_OPTIONS.map(opt => (
+                  <button
+                    key={opt.type}
+                    onClick={() => addSection(opt.type, opt.label)}
+                    className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] py-3 px-4 text-left active:opacity-70"
+                    style={{ background: '#1A1A1A', border: '1px solid #2A2A2A', color: '#F5F5F0' }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+
+                {/* Custom section */}
+                <div style={{ gridColumn: 'span 2' }}>
+                  {customLabelInput === '' ? (
+                    <button
+                      onClick={() => setCustomLabelInput(' ')}
+                      className="w-full font-mono font-bold uppercase tracking-[0.12em] text-[10px] py-3 px-4 text-left active:opacity-70"
+                      style={{ background: '#1A1A1A', border: '1px dashed #2A2A2A', color: '#6B6B68' }}
+                    >
+                      Custom name…
+                    </button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        value={customLabelInput.trimStart()}
+                        onChange={e => setCustomLabelInput(e.target.value)}
+                        placeholder="Section name…"
+                        maxLength={200}
+                        autoFocus
+                        className="flex-1 font-mono text-[13px] text-soft-white bg-transparent outline-none"
+                        style={{ border: '1px solid #D4FF3A', padding: '8px 12px' }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            const label = customLabelInput.trim()
+                            if (label) addSection('wod', label)
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={() => { const label = customLabelInput.trim(); if (label) addSection('wod', label) }}
+                        disabled={!customLabelInput.trim()}
+                        className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] px-4"
+                        style={{
+                          background: customLabelInput.trim() ? '#D4FF3A' : '#1A1A1A',
+                          color: customLabelInput.trim() ? '#0A0A0A' : '#3D3D3B',
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </>
   )
 }

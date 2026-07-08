@@ -51,11 +51,12 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 
   if (authLoading || (user && profileLoading)) return <Spinner />
   if (!user) return <Navigate to="/login" replace />
-  // Terms gate runs before onboarding so all users are covered legally first.
-  if (!profile || (profile as { terms_version?: string | null }).terms_version !== CURRENT_TERMS_VERSION)
+  // No profile row yet → onboarding will create it via upsert
+  if (!profile) return <Navigate to="/onboarding" replace />
+  // Terms must be accepted before accessing the app
+  if ((profile as { terms_version?: string | null }).terms_version !== CURRENT_TERMS_VERSION)
     return <Navigate to="/terms" replace />
-  // Redirect to onboarding when the profile is missing or explicitly incomplete.
-  // `onboarding_completed` is set to true only by Onboarding.handleFinish / handleSkip.
+  // Onboarding not completed
   if (!profile.onboarding_completed) return <Navigate to="/onboarding" replace />
   return <>{children}</>
 }
@@ -71,8 +72,8 @@ function RequireRole({ roles, children }: { children: React.ReactNode; roles: st
   return <>{children}</>
 }
 
-function LandingOrLogin() {
-  if (window.innerWidth < 768) return <Navigate to="/login" replace />
+function LandingOrLogin({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
+  if (user) return <Navigate to="/athlete" replace />
   return <Landing />
 }
 
@@ -97,14 +98,14 @@ function TabLayout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const { loading } = useAuth()
+  const { user, loading } = useAuth()
   if (loading) return <Spinner />
 
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/"                  element={<Navigate to="/home" replace />} />
-        <Route path="/home"              element={<LandingOrLogin />} />
+        <Route path="/home"              element={<LandingOrLogin user={user} />} />
         <Route path="/competition/:slug" element={<CompetitionPublic />} />
         <Route path="/comp/:code"        element={<CompetitionJoin />} />
         <Route path="/invite/:code"      element={<Invite />} />

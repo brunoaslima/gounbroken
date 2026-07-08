@@ -6,6 +6,7 @@ import { useScores } from '@/hooks/useScores'
 import { useProfile } from '@/hooks/useProfile'
 import { useUnbrokenSets } from '@/hooks/useUnbrokenSets'
 import { analyzeStrength, TIER_LABELS, TIER_COLORS } from '@/lib/strengthStandards'
+import { pickHeadline } from '@/lib/headlines'
 import { MOVEMENT_GROUPS, getMovementCategory } from '@/lib/presetMovements'
 import {
   calculateStrengthLevel,
@@ -42,6 +43,7 @@ export default function Home() {
   const navigate = useNavigate()
   const [showEmpty, setShowEmpty] = useState(false)
   const [activeTab, setActiveTab] = useState<'strength' | 'gymnastics' | 'benchmark'>('strength')
+  const [headlineSeed] = useState(() => Math.floor(Math.random() * 100000))
 
   const loading = loadingMovements || loadingScores
 
@@ -52,6 +54,13 @@ export default function Home() {
   const prsThisMonth = scores.filter(s => new Date(s.recorded_at) >= thisMonthStart).length
   const volume7d = (() => {
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7)
+    return scores
+      .filter(s => new Date(s.recorded_at + 'T00:00:00') >= cutoff)
+      .reduce((acc, s) => acc + (s.weight_kg ?? 0) * s.reps, 0)
+  })()
+
+  const totalVolumeMonth = (() => {
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30)
     return scores
       .filter(s => new Date(s.recorded_at + 'T00:00:00') >= cutoff)
       .reduce((acc, s) => acc + (s.weight_kg ?? 0) * s.reps, 0)
@@ -152,19 +161,20 @@ export default function Home() {
           <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#6B6B68]">
             Hello, {firstName} · Week {weekNum}
           </span>
-          {!loading && allAnalyses.length > 0 ? (
+          {!loading && (
             <h1 className="font-sans font-bold text-[28px] mt-2 leading-[1.1]" style={{ letterSpacing: '-0.02em' }}>
-              You're in the{' '}
-              <span style={{ color: tierColor }}>
-                top {Math.round(100 - (heroPR?.analysis.score ?? 0))}%
-              </span>{' '}
-              of humanity.
-            </h1>
-          ) : !loading && (
-            <h1 className="font-sans font-bold text-[28px] mt-2 leading-[1.1]" style={{ letterSpacing: '-0.02em' }}>
-              Record your{' '}
-              <span style={{ color: '#D4FF3A' }}>PRs</span>{' '}
-              and see where you stand.
+              {allAnalyses.length > 0
+                ? pickHeadline({
+                    allAnalyses,
+                    heroPR,
+                    scores,
+                    weekNum,
+                    totalVolumeKg: totalVolumeMonth,
+                    profile: profile ? { body_weight_kg: profile.body_weight_kg ?? null } : null,
+                    seed: headlineSeed,
+                  })
+                : <>Record your{' '}<span style={{ color: '#D4FF3A' }}>PRs</span>{' '}and see where you stand.</>
+              }
             </h1>
           )}
         </div>
@@ -179,7 +189,7 @@ export default function Home() {
               <span className="font-mono font-bold uppercase tracking-[0.1em] text-[10px] text-[#6B6B68] block mb-1.5">Volume · 7d</span>
               <div className="flex items-baseline gap-1">
                 <span className="font-mono font-black text-[26px] text-soft-white leading-none">
-                  {volume7d > 0 ? volume7d.toLocaleString('pt-BR') : '—'}
+                  {volume7d > 0 ? volume7d.toLocaleString('en-US') : '—'}
                 </span>
                 {volume7d > 0 && (
                   <span className="font-mono text-[11px] font-medium text-[#6B6B68]">kg</span>
@@ -501,11 +511,14 @@ export default function Home() {
             <button
               onClick={() => setShowEmpty(v => !v)}
               className="w-full flex items-center justify-between px-5 py-3 border-t border-[#2A2A2A]"
+              style={{ borderLeft: '3px solid #D4FF3A', background: '#111111' }}
             >
-              <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#3D3D3B]">
-                No records ({movementsWithoutScores.length})
+              <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px]">
+                <span style={{ color: '#6B6B68' }}>No records </span>
+                <span style={{ color: '#D4FF3A' }}>({movementsWithoutScores.length})</span>
               </span>
-              <svg className={`w-3.5 h-3.5 text-[#3D3D3B] transition-transform ${showEmpty ? 'rotate-180' : ''}`}
+              <svg className={`w-3.5 h-3.5 transition-transform ${showEmpty ? 'rotate-180' : ''}`}
+                style={{ color: '#6B6B68' }}
                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>

@@ -187,6 +187,10 @@ Retorne um relatório com:
    texto livre desviado, z-index de CTA fixo, erro engolido). Se bater,
    aplicar a prevenção descrita ANTES de desenhar a solução.
 3. Claude avalia: é tarefa trivial ou não-trivial?
+   - Se a tarefa cria um fluxo/tela/interação nova pro usuário, já pensar
+     ANTES de implementar em como esse fluxo vai ser testado em
+     tests/*.spec.ts (Playwright) — isso faz parte do desenho da solução,
+     não é um passo separado no final.
 4. Se não-trivial:
    a. Spawn Arquiteto + Security Engineer em PARALELO — incluir no prompt de
       ambos um lembrete explícito pra ler docs/BUG_PATTERNS.md primeiro
@@ -195,12 +199,24 @@ Retorne um relatório com:
    d. Se AJUSTES NECESSÁRIOS → incorporar ajustes, re-avaliar se precisa novo ciclo
    e. Se VULNERABILIDADES CRÍTICAS/ALTAS → corrigir abordagem antes de qualquer código
 5. Implementar
-6. Rodar o "Processo — antes de considerar um fix pronto" do final de
+6. Testes Playwright (OBRIGATÓRIO, não opcional):
+   - Fluxo/experiência NOVA pro usuário → criar um `tests/*.spec.ts` novo
+     cobrindo o caminho principal (happy path) e pelo menos um caso de
+     permissão/edge case relevante (ex: "usuário sem role X não vê o botão").
+   - Fluxo EXISTENTE alterado → atualizar o spec correspondente pra refletir
+     o novo comportamento — nunca deixar um teste testando o comportamento
+     antigo.
+   - Rodar `npx playwright test <arquivo>` antes de considerar a tarefa
+     pronta. Usar a conta de QA já configurada (`tests/helpers/auth.ts`,
+     `.env.test.local`) — nunca pedir credenciais pessoais do usuário.
+   - Só pular este passo em tarefas triviais (typo, cor, texto de UI) —
+     mesmo critério de trivialidade da seção de agentes acima.
+7. Rodar o "Processo — antes de considerar um fix pronto" do final de
    docs/BUG_PATTERNS.md (grep de campo antigo no repo inteiro, chamar a RPC
    de verdade, checar transação atômica, checar feedback de erro na UI)
-7. Se um bug novo (não catalogado) foi encontrado e corrigido nesta sessão,
+8. Se um bug novo (não catalogado) foi encontrado e corrigido nesta sessão,
    adicionar uma seção nova em docs/BUG_PATTERNS.md antes de finalizar —
    o arquivo só é útil se continuar crescendo
-8. Atualizar CHANGELOG
-9. Aguardar ordem de deploy
+9. Atualizar CHANGELOG
+10. Aguardar ordem de deploy
 ```

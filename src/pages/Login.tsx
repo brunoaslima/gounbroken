@@ -4,6 +4,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import { suggestEmail } from '@/lib/utils'
 import { phCapture } from '@/lib/posthog'
+import { NationalitySheet } from '@/components/NationalitySheet'
+import type { Country } from '@/lib/countries'
 
 type Tab = 'login' | 'signup'
 
@@ -85,11 +87,15 @@ export default function Login() {
   // Signup fields
   const [firstName, setFirstName]           = useState('')
   const [lastName, setLastName]             = useState('')
+  const [dob, setDob]                       = useState('')
+  const [nationality, setNationality]       = useState<string | null>(null)
   const [username, setUsername]             = useState('')
   const [email, setEmail]                   = useState('')
   const [password, setPassword]             = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [usernameError, setUsernameError]   = useState('')
+  const [dobError, setDobError]             = useState('')
+  const [nationalityError, setNationalityError] = useState('')
   const [emailError, setEmailError]         = useState('')
   const [passwordError, setPasswordError]   = useState('')
   const [emailSuggestion, setEmailSuggestion] = useState<string | null>(null)
@@ -114,6 +120,8 @@ export default function Login() {
     setTab(t)
     setError('')
     setUsernameError('')
+    setDobError('')
+    setNationalityError('')
     setEmailError('')
     setPasswordError('')
     setEmailConfirmSent(false)
@@ -135,9 +143,21 @@ export default function Login() {
     e.preventDefault()
     setError('')
     setUsernameError('')
+    setDobError('')
+    setNationalityError('')
     setEmailError('')
     setPasswordError('')
 
+    const dobYear = dob ? parseInt(dob.slice(0, 4)) : 0
+    const currentYear = new Date().getFullYear()
+    if (!dob || dobYear < currentYear - 100 || dobYear > currentYear - 10) {
+      setDobError('Enter a valid date of birth')
+      return
+    }
+    if (!nationality) {
+      setNationalityError('Select your nationality')
+      return
+    }
     if (!USERNAME_RE.test(username)) {
       setUsernameError('Only lowercase letters, numbers, _ and .')
       return
@@ -165,6 +185,8 @@ export default function Login() {
         password,
         name: `${firstName.trim()} ${lastName.trim()}`.trim(),
         username,
+        date_of_birth: dob,
+        nationality,
       })
 
       if (emailConfirmationRequired) {
@@ -351,6 +373,30 @@ export default function Login() {
                     placeholder="Last Name" autoComplete="family-name" />
                 </div>
               </div>
+            </div>
+
+            <div>
+              <div className="mb-1.5"><Label>Date of Birth</Label></div>
+              <div className={`border bg-[#141414] ${dobError ? 'border-warning/60' : 'border-[#2A2A2A]'}`}>
+                <input
+                  type="date" required value={dob}
+                  onChange={e => { setDob(e.target.value); setDobError('') }}
+                  max={`${new Date().getFullYear() - 10}-12-31`}
+                  min={`${new Date().getFullYear() - 100}-01-01`}
+                  className="w-full bg-transparent px-4 py-3.5 text-soft-white placeholder-[#3D3D3B] focus:outline-none text-[15px] [color-scheme:dark]"
+                />
+              </div>
+              {dobError && <p className="font-mono text-[10px] text-warning mt-1 px-0.5">{dobError}</p>}
+            </div>
+
+            <div>
+              <div className="mb-1.5"><Label>Nationality</Label></div>
+              <NationalitySheet
+                value={nationality}
+                onChange={(c: Country) => { setNationality(c.code); setNationalityError('') }}
+                error={!!nationalityError}
+              />
+              {nationalityError && <p className="font-mono text-[10px] text-warning mt-1 px-0.5">{nationalityError}</p>}
             </div>
 
             <div>

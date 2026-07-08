@@ -79,3 +79,124 @@ export async function seedTestCompetitions(): Promise<{ compA: string; compB: st
 
   return { compA: rowA.id as string, compB: rowB.id as string }
 }
+
+// ─── Cria uma divisão + WOD + time aprovado, prontos pro judge lançar score ────
+// Times/WODs/divisões são apagados em cascata quando a competição é removida
+// por cleanTestCompetitions — não precisa de limpeza própria.
+export async function seedApprovedTeamWithWod(
+  competitionId: string
+): Promise<{ teamId: string; teamName: string; wodId: string }> {
+  const db = getServiceClient()
+
+  const { data: division, error: divErr } = await db
+    .from('competition_divisions')
+    .insert({ competition_id: competitionId, format: 'individual', composition: 'male', category: 'RX' })
+    .select('id')
+    .single()
+  if (divErr || !division) throw new Error(`seedApprovedTeamWithWod division: ${divErr?.message}`)
+
+  const teamName = `${TEST_PREFIX} Team ${Date.now()}`
+  const { data: team, error: teamErr } = await db
+    .from('competition_teams')
+    .insert({
+      competition_id: competitionId,
+      name: teamName,
+      captain_user_id: process.env.TEST_QA_USER_ID!,
+      division_id: division.id,
+      status: 'approved',
+    })
+    .select('id')
+    .single()
+  if (teamErr || !team) throw new Error(`seedApprovedTeamWithWod team: ${teamErr?.message}`)
+
+  const { data: wod, error: wodErr } = await db
+    .from('competition_wods')
+    .insert({
+      competition_id: competitionId,
+      name: `${TEST_PREFIX} WOD`,
+      score_type: 'time',
+      score_order: 'asc',
+      status: 'draft',
+      order_index: 0,
+    })
+    .select('id')
+    .single()
+  if (wodErr || !wod) throw new Error(`seedApprovedTeamWithWod wod: ${wodErr?.message}`)
+
+  return { teamId: team.id as string, teamName, wodId: wod.id as string }
+}
+
+// ─── Cria divisão + time aprovado + WOD publicado + resultado — pronto pro
+// leaderboard exibir uma posição. get_competition_leaderboard só pontua
+// resultados de WODs com status='published' e times com status='approved'.
+export async function seedLeaderboardEntry(
+  competitionId: string
+): Promise<{ teamName: string }> {
+  const db = getServiceClient()
+  const { teamId, teamName, wodId } = await seedApprovedTeamWithWod(competitionId)
+
+  const { error: wodErr } = await db
+    .from('competition_wods')
+    .update({ status: 'published' })
+    .eq('id', wodId)
+  if (wodErr) throw new Error(`seedLeaderboardEntry publish wod: ${wodErr.message}`)
+
+  const { error: resultErr } = await db
+    .from('competition_results')
+    .insert({
+      competition_id: competitionId,
+      wod_id: wodId,
+      team_id: teamId,
+      raw_result: '12:34',
+      score_numeric: 754,
+      score_type: 'time',
+      status: 'published',
+    })
+  if (resultErr) throw new Error(`seedLeaderboardEntry result: ${resultErr.message}`)
+
+  return { teamName }
+}
+
+// ─── Cria um time (capitaneado por outro usuário) que convida o QA como
+// atleta — pronto pro InviteInbox exibir um convite de equipe pendente.
+// Time/divisão são apagados em cascata junto da competição.
+export async function seedTeamInvite(competitionId: string): Promise<{ teamName: string }> {
+  const db = getServiceClient()
+
+  const { data: other, error: otherErr } = await db
+    .from('profiles')
+    .select('user_id')
+    .neq('user_id', process.env.TEST_QA_USER_ID!)
+    .limit(1)
+    .single()
+  if (otherErr || !other) throw new Error(`seedTeamInvite: no other user found: ${otherErr?.message}`)
+
+  const { data: division, error: divErr } = await db
+    .from('competition_divisions')
+    .insert({ competition_id: competitionId, format: 'pair', composition: 'male', category: 'RX' })
+    .select('id')
+    .single()
+  if (divErr || !division) throw new Error(`seedTeamInvite division: ${divErr?.message}`)
+
+  const teamName = `${TEST_PREFIX} Invite Team ${Date.now()}`
+  const { data: team, error: teamErr } = await db
+    .from('competition_teams')
+    .insert({
+      competition_id: competitionId,
+      name: teamName,
+      captain_user_id: other.user_id,
+      division_id: division.id,
+      status: 'pending_members',
+    })
+    .select('id')
+    .single()
+  if (teamErr || !team) throw new Error(`seedTeamInvite team: ${teamErr?.message}`)
+
+  const { error: memberErr } = await db.from('competition_team_members').insert([
+    { team_id: team.id, user_id: other.user_id, team_role: 'captain', status: 'accepted' },
+    { team_id: team.id, user_id: process.env.TEST_QA_USER_ID!, team_role: 'athlete', status: 'invited', invited_by: other.user_id },
+  ])
+  if (memberErr) throw new Error(`seedTeamInvite member: ${memberErr.message}`)
+
+  return { teamName }
+}

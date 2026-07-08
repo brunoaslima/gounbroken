@@ -499,7 +499,7 @@ export default function AthleteReport() {
         <div style={{ display: 'flex', gap: 4 }}>
           {isIAUser && (
             <button
-              onClick={() => navigate(athleteId ? `/wrapped/${athleteId}` : '/wrapped')}
+              onClick={() => navigate(athleteId ? `/athlete/wrapped/${athleteId}` : '/athlete/wrapped')}
               style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 800, letterSpacing: '0.16em', color: '#D4FF3A', background: 'rgba(212,255,58,0.1)', border: '1px solid rgba(212,255,58,0.3)', padding: '6px 12px', cursor: 'pointer' }}
             >
               WRAPPED

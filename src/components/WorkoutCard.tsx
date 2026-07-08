@@ -1,64 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import type { PrescribedWorkoutData, WorkoutFeedback } from '@/types'
+import type { PrescribedWorkoutData, WorkoutFeedback, WorkoutSectionData } from '@/types'
 import { buildFormatLine, buildPrescriptionParts, dayLabel, formatDateBR } from '@/lib/workoutDisplay'
-
-// ── Free-text workout renderer ────────────────────────────────────────
-// Used when a section has notes but no structured exercises (imported/manual workouts)
-
-type WLineType = 'format' | 'exercise' | 'note' | 'title' | 'plain' | 'empty'
-
-function wClassify(line: string): WLineType {
-  const t = line.trim()
-  if (!t) return 'empty'
-  // Block sub-headers
-  if (/^(warm[\s-]?up|aquecimento|wod|strength|força|skill|conditioning|condicionamento|metcon|accessory|acessório|mobility|mobilidade|cardio)\s*[:\-–]?\s*$/i.test(t)) return 'title'
-  if (t.length <= 35 && /^[A-ZÁÉÍÓÚÀÂÊÔÃÕÇ\s\-\/\.]+$/.test(t) && !/\d/.test(t) && t.length > 2) return 'title'
-  // Format lines
-  if (/\b(amrap|emom|for[\s-]?time|for[\s-]?load|tabata|every|chipper|ladder)\b/i.test(t)) return 'format'
-  if (/^\d+\s*rounds?\s*(of|de|:)?\s*/i.test(t)) return 'format'
-  if (/^(each\s+for\s+time|for\s+load|build\s+to|time\s+cap)/i.test(t)) return 'format'
-  if (/^\d+r\b.*\b(each|for|time)\b/i.test(t)) return 'format'
-  if (/^\d+-\d+(-\d+)+/.test(t)) return 'format'
-  // Notes
-  if (/^(\d+['´']\s*)?(rest|descanso)\b/i.test(t)) return 'note'
-  if (/^(obs|scale|note|nota|objetivo|goal|time[\s-]?cap|rx\+?|scaled|cap|moderate|focus|technique|score|build)\b/i.test(t)) return 'note'
-  // Exercises
-  if (/\d+\s*[x×]\s*\d+/i.test(t)) return 'exercise'
-  if (/\d+\s*rep(?:etições?|s)?/i.test(t)) return 'exercise'
-  if (/\d+[\s,]*kg/i.test(t)) return 'exercise'
-  if (/\d+[/\d]*\s*m\b/i.test(t)) return 'exercise'
-  if (/\d+\s*cal\b/i.test(t)) return 'exercise'
-  if (/\b(squat|deadlift|clean|snatch|jerk|press|pull[\s-]?up|push[\s-]?up|lunge|row|run|bike|jump|burpee|thruster|swing|box[\s-]?jump|muscle[\s-]?up|handstand|toes[\s-]?to[\s-]?bar|sit[\s-]?up|double[\s-]?under|rope|kettlebell|wall[\s-]?ball|kang|romanian)\b/i.test(t)) return 'exercise'
-  if (/\b(agachamento|terra|supino|remada|corrida|polichinelo|desenvolvimento|levantamento|barra|halter|sino)\b/i.test(t)) return 'exercise'
-  if (/^\d+\s+[a-z]/i.test(t)) return 'exercise'
-  return 'plain'
-}
-
-function WorkoutNotesRenderer({ notes }: { notes: string }) {
-  return (
-    <div className="space-y-1.5">
-      {notes.split('\n').map((line, i) => {
-        const type = wClassify(line)
-        const t = line.trim()
-        if (type === 'empty') return <div key={i} style={{ height: 4 }} />
-        if (type === 'format') return (
-          <p key={i} className="text-lime text-[13px] font-black tracking-wide mt-0.5 uppercase">{t}</p>
-        )
-        if (type === 'exercise') return (
-          <p key={i} className="text-soft-white font-bold text-[15px] leading-snug uppercase tracking-wide">{t}</p>
-        )
-        if (type === 'note') return (
-          <p key={i} className="text-muted-gray/50 text-xs italic">{t}</p>
-        )
-        if (type === 'title') return (
-          <p key={i} className="text-[11px] font-black text-muted-gray tracking-[0.12em] uppercase mt-2">{t}:</p>
-        )
-        return <p key={i} className="text-muted-gray/70 text-sm leading-relaxed">{t}</p>
-      })}
-    </div>
-  )
-}
+import { WorkoutNotesRenderer } from '@/components/WorkoutNotesRenderer'
+import { WorkoutTimer } from '@/components/WorkoutTimer'
 
 const FOCUS_LABELS: Record<string, string> = {
   superior: 'Upper', inferior: 'Lower', full_body: 'Full Body',
@@ -278,6 +223,11 @@ export default function WorkoutCard({
   const [confirming, setConfirming] = useState(false)
   const [localFeedback, setLocalFeedback] = useState<WorkoutFeedback | null>(workout.feedback ?? null)
   const [pendingStatus, setPendingStatus] = useState<'completed' | 'partially_completed' | 'skipped' | null>(null)
+  const [sectionNotes, setSectionNotes] = useState<Record<number, string>>({})
+  const [sectionNoteStatus, setSectionNoteStatus] = useState<Record<number, 'saving' | 'saved' | 'error'>>({})
+  const [sectionDurations, setSectionDurations] = useState<Record<number, number | null>>({})
+  const [timerSection, setTimerSection] = useState<WorkoutSectionData | null>(null)
+  const noteSaveTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
 
   const today = new Date()
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
@@ -288,6 +238,74 @@ export default function WorkoutCard({
 
   // Student can give feedback on past and today's workouts
   const canFeedback = !!userId && (isToday || isPast) && !isCoachView
+
+  // Load this athlete's own per-section notes — keyed by (athlete_id,
+  // workout_date, position) rather than workout_id/section_id, since those
+  // get deleted and recreated on every edit (see workout-section-notes.sql)
+  useEffect(() => {
+    if (!canFeedback || !expanded) return
+    supabase
+      .from('workout_section_notes')
+      .select('section_position, note, duration_seconds')
+      .eq('athlete_id', userId)
+      .eq('workout_date', workout.workout_date)
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('load section notes error:', error)
+          return
+        }
+        const noteMap: Record<number, string> = {}
+        const durMap: Record<number, number | null> = {}
+        for (const row of data ?? []) {
+          noteMap[row.section_position] = row.note
+          durMap[row.section_position]  = row.duration_seconds ?? null
+        }
+        setSectionNotes(noteMap)
+        setSectionDurations(durMap)
+      })
+  }, [canFeedback, expanded, userId, workout.workout_date])
+
+  // Serialized per position: if the debounced save is still in flight when
+  // the user blurs (triggering flushSectionNote), queuing behind it instead
+  // of firing a second concurrent request prevents an older response from
+  // resolving after a newer one and silently clobbering the latest text.
+  const noteSaveInFlight = useRef<Record<number, Promise<void>>>({})
+
+  async function saveSectionNote(position: number, label: string, note: string, durationSeconds?: number | null) {
+    const prior = noteSaveInFlight.current[position] ?? Promise.resolve()
+    const run = prior.then(async () => {
+      setSectionNoteStatus(prev => ({ ...prev, [position]: 'saving' }))
+      const { error } = await supabase.rpc('save_section_note', {
+        p_workout_date:     workout.workout_date,
+        p_section_position: position,
+        p_section_label:    label,
+        p_note:             note || null,
+        p_duration_seconds: durationSeconds ?? null,
+      })
+      if (error) console.error('save_section_note error:', error)
+      setSectionNoteStatus(prev => ({ ...prev, [position]: error ? 'error' : 'saved' }))
+    })
+    noteSaveInFlight.current[position] = run
+    await run
+  }
+
+  function handleSectionNoteChange(position: number, label: string, note: string) {
+    setSectionNotes(prev => ({ ...prev, [position]: note }))
+    clearTimeout(noteSaveTimers.current[position])
+    noteSaveTimers.current[position] = setTimeout(() => {
+      saveSectionNote(position, label, note)
+    }, 800)
+  }
+
+  function flushSectionNote(position: number, label: string, note: string) {
+    clearTimeout(noteSaveTimers.current[position])
+    saveSectionNote(position, label, note)
+  }
+
+  useEffect(() => {
+    const timers = noteSaveTimers.current
+    return () => { Object.values(timers).forEach(clearTimeout) }
+  }, [])
 
   function handleStatusClick(status: 'completed' | 'partially_completed' | 'skipped') {
     if (status === 'skipped') {
@@ -398,6 +416,7 @@ export default function WorkoutCard({
         {onEdit && (
           <button
             onClick={e => { e.stopPropagation(); onEdit() }}
+            aria-label="Edit workout"
             className="absolute top-3 right-[60px] p-1.5 text-muted-gray/30 hover:text-lime transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -423,6 +442,7 @@ export default function WorkoutCard({
           ) : (
             <button
               onClick={e => { e.stopPropagation(); setConfirming(true) }}
+              aria-label="Delete workout"
               className="absolute top-3 right-10 p-1.5 text-muted-gray/30 hover:text-warning transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -450,21 +470,51 @@ export default function WorkoutCard({
               return (
               <div key={section.id} className="bg-white/[0.03] border border-white/8 px-3.5 py-3.5 space-y-3">
                 {/* Section header */}
-                <div>
-                  <p className="text-[10px] font-black tracking-[0.14em] uppercase leading-none">
-                    <span className="text-lime">{section.section_type.replace(/_/g, ' ')}</span>
-                    <span className="text-white/30 mx-1">·</span>
-                    <span className="text-white/55 normal-case tracking-normal font-semibold">{section.label}</span>
-                    {section.modality_tags && section.modality_tags.length > 0 && (
-                      <span className="ml-2 text-white/25 normal-case font-normal tracking-normal">
-                        · {(section.modality_tags as string[]).join(', ')}
-                      </span>
-                    )}
-                  </p>
-                  {formatLine && (
-                    <p className="text-white/35 text-[11px] font-semibold tracking-wider mt-1.5 pl-0.5">
-                      {formatLine}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-black tracking-[0.14em] uppercase leading-none">
+                      {(() => {
+                        const typeDisplay = section.section_type.replace(/_/g, ' ')
+                        const isDefault = section.label.toLowerCase().replace(/[^a-z]/g, '') === typeDisplay.toLowerCase().replace(/[^a-z]/g, '')
+                        return <span className="text-lime">{isDefault ? typeDisplay : section.label}</span>
+                      })()}
+                      {section.modality_tags && section.modality_tags.length > 0 && (
+                        <span className="ml-2 text-white/25 normal-case font-normal tracking-normal">
+                          · {(section.modality_tags as string[]).join(', ')}
+                        </span>
+                      )}
                     </p>
+                    {formatLine && (
+                      <p className="text-white/35 text-[11px] font-semibold tracking-wider mt-1.5 pl-0.5">
+                        {formatLine}
+                      </p>
+                    )}
+                    {sectionDurations[section.position] != null && (
+                      <p className="font-mono font-bold uppercase tracking-[0.12em] text-[9px] text-[#D4FF3A]/60 mt-1 pl-0.5">
+                        {(() => {
+                          const s = sectionDurations[section.position]!
+                          const m = Math.floor(s / 60)
+                          const sec = s % 60
+                          return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+                        })()}
+                      </p>
+                    )}
+                  </div>
+                  {canFeedback && !localFeedback && (
+                    <button
+                      onClick={() => sectionDurations[section.position] == null && setTimerSection(section)}
+                      disabled={sectionDurations[section.position] != null}
+                      className="shrink-0 w-7 h-7 flex items-center justify-center transition-colors"
+                      style={{ color: sectionDurations[section.position] != null ? '#3D3D3B' : '#D4FF3A', cursor: sectionDurations[section.position] != null ? 'default' : 'pointer' }}
+                      aria-label="Open timer"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="13" r="8"/>
+                        <path d="M12 9v4l2.5 2.5"/>
+                        <path d="M9 3h6"/>
+                        <path d="M12 3v2"/>
+                      </svg>
+                    </button>
                   )}
                 </div>
 
@@ -513,6 +563,40 @@ export default function WorkoutCard({
                   <p className="text-muted-gray/50 text-xs italic border-t border-white/5 pt-2">
                     {section.notes}
                   </p>
+                )}
+
+                {/* Athlete's own note for this section — what worked, reps done, how it felt.
+                    Once the workout is closed (feedback given), the note becomes read-only. */}
+                {canFeedback && !localFeedback && (
+                  <div className="pt-2 border-t border-white/5">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label htmlFor={`section-note-${section.position}`} className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-muted-gray/35">Your note</label>
+                      {sectionNoteStatus[section.position] && (
+                        <p className={`font-mono font-bold uppercase tracking-[0.14em] text-[9px] ${
+                          sectionNoteStatus[section.position] === 'error' ? 'text-warning' : 'text-muted-gray/40'
+                        }`}>
+                          {sectionNoteStatus[section.position] === 'saving' ? 'Saving…'
+                            : sectionNoteStatus[section.position] === 'error' ? 'Failed to save' : 'Saved'}
+                        </p>
+                      )}
+                    </div>
+                    <textarea
+                      id={`section-note-${section.position}`}
+                      value={sectionNotes[section.position] ?? ''}
+                      onChange={e => handleSectionNoteChange(section.position, section.label, e.target.value)}
+                      onBlur={e => flushSectionNote(section.position, section.label, e.target.value)}
+                      placeholder="What happened here? Reps done, how it felt..."
+                      rows={2}
+                      maxLength={300}
+                      className="w-full bg-white/[0.03] border border-white/8 px-2.5 py-2 text-[12px] text-soft-white placeholder:text-muted-gray/25 resize-none focus:outline-none focus:border-lime/30 transition-colors"
+                    />
+                  </div>
+                )}
+                {canFeedback && localFeedback && sectionNotes[section.position] && (
+                  <div className="pt-2 border-t border-white/5">
+                    <p className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-muted-gray/35 mb-1.5">Your note</p>
+                    <p className="text-[12px] text-muted-gray/60 leading-relaxed">{sectionNotes[section.position]}</p>
+                  </div>
                 )}
               </div>
               )
@@ -606,6 +690,20 @@ export default function WorkoutCard({
           </div>
         )}
       </div>
+
+      {timerSection && (
+        <WorkoutTimer
+          workoutDate={workout.workout_date}
+          section={timerSection}
+          savedDuration={sectionDurations[timerSection.position] ?? null}
+          onSave={async (duration) => {
+            await saveSectionNote(timerSection.position, timerSection.label, sectionNotes[timerSection.position] ?? '', duration)
+            setSectionDurations(prev => ({ ...prev, [timerSection.position]: duration }))
+            setTimerSection(null)
+          }}
+          onClose={() => setTimerSection(null)}
+        />
+      )}
     </>
   )
 }

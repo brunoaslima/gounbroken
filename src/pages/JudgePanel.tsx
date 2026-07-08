@@ -159,6 +159,9 @@ export default function JudgePanel() {
         p_notes:         scoreNotes.trim() || null,
       })
       if (rpcError) throw new Error(rpcError.message)
+      // Notify leaderboard viewers instantly via broadcast (bypasses WAL + RLS latency)
+      const ch = supabase.channel(`score:${id}`)
+      ch.send({ type: 'broadcast', event: 'result', payload: {} }).finally(() => supabase.removeChannel(ch))
       closeScoreForm()
       await load()
     } catch (e) {

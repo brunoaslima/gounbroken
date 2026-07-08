@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useProfile, type ExperienceLevel } from '@/hooks/useProfile'
@@ -8,10 +8,10 @@ import { phCapture } from '@/lib/posthog'
 
 // ── Types ──────────────────────────────────────────────────────────────
 
-type Step = 1 | 2 | 3 | 4 | 5
+type Step = 1 | 2 | 3 | 4 | 5 | 6
 type Gender = 'male' | 'female' | 'other' | 'prefer_not_to_say'
 
-const TOTAL_STEPS = 5
+const TOTAL_STEPS = 6
 
 const TRAINING_TYPES = [
   'CrossFit', 'Bodybuilding', 'Functional fitness', 'Running',
@@ -19,14 +19,14 @@ const TRAINING_TYPES = [
 ] as const
 
 const GOALS: { key: string; label: string }[] = [
-  { key: 'strength',              label: 'Build strength' },
-  { key: 'conditioning',          label: 'Conditioning' },
-  { key: 'crossfit_performance',  label: 'CrossFit performance' },
-  { key: 'fat_loss',              label: 'Lose fat' },
-  { key: 'muscle_gain',           label: 'Build muscle' },
-  { key: 'technique',             label: 'Improve technique' },
-  { key: 'return_to_routine',     label: 'Return to routine' },
-  { key: 'competition',           label: 'Compete' },
+  { key: 'strength',             label: 'Build strength' },
+  { key: 'conditioning',         label: 'Conditioning' },
+  { key: 'crossfit_performance', label: 'CrossFit performance' },
+  { key: 'fat_loss',             label: 'Lose fat' },
+  { key: 'muscle_gain',          label: 'Build muscle' },
+  { key: 'technique',            label: 'Improve technique' },
+  { key: 'return_to_routine',    label: 'Return to routine' },
+  { key: 'competition',          label: 'Compete' },
 ]
 
 const LEVELS: { key: ExperienceLevel; label: string }[] = [
@@ -45,6 +45,33 @@ const FREQ_OPTIONS: { value: number | null; label: string }[] = [
 ]
 
 const QUICK_ADJUST = [-5, -2.5, +2.5, +5]
+
+// ── Image compression ──────────────────────────────────────────────────
+
+async function compressAvatar(file: File): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const srcUrl = URL.createObjectURL(file)
+    img.onload = () => {
+      const MAX = 600
+      const scale = Math.min(MAX / img.naturalWidth, MAX / img.naturalHeight, 1)
+      const w = Math.round(img.naturalWidth * scale)
+      const h = Math.round(img.naturalHeight * scale)
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
+      URL.revokeObjectURL(srcUrl)
+      canvas.toBlob(
+        b => (b ? resolve(b) : reject(new Error('compress failed'))),
+        'image/webp',
+        0.85
+      )
+    }
+    img.onerror = () => { URL.revokeObjectURL(srcUrl); reject(new Error('load failed')) }
+    img.src = srcUrl
+  })
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
@@ -103,7 +130,7 @@ function TopBar({ step, onBack, onSkip, showSkip }: {
   )
 }
 
-function ContinueBtn({ label = 'CONTINUAR →', disabled = false, loading = false, onClick }: {
+function ContinueBtn({ label = 'CONTINUE →', disabled = false, loading = false, onClick }: {
   label?: string; disabled?: boolean; loading?: boolean; onClick?: () => void
 }) {
   return (
@@ -155,35 +182,151 @@ function StepWelcome({ onNext }: { onNext: () => void }) {
   )
 }
 
-// ── Step 2: Physical data ───────────────────────────────────────────────
+// ── Step 2: Profile photo ───────────────────────────────────────────────
 
-function StepProfile({ onNext }: {
-  onNext: (data: { gender: Gender; weight: number; height: number; date_of_birth: string }) => void
+function StepPhoto({ userId, onNext }: {
+  userId: string
+  onNext: (avatarUrl: string | null) => void
 }) {
-  const [gender, setGender] = useState<Gender | ''>('')
-  const [weight, setWeight] = useState('')
-  const [height, setHeight] = useState('')
-  const [dob, setDob] = useState('')
+  const [preview, setPreview] = useState<string | null>(null)
+  const [file, setFile]       = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
 
-  const dobValid = (() => {
-    if (!dob || dob.length !== 10) return false
-    const y = parseInt(dob.slice(0, 4))
-    const cur = new Date().getFullYear()
-    return y >= cur - 100 && y <= cur - 10
-  })()
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    if (!f) return
+    setUploadError(null)
+    try {
+      const blob = await compressAvatar(f)
+      setFile(new File([blob], 'avatar.webp', { type: 'image/webp' }))
+      setPreview(URL.createObjectURL(blob))
+    } catch {
+      setUploadError('Could not process image. Try another photo.')
+    }
+  }
+
+  async function handleContinue() {
+    if (!file) { onNext(null); return }
+    setUploading(true)
+    setUploadError(null)
+    try {
+      const path = `${userId}/avatar.webp`
+      const { error } = await supabase.storage
+        .from('avatars')
+        .upload(path, file, { upsert: true, contentType: 'image/webp' })
+      if (error) throw error
+      const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+      const url = `${data.publicUrl}?t=${Date.now()}`
+      await supabase.from('profiles')
+        .update({ avatar_url: url, updated_at: new Date().toISOString() })
+        .eq('user_id', userId)
+      onNext(url)
+    } catch {
+      setUploadError('Upload failed. Try again or skip.')
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col flex-1">
+      <div className="flex-1 px-5 pt-2 pb-4 flex flex-col">
+        <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#6B6B68] block mb-3">
+          Profile photo
+        </span>
+        <h1 className="font-sans font-black text-[#F5F5F0] mb-2"
+          style={{ fontSize: 28, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+          The leaderboard has your name.
+        </h1>
+        <p className="font-sans font-black mb-8" style={{ fontSize: 28, letterSpacing: '-0.02em', lineHeight: 1.1, color: '#D4FF3A' }}>
+          Now give it a face.
+        </p>
+
+        {/* Upload zone */}
+        <div className="flex justify-center mb-6">
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="relative flex items-center justify-center overflow-hidden"
+            style={{
+              width: 160,
+              height: 160,
+              border: uploadError ? '1.5px solid #FF3B30' : '1.5px dashed #2A2A2A',
+              background: '#141414',
+            }}
+          >
+            {preview ? (
+              <>
+                <img src={preview} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
+                {uploading && (
+                  <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.6)' }}>
+                    <span className="w-8 h-8 border-2 border-[#D4FF3A] border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+                {!uploading && (
+                  <div className="absolute bottom-0 right-0 px-2 py-1"
+                    style={{ background: '#D4FF3A' }}>
+                    <span className="font-mono font-bold uppercase tracking-[0.1em] text-[9px] text-[#0A0A0A]">Change</span>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-3">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3D3D3B" strokeWidth="1.5">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+                <span className="font-mono font-bold uppercase tracking-[0.1em] text-[9px] text-[#3D3D3B]">
+                  Tap to upload
+                </span>
+              </div>
+            )}
+          </button>
+        </div>
+
+        {uploadError && (
+          <p className="font-mono text-[10px] text-center mb-4" style={{ color: '#FF3B30' }}>{uploadError}</p>
+        )}
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+      </div>
+      <ContinueBtn onClick={handleContinue} loading={uploading} />
+    </div>
+  )
+}
+
+// ── Step 3: Physical data ───────────────────────────────────────────────
+
+function StepProfile({ onNext, initial, loading = false, error = null }: {
+  onNext: (data: { gender: Gender; weight: number; height: number }) => void
+  initial?: { gender?: Gender | null; weight?: number | null; height?: number | null }
+  loading?: boolean
+  error?: string | null
+}) {
+  const [gender, setGender] = useState<Gender | ''>(initial?.gender ?? '')
+  const [weight, setWeight] = useState(initial?.weight && initial.weight > 0 ? String(initial.weight) : '')
+  const [height, setHeight] = useState(initial?.height && initial.height > 0 ? String(initial.height) : '')
 
   const weightNum = parseFloat(weight)
   const heightNum = parseInt(height)
 
+  const weightOk  = !weight || (weightNum >= 30 && weightNum <= 300)
+  const heightOk  = !height || (heightNum >= 100 && heightNum <= 250)
   const canContinue =
     !!gender &&
-    weightNum >= 30 && weightNum <= 300 &&
-    heightNum >= 100 && heightNum <= 250 &&
-    dobValid
+    !!weight && weightNum >= 30 && weightNum <= 300 &&
+    !!height && heightNum >= 100 && heightNum <= 250
 
   function handleContinue() {
     if (!canContinue) return
-    onNext({ gender: gender as Gender, weight: weightNum, height: heightNum, date_of_birth: dob })
+    onNext({ gender: gender as Gender, weight: weightNum, height: heightNum })
   }
 
   const Label = ({ children }: { children: React.ReactNode }) => (
@@ -206,39 +349,21 @@ function StepProfile({ onNext }: {
           Used to calculate your percentile. None of this goes to the feed.
         </p>
 
-        {/* ── Date of birth ── */}
-        <Label>Date of birth</Label>
-        <div className="mb-6">
-          <input
-            type="date"
-            value={dob}
-            onChange={e => setDob(e.target.value)}
-            max={`${new Date().getFullYear() - 10}-12-31`}
-            min={`${new Date().getFullYear() - 100}-01-01`}
-            className="w-full bg-[#141414] border border-[#2A2A2A] text-[#F5F5F0] focus:outline-none focus:border-[#D4FF3A] px-4 font-mono font-bold text-[18px] [color-scheme:dark]"
-            style={{ height: 64 }}
-          />
-        </div>
-
         {/* ── Gender ── */}
         <Label>Gender</Label>
-        <div className="grid grid-cols-2 mb-6" style={{ gap: 0 }}>
+        <div className="flex mb-2">
           {([
-            { value: 'male'                as Gender, label: 'Male' },
-            { value: 'female'              as Gender, label: 'Female' },
-            { value: 'other'               as Gender, label: 'Other' },
-            { value: 'prefer_not_to_say'   as Gender, label: 'Prefer not to say' },
+            { value: 'male'              as Gender, label: 'Male' },
+            { value: 'female'            as Gender, label: 'Female' },
+            { value: 'prefer_not_to_say' as Gender, label: 'Prefer not to say' },
           ]).map((opt, i) => {
             const isActive = gender === opt.value
-            const isLeft  = i % 2 === 0
-            const isTop   = i < 2
             return (
               <button key={opt.value} type="button" onClick={() => setGender(opt.value)}
-                className="py-3.5 px-2 font-mono font-bold uppercase tracking-[0.06em] text-[11px] transition-colors"
+                className="flex-1 py-3.5 px-1 font-mono font-bold uppercase tracking-[0.06em] text-[10px] transition-colors"
                 style={{
                   border: '1px solid #2A2A2A',
-                  borderLeft: isLeft ? '1px solid #2A2A2A' : 'none',
-                  borderTop:  isTop  ? '1px solid #2A2A2A' : 'none',
+                  borderLeft: i === 0 ? '1px solid #2A2A2A' : 'none',
                   background: isActive ? '#F5F5F0' : '#141414',
                   color:      isActive ? '#0A0A0A' : '#A8A8A4',
                 }}>
@@ -247,10 +372,15 @@ function StepProfile({ onNext }: {
             )
           })}
         </div>
+        {!gender && (
+          <p className="font-mono text-[10px] text-[#FF3B30] uppercase tracking-[0.1em] mb-4">Select a gender to continue</p>
+        )}
+        {gender && <div className="mb-4" />}
 
         {/* ── Weight ── */}
         <Label>Body weight</Label>
-        <div className="border border-[#2A2A2A] bg-[#141414] flex items-center mb-6" style={{ height: 64 }}>
+        <div className="border bg-[#141414] flex items-center mb-1"
+          style={{ height: 64, borderColor: !weightOk ? '#FF3B30' : '#2A2A2A' }}>
           <input
             type="number" inputMode="decimal" step="0.5" min="30" max="300"
             value={weight} onChange={e => setWeight(e.target.value)}
@@ -259,10 +389,15 @@ function StepProfile({ onNext }: {
           />
           <span className="font-mono font-bold text-[#3D3D3B] text-[14px] pr-5">KG</span>
         </div>
+        {!weightOk && (
+          <p className="font-mono text-[10px] text-[#FF3B30] uppercase tracking-[0.1em] mb-4">Must be between 30 and 300 kg</p>
+        )}
+        {weightOk && <div className="mb-4" />}
 
         {/* ── Height ── */}
         <Label>Height</Label>
-        <div className="border border-[#2A2A2A] bg-[#141414] flex items-center mb-4" style={{ height: 64 }}>
+        <div className="border bg-[#141414] flex items-center mb-1"
+          style={{ height: 64, borderColor: !heightOk ? '#FF3B30' : '#2A2A2A' }}>
           <input
             type="number" inputMode="numeric" min="100" max="250"
             value={height} onChange={e => setHeight(e.target.value)}
@@ -271,36 +406,74 @@ function StepProfile({ onNext }: {
           />
           <span className="font-mono font-bold text-[#3D3D3B] text-[14px] pr-5">CM</span>
         </div>
+        {!heightOk && (
+          <p className="font-mono text-[10px] text-[#FF3B30] uppercase tracking-[0.1em] mb-2">Must be between 100 and 250 cm</p>
+        )}
+
+        {error && (
+          <p className="font-mono text-[10px] text-[#FF3B30] uppercase tracking-[0.1em] mt-2">{error}</p>
+        )}
       </div>
-      <ContinueBtn onClick={handleContinue} disabled={!canContinue} />
+      <ContinueBtn onClick={handleContinue} disabled={!canContinue} loading={loading} />
     </div>
   )
 }
 
-// ── Step 3: Training profile ────────────────────────────────────────────
+// ── Step 4: Training profile ────────────────────────────────────────────
 
-function StepTraining({ onNext }: {
+const COMPETE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'never',        label: 'Never' },
+  { value: 'occasionally', label: 'Occasionally' },
+  { value: 'regularly',    label: 'Regularly' },
+  { value: 'competitive',  label: "I'm a competitive athlete" },
+]
+
+const VALID_LEVELS = new Set<string>(['beginner', 'intermediate', 'advanced', 'athlete'])
+
+function StepTraining({ onNext, initial, loading = false, error = null }: {
   onNext: (data: {
     training_frequency: number | null
     training_types: string[]
     main_goals: string[]
     experience_level: ExperienceLevel | null
+    competition_level: string | null
   }) => void
+  initial?: {
+    training_frequency?: number | null
+    training_types?: string[] | null
+    main_goals?: string[] | null
+    experience_level?: string | null
+    competition_level?: string | null
+  }
+  loading?: boolean
+  error?: string | null
 }) {
-  const [freq, setFreq]   = useState<number | null | undefined>(undefined)
-  const [types, setTypes] = useState<string[]>([])
-  const [goals, setGoals] = useState<string[]>([])
-  const [level, setLevel] = useState<ExperienceLevel | null>(null)
+  // Treat DB null as "not yet selected" to avoid bypassing canContinue.
+  // Only propagate null if training_types exist (meaning step 4 was previously completed
+  // and null means the user explicitly chose "No fixed routine").
+  const hadPriorData = (initial?.training_types?.length ?? 0) > 0
+  const [freq, setFreq]       = useState<number | null | undefined>(
+    hadPriorData ? initial?.training_frequency : undefined
+  )
+  const [types, setTypes]     = useState<string[]>(initial?.training_types ?? [])
+  const [goals, setGoals]     = useState<string[]>(initial?.main_goals ?? [])
+  const initLevel = initial?.experience_level && VALID_LEVELS.has(initial.experience_level)
+    ? initial.experience_level as ExperienceLevel
+    : null
+  const [level, setLevel]     = useState<ExperienceLevel | null>(initLevel)
+  const [compete, setCompete] = useState<string | null>(initial?.competition_level ?? null)
 
   function toggle<T>(arr: T[], v: T): T[] {
     return arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v]
   }
 
+  // freq: undefined = never touched; null = explicitly "No fixed routine"; number = days
   const canContinue =
     freq !== undefined &&
     types.length > 0 &&
     goals.length > 0 &&
-    !!level
+    !!level &&
+    !!compete
 
   function handleContinue() {
     if (!canContinue) return
@@ -309,6 +482,7 @@ function StepTraining({ onNext }: {
       training_types: types,
       main_goals: goals,
       experience_level: level,
+      competition_level: compete,
     })
   }
 
@@ -336,7 +510,6 @@ function StepTraining({ onNext }: {
           How do you train?
         </h1>
 
-        {/* ── Frequência ── */}
         <Label>Days per week</Label>
         <div className="flex flex-wrap mb-5" style={{ gap: 6 }}>
           {FREQ_OPTIONS.map(opt => {
@@ -351,7 +524,6 @@ function StepTraining({ onNext }: {
           })}
         </div>
 
-        {/* ── Tipos de treino ── */}
         <Label>Training type · multiple choice</Label>
         <div className="flex flex-wrap mb-5" style={{ gap: 6 }}>
           {TRAINING_TYPES.map(t => {
@@ -366,7 +538,6 @@ function StepTraining({ onNext }: {
           })}
         </div>
 
-        {/* ── Goals ── */}
         <Label>Goal · multiple choice</Label>
         <div className="flex flex-wrap mb-5" style={{ gap: 6 }}>
           {GOALS.map(g => {
@@ -381,9 +552,8 @@ function StepTraining({ onNext }: {
           })}
         </div>
 
-        {/* ── Level ── */}
         <Label>Current level</Label>
-        <div className="grid grid-cols-2 mb-4" style={{ gap: 0 }}>
+        <div className="grid grid-cols-2 mb-5" style={{ gap: 0 }}>
           {LEVELS.map((opt, i) => {
             const isActive = level === opt.key
             const isLeft = i % 2 === 0
@@ -403,13 +573,35 @@ function StepTraining({ onNext }: {
             )
           })}
         </div>
+
+        <Label>Do you compete?</Label>
+        <div className="flex flex-col mb-4" style={{ gap: 0 }}>
+          {COMPETE_OPTIONS.map((opt, i) => {
+            const isActive = compete === opt.value
+            return (
+              <button key={opt.value} type="button" onClick={() => setCompete(opt.value)}
+                className="py-3.5 px-4 text-left font-mono font-bold uppercase tracking-[0.08em] text-[11px] transition-colors"
+                style={{
+                  border: '1px solid #2A2A2A',
+                  borderTop: i === 0 ? '1px solid #2A2A2A' : 'none',
+                  background: isActive ? '#D4FF3A' : '#141414',
+                  color:      isActive ? '#0A0A0A' : '#A8A8A4',
+                }}>
+                {opt.label}
+              </button>
+            )
+          })}
+        </div>
+        {error && (
+          <p className="font-mono text-[10px] text-[#FF3B30] uppercase tracking-[0.1em] px-5 pb-2">{error}</p>
+        )}
       </div>
-      <ContinueBtn onClick={handleContinue} disabled={!canContinue} />
+      <ContinueBtn onClick={handleContinue} disabled={!canContinue} loading={loading} />
     </div>
   )
 }
 
-// ── Step 4: First PR (optional) ─────────────────────────────────────────
+// ── Step 5: First PR (optional) ─────────────────────────────────────────
 
 function StepFirstPR({ userId, onNext, onSkip }: {
   userId: string
@@ -422,9 +614,10 @@ function StepFirstPR({ userId, onNext, onSkip }: {
   const [saving, setSaving]     = useState(false)
   const [showList, setShowList] = useState(false)
 
-  const filtered = search.length >= 1
-    ? PRESET_MOVEMENTS.filter(m => m.toLowerCase().includes(search.toLowerCase())).slice(0, 6)
-    : []
+  const filtered = (search.length >= 1
+    ? PRESET_MOVEMENTS.filter(m => m.toLowerCase().includes(search.toLowerCase()))
+    : PRESET_MOVEMENTS
+  ).slice().sort((a, b) => a.localeCompare(b))
 
   function selectMovement(name: string) {
     setMovement(name)
@@ -477,9 +670,9 @@ function StepFirstPR({ userId, onNext, onSkip }: {
 
   return (
     <div className="flex flex-col flex-1">
-      <div className="flex-1 px-5 pt-2 overflow-y-auto">
+      <div className="flex-1 px-5 pt-2">
         <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#6B6B68] block mb-3">
-          Seu primeiro PR · opcional
+          First PR · optional
         </span>
         <h1 className="font-sans font-black text-[#F5F5F0] mb-1"
           style={{ fontSize: 28, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
@@ -489,7 +682,6 @@ function StepFirstPR({ userId, onNext, onSkip }: {
           This data helps the app personalize your strength and progress analysis.
         </p>
 
-        {/* Movement search */}
         <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#6B6B68] block mb-2">
           Exercise
         </span>
@@ -499,13 +691,14 @@ function StepFirstPR({ userId, onNext, onSkip }: {
               type="text" value={search}
               onChange={e => { setSearch(e.target.value); setMovement(''); setShowList(true) }}
               onFocus={() => setShowList(true)}
+              onBlur={() => setTimeout(() => setShowList(false), 150)}
               placeholder="Ex: Back Squat, Bench Press…"
               autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
               className="w-full bg-transparent px-4 py-3.5 text-[#F5F5F0] placeholder-[#3D3D3B] focus:outline-none text-[15px]"
             />
           </div>
           {showList && filtered.length > 0 && (
-            <div className="absolute z-10 w-full border border-[#2A2A2A] border-t-0 bg-[#141414]">
+            <div className="absolute z-10 w-full border border-[#2A2A2A] border-t-0 bg-[#141414] overflow-y-auto" style={{ maxHeight: 240 }}>
               {filtered.map(name => (
                 <button key={name} type="button" onMouseDown={() => selectMovement(name)}
                   className="w-full px-4 py-3 text-left font-sans text-[14px] text-[#A8A8A4] border-b border-[#1F1F1F] last:border-0 active:bg-[#1F1F1F]">
@@ -516,9 +709,8 @@ function StepFirstPR({ userId, onNext, onSkip }: {
           )}
         </div>
 
-        {/* Carga */}
         <div className="flex items-center justify-between mb-2">
-          <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#6B6B68]">Carga</span>
+          <span className="font-mono font-bold uppercase tracking-[0.12em] text-[10px] text-[#6B6B68]">Load</span>
           <span className="font-mono font-bold uppercase tracking-widest text-[10px] px-2 py-1 border border-[#2A2A2A] text-[#A8A8A4]">KG</span>
         </div>
         <div className="border border-[#2A2A2A] bg-[#141414] flex items-center px-5" style={{ height: 96 }}>
@@ -568,13 +760,12 @@ function StepFirstPR({ userId, onNext, onSkip }: {
   )
 }
 
-// ── Step 5: Done ────────────────────────────────────────────────────────
+// ── Step 6: Done ────────────────────────────────────────────────────────
 
 function StepDone({ onFinish }: { onFinish: () => void }) {
   return (
     <div className="flex flex-col flex-1">
       <div className="flex-1 flex flex-col justify-center px-5 pt-2 pb-8">
-        {/* Check mark */}
         <div className="mb-8" style={{ width: 48, height: 48, background: '#D4FF3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <path d="M5 13l4 4L19 7" stroke="#0A0A0A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -583,9 +774,9 @@ function StepDone({ onFinish }: { onFinish: () => void }) {
 
         <h1 className="font-sans font-black text-[#F5F5F0] mb-3"
           style={{ fontSize: 40, letterSpacing: '-0.02em', lineHeight: 1.05 }}>
-          Tudo certo.<br />
-          <span style={{ color: '#D4FF3A' }}>Bem-vindo</span><br />
-          ao Go Unbroken.
+          All set.<br />
+          <span style={{ color: '#D4FF3A' }}>Welcome</span><br />
+          to Go Unbroken.
         </h1>
         <p className="font-sans text-[#6B6B68] text-[14px] leading-relaxed">
           Your PRs, your progress, and where you stand in the rankings — all in one place.
@@ -610,85 +801,142 @@ function StepDone({ onFinish }: { onFinish: () => void }) {
 
 export default function Onboarding() {
   const { user } = useAuth()
-  const { profile, saveProfile, completeOnboarding } = useProfile(user?.id)
+  const { profile, loading, saveProfile, completeOnboarding, updateOnboardingStep } = useProfile(user?.id)
   const navigate = useNavigate()
 
-  const [step, setStep] = useState<Step>(1)
-  const [saving, setSaving] = useState(false)
+  const [step, setStep]             = useState<Step | null>(null)
+  const [initialized, setInitialized] = useState(false)
+  const [saving, setSaving]         = useState(false)
+  const [stepError, setStepError]   = useState<string | null>(null)
 
-  // Collected data
-  const [profileData, setProfileData] = useState<{
-    gender: Gender; weight: number; height: number; date_of_birth: string
-  } | null>(null)
 
-  function goBack() { setStep(s => Math.max(1, s - 1) as Step) }
+  // Resume from where the user left off
+  useEffect(() => {
+    if (loading || initialized) return
+    const savedStep = profile?.onboarding_step ?? 0
+    const resumeStep = Math.max(1, Math.min(savedStep + 1, TOTAL_STEPS)) as Step
+    setStep(resumeStep)
+    setInitialized(true)
+  }, [loading, initialized, profile])
 
-  // Identity from auth metadata — used when the profile row doesn't exist yet
+  function goBack() { setStepError(null); setStep(s => s ? Math.max(1, s - 1) as Step : 1) }
+
   const metaName     = user?.user_metadata?.name     as string | undefined
   const metaUsername = user?.user_metadata?.username as string | undefined
 
-  // Step 2 (physical data) just stores locally — saving happens after step 3
-  function handleProfileNext(data: { gender: Gender; weight: number; height: number; date_of_birth: string }) {
-    phCapture('onboarding_step_completed', { step: 2, step_name: 'physical_data' })
-    setProfileData(data)
+  async function handleWelcomeNext() {
+    // If sign-up INSERT failed, profile row doesn't exist yet.
+    // Create a minimal stub so updateOnboardingStep (UPDATE) actually lands.
+    if (!profile) {
+      await saveProfile({
+        name:     metaName,
+        username: metaUsername,
+      }).catch(() => {})
+    }
+    await updateOnboardingStep(1)
+    phCapture('onboarding_step_completed', { step: 1, step_name: 'welcome' })
+    setStep(2)
+  }
+
+  async function handlePhotoNext(avatarUrl: string | null) {
+    phCapture('onboarding_step_completed', { step: 2, step_name: 'photo', skipped: !avatarUrl })
+    await updateOnboardingStep(2)
     setStep(3)
   }
 
-  // Step 3 (training profile) — persist everything to DB
-  async function handleTrainingNext(training: {
-    training_frequency: number | null
-    training_types: string[]
-    main_goals: string[]
-    experience_level: ExperienceLevel | null
-  }) {
-    if (!profileData) return
+  async function handleProfileNext(data: { gender: Gender; weight: number; height: number }) {
     setSaving(true)
+    setStepError(null)
     try {
       await saveProfile({
-        date_of_birth:      profileData.date_of_birth,
-        body_weight_kg:     profileData.weight,
-        height_cm:          profileData.height,
-        gender:             profileData.gender,
-        training_frequency: training.training_frequency,
-        training_types:     training.training_types,
-        main_goals:         training.main_goals,
-        experience_level:   training.experience_level,
-        body_fat_pct:       null,
+        body_weight_kg: data.weight,
+        height_cm:      data.height,
+        gender:         data.gender,
         name:     profile ? undefined : metaName,
         username: profile ? undefined : metaUsername,
       })
-      phCapture('onboarding_step_completed', { step: 3, step_name: 'training_profile', experience_level: training.experience_level, training_types: training.training_types, main_goals: training.main_goals })
+      await updateOnboardingStep(3)
+      phCapture('onboarding_step_completed', { step: 3, step_name: 'physical_data' })
       setStep(4)
+    } catch {
+      setStepError('Failed to save. Check your connection and try again.')
     } finally {
       setSaving(false)
     }
   }
 
-  function handlePRDone() {
-    phCapture('onboarding_step_completed', { step: 4, step_name: 'first_pr' })
-    setStep(5)
-  }
-  function handlePRSkip() {
-    phCapture('onboarding_skipped', { step: 4, step_name: 'first_pr' })
-    setStep(5)
-  }
-
-  async function handleFinish() {
-    try { await completeOnboarding() } catch { /* non-fatal */ }
-    phCapture('onboarding_completed')
-    navigate('/athlete', { replace: true })
-  }
-
-  // Skip is only allowed on step 4 (PRs)
-  function handleSkip() {
-    if (step === 4) {
-      phCapture('onboarding_skipped', { step: 4, step_name: 'first_pr' })
+  async function handleTrainingNext(training: {
+    training_frequency: number | null
+    training_types: string[]
+    main_goals: string[]
+    experience_level: ExperienceLevel | null
+    competition_level: string | null
+  }) {
+    setSaving(true)
+    setStepError(null)
+    try {
+      await saveProfile({
+        training_frequency: training.training_frequency,
+        training_types:     training.training_types,
+        main_goals:         training.main_goals,
+        experience_level:   training.experience_level,
+        competition_level:  training.competition_level,
+        body_fat_pct:       null,
+      })
+      await updateOnboardingStep(4)
+      phCapture('onboarding_step_completed', {
+        step: 4, step_name: 'training_profile',
+        experience_level: training.experience_level,
+        training_types: training.training_types,
+        main_goals: training.main_goals,
+      })
       setStep(5)
+    } catch {
+      setStepError('Failed to save. Check your connection and try again.')
+    } finally {
+      setSaving(false)
     }
   }
 
-  // Show "Pular" button only on step 4 (PRs)
-  const showSkip = step === 4
+  async function handlePRDone() {
+    phCapture('onboarding_step_completed', { step: 5, step_name: 'first_pr' })
+    await updateOnboardingStep(5)
+    setStep(6)
+  }
+
+  async function handlePRSkip() {
+    phCapture('onboarding_skipped', { step: 5, step_name: 'first_pr' })
+    await updateOnboardingStep(5)
+    setStep(6)
+  }
+
+  async function handleFinish() {
+    setSaving(true)
+    try {
+      await completeOnboarding()
+      phCapture('onboarding_completed')
+      navigate('/athlete', { replace: true })
+    } catch {
+      setStepError('Something went wrong. Please try again.')
+      setSaving(false)
+    }
+  }
+
+  async function handleSkip() {
+    if (step === 2) await handlePhotoNext(null)
+    if (step === 5) await handlePRSkip()
+  }
+
+  const showSkip = step === 2 || step === 5
+
+  // Loading state while determining resume step
+  if (!step) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0A0A0A' }}>
+        <span className="w-6 h-6 border-2 border-[#D4FF3A] border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen flex flex-col safe-top safe-bottom" style={{ background: '#0A0A0A' }}>
@@ -700,21 +948,38 @@ export default function Onboarding() {
         </div>
       )}
 
-      {step === 1 && <StepWelcome onNext={() => { phCapture('onboarding_step_completed', { step: 1, step_name: 'welcome' }); setStep(2) }} />}
-      {step === 2 && <StepProfile onNext={handleProfileNext} />}
+      {step === 1 && <StepWelcome onNext={handleWelcomeNext} />}
+      {step === 2 && user && <StepPhoto userId={user.id} onNext={handlePhotoNext} />}
       {step === 3 && (
-        saving ? (
-          <div className="flex-1 flex items-center justify-center">
-            <span className="w-6 h-6 border-2 border-[#D4FF3A] border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : (
-          <StepTraining onNext={handleTrainingNext} />
-        )
+        <StepProfile
+          onNext={handleProfileNext}
+          loading={saving}
+          error={stepError}
+          initial={{
+            gender:  profile?.gender as Gender | null,
+            weight:  profile?.body_weight_kg,
+            height:  profile?.height_cm,
+          }}
+        />
       )}
-      {step === 4 && user && (
+      {step === 4 && (
+        <StepTraining
+          onNext={handleTrainingNext}
+          loading={saving}
+          error={stepError}
+          initial={{
+            training_frequency: profile?.training_frequency,
+            training_types:     profile?.training_types,
+            main_goals:         profile?.main_goals,
+            experience_level:   profile?.experience_level,
+            competition_level:  profile?.competition_level,
+          }}
+        />
+      )}
+      {step === 5 && user && (
         <StepFirstPR userId={user.id} onNext={handlePRDone} onSkip={handlePRSkip} />
       )}
-      {step === 5 && <StepDone onFinish={handleFinish} />}
+      {step === 6 && <StepDone onFinish={handleFinish} />}
     </div>
   )
 }
