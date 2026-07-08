@@ -500,3 +500,31 @@ sem nenhum aviso em tempo de build.
 9. Todo parâmetro numérico de RPC que controla tamanho de scan (dias, limite,
    offset) está clampado com `LEAST(...)`? Toda tabela de log/tentativa de alta
    frequência tem rotina de purge?
+
+---
+
+## 21. PII em user_metadata do JWT (Supabase `options.data`)
+
+**O padrão:** ao chamar `supabase.auth.signUp({ options: { data: {...} } })`, os
+campos passados em `data` vão para o `user_metadata` do JWT — ficam legíveis por
+**qualquer cliente** que tenha o access token, aparecem nos logs do Supabase, e
+não são protegidos por RLS. Se o signup coletar dados sensíveis (data de
+nascimento, nacionalidade, CPF, etc.), a tentação é passá-los aqui "pra
+sobreviver ao gap de email-confirmation" — mas isso é uma exposição de PII.
+
+**Onde já quase mordeu:** onboarding v3 (2026-07-07) — o plano inicial passava
+`date_of_birth` e `nationality` em `options.data`; o Security Engineer bloqueou
+antes de implementar.
+
+**Como evitar:**
+- `options.data` (user_metadata JWT): **nunca** incluir datas de nascimento,
+  endereços, documentos, ou qualquer dado que não possa ser visto publicamente.
+  Somente metadados de UI não-sensíveis (`name`, `username`, `avatar_url` de
+  uso público).
+- Dados sensíveis coletados no signup (DOB, nacionalidade) vão diretamente no
+  INSERT da tabela `profiles` (protegida por RLS) — se o profile insert falhar
+  por ausência de sessão (email confirmation), aceitar que esse dado precise ser
+  preenchido novamente no perfil, ou criar um endpoint SECURITY DEFINER que
+  aceite o insert sem sessão ativa.
+- Antes de qualquer campo novo no signup: perguntar "isso pode aparecer no JWT
+  decodificado por um atacante com o access token?"

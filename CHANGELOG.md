@@ -6,6 +6,69 @@ Formato de versão: `## [versão] — AAAA-MM-DD`
 
 ---
 
+## [1.5.2] — 2026-07-08
+
+### PRs → Onboarding: lista de exercícios em ordem alfabética
+
+- Step "First PR" agora exibe os exercícios em ordem alfabética (antes seguia a ordem de inserção dos grupos)
+
+### Athlete → Profile: redesign completo (opção 1B — Dashboard Grid)
+
+- Identity block compacto: avatar 44px + nome + role badge + `@username` em duas linhas
+- **Strength Level hero**: barra segmentada 6 tiers (Foundation → World Class), headline "You're in the top X% of humanity.", strongest/focus category, confidence footnote; empty state quando < 2 PRs em categorias distintas
+- **Physical Data** com ícones por linha (email, peso, altura, idade, gênero); edit (lápis) no header → `/onboarding`
+- **Tools** como lista vertical de rows com ícone colorido + título + subtítulo + chevron; fundo `#141414` nos headers de seção
+- Bell icon no TopBar → `/athlete/invites`; `InviteSection` mantida abaixo das tools
+
+### Timer → EMOM: intervalo configurável
+
+- Intervalo do EMOM agora é configurável (E2MOM, E90s, etc.) — antes fixo em 1 minuto
+- Config reutiliza o campo `workSeconds`; `TimerDisplay` mostra o intervalo real (ex: `2M`, `90S`)
+- TimerConfig exibe Interval stepper + Rounds stepper + preview do tempo total
+
+### Timer → Configuração: incremento de 5s nos botões −/+
+
+- Botões `−` e `+` no stepper de tempo agora incrementam/decrementam 5s (era 15s)
+
+---
+
+## [1.5.1] — 2026-07-08
+
+### Training → WorkoutCard + WorkoutImportSheet: display de partes A/B dentro de uma seção
+
+- Seções com padrão `A. ...` / `B. ...` (2+ partes) são detectadas automaticamente e renderizadas com separador visual — label lime `PART A` / `PART B` com borda esquerda lime 2px, separador horizontal `#2A2A2A` entre partes
+- Lógica centralizada em `splitIntoParts()` exportada de `WorkoutNotesRenderer.tsx` — compartilhada com o `WorkoutPreview` do import sheet (preview sincronizado com display, conforme BUG_PATTERNS)
+- Seções sem padrão A/B continuam renderizando normalmente — nenhuma quebra de compatibilidade
+
+---
+
+## [1.5.0] — 2026-07-07
+
+### Auth → Sign-up: data de nascimento + nacionalidade obrigatórios
+
+- Campos **Date of Birth** e **Nationality** (flag + nome, 193 países) movidos para o formulário de sign-up — coletados no momento do cadastro, não mais no onboarding
+- `signUpBasic` recebe `date_of_birth` e `nationality`; valores salvos na tabela `profiles` (RLS) — jamais em `user_metadata` (JWT), seguindo BUG_PATTERNS #21
+- Seletor de nacionalidade em bottom sheet: 6 países populares (BR, US, GB, PT, ES, AR) + busca em 193 países; destaque lime na linha selecionada
+- Validações front-end: DOB com faixa de 10–100 anos; nationality obrigatória
+- Constraints no banco: `nationality ~ '^[A-Z]{2}$'` e `avatar_url LIKE 'https://%'` (migration `onboarding-v3.sql`)
+
+### Onboarding → Step 2: foto de perfil
+
+- Novo passo "Profile photo" com copy hero: _"The leaderboard has your name. Now give it a face."_
+- Compressão client-side antes do upload: 600px máx · WebP 85% → ~150–300 KB
+- Storage bucket `avatars` público criado via migration; RLS: cada usuário só escreve/deleta na própria pasta `{userId}/`
+- Passo é opcional — botão "Skip" no TopBar
+- DOB removido do Step "Your numbers" (agora pede apenas gender, weight, height)
+
+### Onboarding → Persistência por step + resume
+
+- Cada clique em "Next" persiste `onboarding_step` no banco — se o usuário fechar o app durante o onboarding, retoma no step correto ao reabrir
+- Total de steps: 6 (Welcome · Photo · Physical · Training · First PR · Done)
+- Coluna `onboarding_step INT NOT NULL DEFAULT 0` adicionada à tabela `profiles`
+- Campos `nationality TEXT`, `avatar_url TEXT`, `training_types TEXT[]` adicionados ao tipo `Profile`
+
+---
+
 ## [1.4.7] — 2026-07-06
 
 ### Athlete → Report: fix stale WRAPPED route

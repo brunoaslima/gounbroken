@@ -51,11 +51,12 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 
   if (authLoading || (user && profileLoading)) return <Spinner />
   if (!user) return <Navigate to="/login" replace />
-  // Terms gate runs before onboarding so all users are covered legally first.
-  if (!profile || (profile as { terms_version?: string | null }).terms_version !== CURRENT_TERMS_VERSION)
+  // No profile row yet → onboarding will create it via upsert
+  if (!profile) return <Navigate to="/onboarding" replace />
+  // Terms must be accepted before accessing the app
+  if ((profile as { terms_version?: string | null }).terms_version !== CURRENT_TERMS_VERSION)
     return <Navigate to="/terms" replace />
-  // Redirect to onboarding when the profile is missing or explicitly incomplete.
-  // `onboarding_completed` is set to true only by Onboarding.handleFinish / handleSkip.
+  // Onboarding not completed
   if (!profile.onboarding_completed) return <Navigate to="/onboarding" replace />
   return <>{children}</>
 }

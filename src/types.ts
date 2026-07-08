@@ -48,14 +48,19 @@ export interface Profile {
   name: string | null
   username: string | null
   roles: string[]
-  date_of_birth: string
-  body_weight_kg: number
-  height_cm: number
-  gender: 'male' | 'female' | 'other'
+  date_of_birth: string | null
+  body_weight_kg: number | null
+  height_cm: number | null
+  gender: 'male' | 'female' | 'other' | 'prefer_not_to_say' | null
   experience_level: string | null
   training_frequency: number | null
+  training_types: string[] | null
   main_goals: string[] | null
   body_fat_pct: number | null
+  nationality: string | null
+  avatar_url: string | null
+  competition_level: string | null
+  onboarding_step: number
   is_active: boolean
   onboarding_completed: boolean
   created_at?: string

@@ -3,7 +3,7 @@ import { createWorker } from 'tesseract.js'
 import { supabase } from '@/lib/supabase'
 import { buildPrescription } from '@/lib/workoutDisplay'
 import { classifyWorkoutLine } from '@/lib/workoutLineParser'
-import { FormatLineContent, ExerciseLineContent, WorkoutNotesRenderer } from '@/components/WorkoutNotesRenderer'
+import { FormatLineContent, ExerciseLineContent, WorkoutNotesRenderer, splitIntoParts } from '@/components/WorkoutNotesRenderer'
 import type { PrescribedWorkoutData, WorkoutSectionData } from '@/types'
 type SheetState = 'menu' | 'manual' | 'processing' | 'review'
 type ViewMode = 'edit' | 'preview'
@@ -154,6 +154,53 @@ export function detectWorkoutBlock(raw: string): string | null {
 // classifyWorkoutLine + highlightSpans + FormatLineContent/ExerciseLineContent
 // imported from shared workoutLineParser / WorkoutNotesRenderer
 
+function WorkoutPreviewLines({ lines }: { lines: string[] }) {
+  return (
+    <>
+      {lines.map((line, i) => {
+        const type = classifyWorkoutLine(line)
+        const trimmed = line.trimStart()
+        const indent = line.length - trimmed.length
+
+        if (type === 'empty') return <div key={i} style={{ height: '0.5em' }} />
+
+        if (type === 'title') return (
+          <div key={i} className="font-mono font-bold uppercase tracking-[0.16em]"
+            style={{ color: '#D4FF3A', fontSize: 11, marginTop: i > 0 ? 10 : 0, marginBottom: 1 }}>
+            {trimmed}
+          </div>
+        )
+
+        if (type === 'format') return (
+          <div key={i} className="font-mono font-bold"
+            style={{ color: '#FFFFFF', fontSize: 13, paddingLeft: indent * 7, marginTop: 2 }}>
+            <FormatLineContent text={trimmed} />
+          </div>
+        )
+
+        if (type === 'exercise') return (
+          <div key={i} className="font-mono" style={{ color: '#E5E5E3', fontSize: 13, paddingLeft: indent * 7 }}>
+            <ExerciseLineContent text={trimmed} />
+          </div>
+        )
+
+        if (type === 'note') return (
+          <div key={i} className="font-mono"
+            style={{ color: '#6B6B68', fontSize: 12, paddingLeft: indent * 7, fontStyle: 'italic' }}>
+            {trimmed}
+          </div>
+        )
+
+        return (
+          <div key={i} className="font-mono" style={{ color: '#A8A8A4', fontSize: 13, paddingLeft: indent * 7 }}>
+            {line || ' '}
+          </div>
+        )
+      })}
+    </>
+  )
+}
+
 function WorkoutPreview({ text, notes }: { text: string; notes?: string }) {
   const hasNotes = !!notes?.trim()
 
@@ -170,71 +217,29 @@ function WorkoutPreview({ text, notes }: { text: string; notes?: string }) {
     )
   }
 
-  const lines = text.split('\n')
+  const parts = splitIntoParts(text)
 
   return (
     <div style={{ border: '1px solid #2A2A2A', padding: '10px 12px', minHeight: 192, lineHeight: 1.75, display: 'flex', flexDirection: 'column' }}>
-      {lines.map((line, i) => {
-        const type = classifyWorkoutLine(line)
-        const trimmed = line.trimStart()
-        const indent = line.length - trimmed.length
-
-        if (type === 'empty') return <div key={i} style={{ height: '0.5em' }} />
-
-        if (type === 'title') {
-          return (
-            <div
-              key={i}
-              className="font-mono font-bold uppercase tracking-[0.16em]"
-              style={{ color: '#D4FF3A', fontSize: 11, marginTop: i > 0 ? 10 : 0, marginBottom: 1 }}
-            >
-              {trimmed}
+      {parts ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {parts.map((part, pi) => (
+            <div key={pi}>
+              {pi > 0 && <div style={{ height: 1, background: '#2A2A2A', margin: '0 0 8px' }} />}
+              <div style={{ borderLeft: '2px solid #D4FF3A', paddingLeft: 8, marginBottom: 5 }}>
+                <span className="font-mono font-black uppercase tracking-[0.16em]" style={{ fontSize: 10, color: '#D4FF3A' }}>
+                  Part {part.label}
+                </span>
+              </div>
+              <div style={{ paddingLeft: 10 }}>
+                <WorkoutPreviewLines lines={part.lines} />
+              </div>
             </div>
-          )
-        }
-
-        if (type === 'format') {
-          return (
-            <div
-              key={i}
-              className="font-mono font-bold"
-              style={{ color: '#FFFFFF', fontSize: 13, paddingLeft: indent * 7, marginTop: 2 }}
-            >
-              <FormatLineContent text={trimmed} />
-            </div>
-          )
-        }
-
-        if (type === 'exercise') {
-          return (
-            <div
-              key={i}
-              className="font-mono"
-              style={{ color: '#E5E5E3', fontSize: 13, paddingLeft: indent * 7 }}
-            >
-              <ExerciseLineContent text={trimmed} />
-            </div>
-          )
-        }
-
-        if (type === 'note') {
-          return (
-            <div
-              key={i}
-              className="font-mono"
-              style={{ color: '#6B6B68', fontSize: 12, paddingLeft: indent * 7, fontStyle: 'italic' }}
-            >
-              {trimmed}
-            </div>
-          )
-        }
-
-        return (
-          <div key={i} className="font-mono" style={{ color: '#A8A8A4', fontSize: 13, paddingLeft: indent * 7 }}>
-            {line || ' '}
-          </div>
-        )
-      })}
+          ))}
+        </div>
+      ) : (
+        <WorkoutPreviewLines lines={text.split('\n')} />
+      )}
       {hasNotes && (
         <div className="font-mono" style={{ color: '#6B6B68', fontSize: 12, fontStyle: 'italic', marginTop: 'auto', paddingTop: 8 }}>
           Note: {notes}

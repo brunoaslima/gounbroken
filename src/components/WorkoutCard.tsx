@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import type { PrescribedWorkoutData, WorkoutFeedback } from '@/types'
+import type { PrescribedWorkoutData, WorkoutFeedback, WorkoutSectionData } from '@/types'
 import { buildFormatLine, buildPrescriptionParts, dayLabel, formatDateBR } from '@/lib/workoutDisplay'
 import { WorkoutNotesRenderer } from '@/components/WorkoutNotesRenderer'
+import { WorkoutTimer } from '@/components/WorkoutTimer'
 
 const FOCUS_LABELS: Record<string, string> = {
   superior: 'Upper', inferior: 'Lower', full_body: 'Full Body',
@@ -224,6 +225,8 @@ export default function WorkoutCard({
   const [pendingStatus, setPendingStatus] = useState<'completed' | 'partially_completed' | 'skipped' | null>(null)
   const [sectionNotes, setSectionNotes] = useState<Record<number, string>>({})
   const [sectionNoteStatus, setSectionNoteStatus] = useState<Record<number, 'saving' | 'saved' | 'error'>>({})
+  const [sectionDurations, setSectionDurations] = useState<Record<number, number | null>>({})
+  const [timerSection, setTimerSection] = useState<WorkoutSectionData | null>(null)
   const noteSaveTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
 
   const today = new Date()
@@ -243,7 +246,7 @@ export default function WorkoutCard({
     if (!canFeedback || !expanded) return
     supabase
       .from('workout_section_notes')
-      .select('section_position, note')
+      .select('section_position, note, duration_seconds')
       .eq('athlete_id', userId)
       .eq('workout_date', workout.workout_date)
       .then(({ data, error }) => {
@@ -251,9 +254,14 @@ export default function WorkoutCard({
           console.error('load section notes error:', error)
           return
         }
-        const map: Record<number, string> = {}
-        for (const row of data ?? []) map[row.section_position] = row.note
-        setSectionNotes(map)
+        const noteMap: Record<number, string> = {}
+        const durMap: Record<number, number | null> = {}
+        for (const row of data ?? []) {
+          noteMap[row.section_position] = row.note
+          durMap[row.section_position]  = row.duration_seconds ?? null
+        }
+        setSectionNotes(noteMap)
+        setSectionDurations(durMap)
       })
   }, [canFeedback, expanded, userId, workout.workout_date])
 
@@ -263,15 +271,16 @@ export default function WorkoutCard({
   // resolving after a newer one and silently clobbering the latest text.
   const noteSaveInFlight = useRef<Record<number, Promise<void>>>({})
 
-  async function saveSectionNote(position: number, label: string, note: string) {
+  async function saveSectionNote(position: number, label: string, note: string, durationSeconds?: number | null) {
     const prior = noteSaveInFlight.current[position] ?? Promise.resolve()
     const run = prior.then(async () => {
       setSectionNoteStatus(prev => ({ ...prev, [position]: 'saving' }))
       const { error } = await supabase.rpc('save_section_note', {
-        p_workout_date: workout.workout_date,
+        p_workout_date:     workout.workout_date,
         p_section_position: position,
-        p_section_label: label,
-        p_note: note,
+        p_section_label:    label,
+        p_note:             note || null,
+        p_duration_seconds: durationSeconds ?? null,
       })
       if (error) console.error('save_section_note error:', error)
       setSectionNoteStatus(prev => ({ ...prev, [position]: error ? 'error' : 'saved' }))
@@ -461,24 +470,51 @@ export default function WorkoutCard({
               return (
               <div key={section.id} className="bg-white/[0.03] border border-white/8 px-3.5 py-3.5 space-y-3">
                 {/* Section header */}
-                <div>
-                  <p className="text-[10px] font-black tracking-[0.14em] uppercase leading-none">
-                    {(() => {
-                      const typeDisplay = section.section_type.replace(/_/g, ' ')
-                      const isDefault = section.label.toLowerCase().replace(/[^a-z]/g, '') === typeDisplay.toLowerCase().replace(/[^a-z]/g, '')
-                      // Custom label replaces the type badge entirely — no "WOD · " prefix
-                      return <span className="text-lime">{isDefault ? typeDisplay : section.label}</span>
-                    })()}
-                    {section.modality_tags && section.modality_tags.length > 0 && (
-                      <span className="ml-2 text-white/25 normal-case font-normal tracking-normal">
-                        · {(section.modality_tags as string[]).join(', ')}
-                      </span>
-                    )}
-                  </p>
-                  {formatLine && (
-                    <p className="text-white/35 text-[11px] font-semibold tracking-wider mt-1.5 pl-0.5">
-                      {formatLine}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-black tracking-[0.14em] uppercase leading-none">
+                      {(() => {
+                        const typeDisplay = section.section_type.replace(/_/g, ' ')
+                        const isDefault = section.label.toLowerCase().replace(/[^a-z]/g, '') === typeDisplay.toLowerCase().replace(/[^a-z]/g, '')
+                        return <span className="text-lime">{isDefault ? typeDisplay : section.label}</span>
+                      })()}
+                      {section.modality_tags && section.modality_tags.length > 0 && (
+                        <span className="ml-2 text-white/25 normal-case font-normal tracking-normal">
+                          · {(section.modality_tags as string[]).join(', ')}
+                        </span>
+                      )}
                     </p>
+                    {formatLine && (
+                      <p className="text-white/35 text-[11px] font-semibold tracking-wider mt-1.5 pl-0.5">
+                        {formatLine}
+                      </p>
+                    )}
+                    {sectionDurations[section.position] != null && (
+                      <p className="font-mono font-bold uppercase tracking-[0.12em] text-[9px] text-[#D4FF3A]/60 mt-1 pl-0.5">
+                        {(() => {
+                          const s = sectionDurations[section.position]!
+                          const m = Math.floor(s / 60)
+                          const sec = s % 60
+                          return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+                        })()}
+                      </p>
+                    )}
+                  </div>
+                  {canFeedback && !localFeedback && (
+                    <button
+                      onClick={() => sectionDurations[section.position] == null && setTimerSection(section)}
+                      disabled={sectionDurations[section.position] != null}
+                      className="shrink-0 w-7 h-7 flex items-center justify-center transition-colors"
+                      style={{ color: sectionDurations[section.position] != null ? '#3D3D3B' : '#D4FF3A', cursor: sectionDurations[section.position] != null ? 'default' : 'pointer' }}
+                      aria-label="Open timer"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="13" r="8"/>
+                        <path d="M12 9v4l2.5 2.5"/>
+                        <path d="M9 3h6"/>
+                        <path d="M12 3v2"/>
+                      </svg>
+                    </button>
                   )}
                 </div>
 
@@ -654,6 +690,20 @@ export default function WorkoutCard({
           </div>
         )}
       </div>
+
+      {timerSection && (
+        <WorkoutTimer
+          workoutDate={workout.workout_date}
+          section={timerSection}
+          savedDuration={sectionDurations[timerSection.position] ?? null}
+          onSave={async (duration) => {
+            await saveSectionNote(timerSection.position, timerSection.label, sectionNotes[timerSection.position] ?? '', duration)
+            setSectionDurations(prev => ({ ...prev, [timerSection.position]: duration }))
+            setTimerSection(null)
+          }}
+          onClose={() => setTimerSection(null)}
+        />
+      )}
     </>
   )
 }

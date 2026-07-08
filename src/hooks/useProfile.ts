@@ -30,15 +30,16 @@ export function useProfile(userId: string | undefined) {
    * by RLS due to email confirmation being enabled on the Supabase project).
    */
   async function saveProfile(data: {
-    date_of_birth: string
-    body_weight_kg: number
-    height_cm: number
-    gender: 'male' | 'female' | 'other' | 'prefer_not_to_say'
+    date_of_birth?: string
+    body_weight_kg?: number
+    height_cm?: number
+    gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say'
     experience_level?: ExperienceLevel | null
     training_frequency?: number | null
     training_types?: string[] | null
     main_goals?: string[] | null
     body_fat_pct?: number | null
+    competition_level?: string | null
     // Identity fields — required only for the initial profile insert
     name?: string | null
     username?: string | null
@@ -69,10 +70,12 @@ export function useProfile(userId: string | undefined) {
     let result = await supabase.from('profiles').upsert(payload, { onConflict: 'user_id' }).select().single()
 
     if (result.error) {
+      console.error('[saveProfile] upsert error — payload keys:', Object.keys(payload), '— error:', result.error)
       // Fallback: strip optional columns the DB schema might not have yet
-      const { experience_level, training_frequency, training_types, main_goals, body_fat_pct, ...base } = payload
-      void experience_level; void training_frequency; void training_types; void main_goals; void body_fat_pct
+      const { experience_level, training_frequency, training_types, main_goals, body_fat_pct, competition_level, ...base } = payload
+      void experience_level; void training_frequency; void training_types; void main_goals; void body_fat_pct; void competition_level
       result = await supabase.from('profiles').upsert(base, { onConflict: 'user_id' }).select().single()
+      if (result.error) console.error('[saveProfile] fallback upsert error:', result.error)
     }
 
     if (result.error) throw result.error
@@ -122,7 +125,7 @@ export function useProfile(userId: string | undefined) {
   }
 
   function getAge(): number | null {
-    if (!profile) return null
+    if (!profile || !profile.date_of_birth) return null
     const dob = new Date(profile.date_of_birth)
     const today = new Date()
     let age = today.getFullYear() - dob.getFullYear()
@@ -132,7 +135,7 @@ export function useProfile(userId: string | undefined) {
   }
 
   function getBMI(): number | null {
-    if (!profile || !profile.height_cm) return null
+    if (!profile || !profile.height_cm || !profile.body_weight_kg) return null
     const heightM = profile.height_cm / 100
     return Math.round((profile.body_weight_kg / (heightM * heightM)) * 10) / 10
   }
@@ -144,5 +147,14 @@ export function useProfile(userId: string | undefined) {
     return             { label: 'Obese',            color: '#f87171' }
   }
 
-  return { profile, loading, saveProfile, completeOnboarding, updateProfile, getAge, getBMI, getBMILabel, refetch: fetch }
+  async function updateOnboardingStep(step: number) {
+    if (!userId) return
+    await supabase
+      .from('profiles')
+      .update({ onboarding_step: step, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+    setProfile(prev => prev ? { ...prev, onboarding_step: step } : prev)
+  }
+
+  return { profile, loading, saveProfile, completeOnboarding, updateProfile, updateOnboardingStep, getAge, getBMI, getBMILabel, refetch: fetch }
 }
