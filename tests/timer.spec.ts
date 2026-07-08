@@ -24,6 +24,33 @@ test.describe('Timer', () => {
     await expect(page.getByText('No configuration needed. Press start.')).toBeVisible()
   })
 
+  test('EMOM/Interval: configura intervalo customizado, verifica Total e permite rest=0', async ({ page }) => {
+    await page.goto('/athlete/timer')
+    await page.waitForLoadState('networkidle')
+
+    await page.getByRole('button', { name: 'EMOM' }).click()
+    await expect(page.getByText('Interval', { exact: true })).toBeVisible()
+
+    // Ajustar intervalo para 90s
+    const intervalInput = page.locator('input[type="number"]').first()
+    await intervalInput.fill('90')
+
+    // Ajustar rounds para 5
+    const roundsInput = page.locator('input[type="number"]').nth(1)
+    await roundsInput.fill('5')
+
+    // Verificar que o Total calculado aparece (5 rounds × 90s = 450s = 7:30)
+    await expect(page.getByText(/Total:?\s*7:30/i)).toBeVisible()
+
+    // Testar rest = 0 (o campo Rest deve aceitar 0 sem erro)
+    await page.getByRole('button', { name: 'INTERVAL' }).click()
+    await expect(page.getByText('Rest', { exact: true })).toBeVisible()
+    const restInput = page.locator('input[type="number"]').nth(2)
+    await restInput.fill('0')
+    // Se rest=0, o timer deve funcionar sem fase de rest (não trava)
+    await expect(restInput).toHaveValue('0')
+  })
+
   test('stopwatch: start → pause → resume → reset', async ({ page }) => {
     await page.goto('/athlete/timer')
     await page.waitForLoadState('networkidle')

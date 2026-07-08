@@ -1,6 +1,20 @@
 import type { TimerStatus, TimerPhase, TimerConfig, TimerMode } from '@/lib/timerTypes'
 import { MODE_LABELS } from '@/lib/timerTypes'
 import { fmtTime } from '@/hooks/useTimer'
+import { useEffect, useState } from 'react'
+
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const onChange = () => setReduced(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+  return reduced
+}
 
 interface Props {
   status: TimerStatus
@@ -154,6 +168,7 @@ export function TimerDisplay({
   const isAmrap = config.mode === 'amrap'
   const isRunning = status === 'running'
   const isPaused = status === 'paused'
+  const reducedMotion = usePrefersReducedMotion()
 
   const pulseStyle = isRunning && displaySeconds <= 10 && displaySeconds > 0 && !isPhased
     ? { animation: 'timerPulse 1s ease-in-out infinite' }
@@ -169,7 +184,7 @@ export function TimerDisplay({
       }}
     >
       {/* Screen flash — reinforces the final-countdown beeps that get masked by loud music */}
-      {flashToken > 0 && (
+      {flashToken > 0 && !reducedMotion && (
         <div
           key={flashToken}
           style={{
