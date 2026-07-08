@@ -31,24 +31,27 @@ test.describe('Timer', () => {
     await page.getByRole('button', { name: 'EMOM' }).click()
     await expect(page.getByText('Interval', { exact: true })).toBeVisible()
 
-    // Ajustar intervalo para 90s
-    const intervalInput = page.locator('input[type="number"]').first()
-    await intervalInput.fill('90')
+    // Intervalo parte de 60s (60s < 30s? não — troca pra EMOM força mínimo de 60s) — +30s → 90s
+    const intervalBox = page.getByText('Interval', { exact: true }).locator('xpath=..')
+    await intervalBox.getByRole('button', { name: '+30s' }).click()
 
-    // Ajustar rounds para 5
-    const roundsInput = page.locator('input[type="number"]').nth(1)
-    await roundsInput.fill('5')
+    // Rounds parte de 8 (default) — 3x "−1" → 5
+    const roundsBox = page.getByText('Rounds', { exact: true }).locator('xpath=..')
+    const roundsMinus = roundsBox.getByRole('button', { name: '−' })
+    await roundsMinus.click()
+    await roundsMinus.click()
+    await roundsMinus.click()
 
     // Verificar que o Total calculado aparece (5 rounds × 90s = 450s = 7:30)
     await expect(page.getByText(/Total:?\s*7:30/i)).toBeVisible()
 
-    // Testar rest = 0 (o campo Rest deve aceitar 0 sem erro)
+    // Testar rest = 0 (Interval timer deve aceitar rest zerado sem travar)
     await page.getByRole('button', { name: 'INTERVAL' }).click()
-    await expect(page.getByText('Rest', { exact: true })).toBeVisible()
-    const restInput = page.locator('input[type="number"]').nth(2)
-    await restInput.fill('0')
-    // Se rest=0, o timer deve funcionar sem fase de rest (não trava)
-    await expect(restInput).toHaveValue('0')
+    const restBox = page.getByText('Rest Time', { exact: true }).locator('xpath=..')
+    const restMinus = restBox.getByRole('button', { name: '−' })
+    await restMinus.click() // 10s → 5s
+    await restMinus.click() // 5s → 0s (clamped ao min)
+    await expect(restBox.getByText('00:00')).toBeVisible()
   })
 
   test('stopwatch: start → pause → resume → reset', async ({ page }) => {

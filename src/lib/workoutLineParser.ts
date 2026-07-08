@@ -38,8 +38,9 @@ export function classifyWorkoutLine(line: string): WorkoutLineType {
   if (/\b(partner|i\s+go\s+you\s+go|alternating|in\s+teams?\s+of)\b/i.test(t)) return 'format'
   // "5 rounds for time:", "3 rounds NFT" (specific patterns before generic round count)
   if (/^\d+\s*rounds?\s*(for\s+time|nft|not\s+for\s+time)/i.test(t)) return 'format'
-  // Generic round / set counts (only if not already caught by specific patterns)
-  if (/^\d+\s*rounds?\s*(of|de|:)\s+/i.test(t)) return 'format'
+  // Generic round / set counts (only if not already caught by specific patterns) —
+  // anchored to end-of-line so it only matches bare "N rounds[ of/de][:]" lines
+  if (/^\d+\s*rounds?(?:\s*(?:of|de))?\s*:?\s*$/i.test(t)) return 'format'
   if (/^\d+\s*[x×]?\s*sets?\b/i.test(t)) return 'format'
   // EMOM interval labels: "Min 1:", "Min 2:"
   if (/^Min\s+\d+\s*:/i.test(t)) return 'format'
