@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useProfile } from '@/hooks/useProfile'
 import { useCompetition } from '@/hooks/useCompetition'
 import StickyFooter from '@/components/StickyFooter'
+import QRModal from '@/components/QRModal'
 import type { CompetitionStatus, DivisionAvailability, TeamStatus } from '@/types'
 
 // ─── types (leaderboard final) ───────────────────────────────────────────────
@@ -160,6 +161,7 @@ export default function CompetitionDetail() {
   const { profile } = useProfile(user?.id)
   const { competition, wods, divisions, myTeam, myRole, teamCounts, pendingJudgeInvite, pendingTeamInvite, loading, reload } = useCompetition(id, user?.id)
   const [copied, setCopied] = useState(false)
+  const [showQR, setShowQR] = useState(false)
   const [inviteLoading, setInviteLoading] = useState(false)
   const [availability, setAvailability] = useState<Map<string, DivisionAvailability>>(new Map())
 
@@ -268,7 +270,7 @@ export default function CompetitionDetail() {
   // privada compartilha o link de convite (resgate); pública, a página do slug
   const shareUrl = competition?.is_private && competition.invite_code
     ? `gounbroken.app/comp/${competition.invite_code}`
-    : `gounbroken.app/competition/${competition?.public_slug ?? competition?.id ?? ''}`
+    : `gounbroken.app/competition/${competition?.public_slug ?? ''}`
 
   function copySlug() {
     navigator.clipboard.writeText(shareUrl)
@@ -312,6 +314,7 @@ export default function CompetitionDetail() {
   const isCaptain = myTeam?.team.captain_user_id === user?.id
 
   return (
+    <>
     <div className="flex flex-col fixed inset-0 z-50 md:static md:inset-auto md:z-auto md:flex-1 md:min-h-0" style={{ background: '#0A0A0A', color: '#F5F5F0' }}>
 
       {/* Topbar */}
@@ -815,30 +818,45 @@ export default function CompetitionDetail() {
           >
             {shareUrl}
           </span>
-          <button
-            onClick={copySlug}
-            className="flex items-center gap-1.5 font-mono font-black uppercase flex-shrink-0"
-            style={{
-              fontSize: 9,
-              letterSpacing: '0.14em',
-              color: copied ? '#D4FF3A' : '#6B6B68',
-              background: 'transparent',
-              border: 0,
-              padding: 0,
-            }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="9" y="9" width="13" height="13" rx="0" />
-              <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-            </svg>
-            {copied ? 'COPIADO' : 'COPIAR'}
-          </button>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            {competition.status === 'in_progress' && (
+            <button
+              onClick={() => setShowQR(true)}
+              className="flex items-center gap-1.5 font-mono font-black uppercase"
+              style={{ fontSize: 9, letterSpacing: '0.14em', color: '#6B6B68', background: 'transparent', border: 0, padding: 0 }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+                <rect x="14" y="14" width="3" height="3"/><rect x="18" y="14" width="3" height="3"/><rect x="14" y="18" width="3" height="3"/><rect x="18" y="18" width="3" height="3"/>
+              </svg>
+              QR
+            </button>
+            )}
+            <button
+              onClick={copySlug}
+              className="flex items-center gap-1.5 font-mono font-black uppercase"
+              style={{
+                fontSize: 9,
+                letterSpacing: '0.14em',
+                color: copied ? '#D4FF3A' : '#6B6B68',
+                background: 'transparent',
+                border: 0,
+                padding: 0,
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="9" y="9" width="13" height="13" rx="0" />
+                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+              </svg>
+              {copied ? 'COPIADO' : 'COPIAR'}
+            </button>
+          </div>
         </div>
         </div>
 
         {/* Action buttons */}
         <div className="flex flex-col gap-2" style={{ padding: '0 20px 8px' }}>
-          {competition.status === 'in_progress' && (
+          {(competition.status === 'in_progress' || isHeadJudgeOrAdmin) && (
             <button
               onClick={() => navigate(`/athlete/competitions/${id}/leaderboard`)}
               className="w-full flex items-center justify-center font-mono font-black uppercase"
@@ -851,7 +869,7 @@ export default function CompetitionDetail() {
                 background: 'transparent',
               }}
             >
-              VER LEADERBOARD
+              VIEW LEADERBOARD
             </button>
           )}
 
@@ -889,7 +907,7 @@ export default function CompetitionDetail() {
             </button>
           )}
 
-          {isJudgeAny && (
+          {(isJudgeAny || isAdmin) && (
             <button
               onClick={() => navigate(`/athlete/competitions/${id}/judge`)}
               className="w-full flex items-center justify-center font-mono font-black uppercase"
@@ -902,7 +920,7 @@ export default function CompetitionDetail() {
                 background: 'transparent',
               }}
             >
-              PAINEL DE JUIZ
+              JUDGE PANEL
             </button>
           )}
         </div>
@@ -1097,5 +1115,14 @@ export default function CompetitionDetail() {
       })()}
 
     </div>
+
+    {showQR && competition && (
+      <QRModal
+        url={shareUrl}
+        title={competition.name}
+        onClose={() => setShowQR(false)}
+      />
+    )}
+    </>
   )
 }
