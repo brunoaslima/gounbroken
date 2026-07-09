@@ -195,7 +195,7 @@ function DivisionTable({
     keyCount.set(k, (keyCount.get(k) ?? 0) + 1)
   })
   keyCount.forEach((n, k) => { if (n > 1) tiedKeys.add(k) })
-  const isTiebreak = (r: LeaderboardRow) => tiedKeys.has(`${r.division_id ?? ''}:${r.total_points}`)
+  const isTiebreak = (r: LeaderboardRow) => r.total_points > 0 && tiedKeys.has(`${r.division_id ?? ''}:${r.total_points}`)
 
   return (
     <div style={{ flex: 1, overflowX: 'auto', overflowY: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', minHeight: 0 }}>
@@ -251,9 +251,10 @@ function DivisionTable({
         </thead>
         <tbody>
           {rows.map((row, idx) => {
+            const hasScore = row.total_points > 0
             const rank = row.overall_rank
-            const isFirst = rank === 1
-            const bg = rowBg(rank, idx)
+            const isFirst = hasScore && rank === 1
+            const bg = hasScore ? rowBg(rank, idx) : (idx % 2 === 1 ? 'rgba(255,255,255,0.025)' : 'transparent')
 
             return (
               <tr
@@ -274,7 +275,9 @@ function DivisionTable({
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  <MedalRank rank={rank} />
+                  {hasScore ? <MedalRank rank={rank} /> : (
+                    <span style={{ fontWeight: 700, fontSize: 14, color: '#3D3D3B' }}>—</span>
+                  )}
                 </td>
                 <td
                   style={{
@@ -376,7 +379,7 @@ function DivisionTable({
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {row.total_points}
+                  {hasScore ? row.total_points : '—'}
                 </td>
               </tr>
             )
@@ -391,11 +394,13 @@ export default function Leaderboard() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
+  const [isPrivileged, setIsPrivileged] = useState(false)
   const [rows, setRows] = useState<LeaderboardRow[]>([])
   const [wods, setWods] = useState<WodInfo[]>([])
   const [divisions, setDivisions] = useState<CompetitionDivision[]>([])
   const [selectedDivisionId, setSelectedDivisionId] = useState<string | null>(null)
   const [compName, setCompName] = useState('')
+  const [compStatus, setCompStatus] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [lbError, setLbError] = useState<string | null>(null)
   const [movements, setMovements] = useState<Map<string, RankMove>>(new Map())
@@ -475,15 +480,19 @@ export default function Leaderboard() {
       const lbParams: Record<string, unknown> = { p_competition_id: id }
       if (selectedDivisionId) lbParams.p_division_id = selectedDivisionId
 
-      const [lb, comp, wodList, divList] = await Promise.all([
+      const authUser = (await supabase.auth.getUser()).data.user
+      const [lb, comp, wodList, divList, myProfile] = await Promise.all([
         supabase.rpc('get_competition_leaderboard', lbParams),
-        supabase.from('competitions').select('name').eq('id', id).single(),
+        supabase.from('competitions').select('name, status').eq('id', id).single(),
         supabase
           .from('competition_wods')
           .select('id, name, score_type, score_order, cap, status, order_index')
           .eq('competition_id', id)
           .order('order_index'),
         supabase.from('competition_divisions').select('*').eq('competition_id', id).order('created_at'),
+        authUser
+          ? supabase.from('profiles').select('roles').eq('user_id', authUser.id).maybeSingle()
+          : Promise.resolve({ data: null }),
       ])
       if (lb.error) {
         console.error('[leaderboard] rpc error:', lb.error)
@@ -499,6 +508,7 @@ export default function Leaderboard() {
         // is already overwritten, so the diff must not live inside the updater
         const moved: Array<[string, RankMove]> = []
         newRows.forEach(r => {
+          if (r.total_points === 0) return  // no score yet — never show an arrow
           const prevRank = prevRanksRef.current.get(r.team_id)
           if (prevRank !== undefined && prevRank !== r.overall_rank) {
             moved.push([r.team_id, { delta: prevRank - r.overall_rank, at: now }])
@@ -512,7 +522,11 @@ export default function Leaderboard() {
           moved.forEach(([teamId, m]) => next.set(teamId, m))
           return next
         })
-        newRows.forEach(r => prevRanksRef.current.set(r.team_id, r.overall_rank))
+        // only persist rank baseline for teams that have a score
+        newRows.forEach(r => {
+          if (r.total_points > 0) prevRanksRef.current.set(r.team_id, r.overall_rank)
+          else prevRanksRef.current.delete(r.team_id)
+        })
         const storageKey = `lb-ranks-${id}-${selectedDivisionId ?? 'all'}`
         try {
           sessionStorage.setItem(storageKey, JSON.stringify({
@@ -522,7 +536,9 @@ export default function Leaderboard() {
         } catch { /* storage full/unavailable — arrows just won't survive navigation */ }
         setRows(newRows)
       }
-      if (comp.data) setCompName(comp.data.name)
+      if (comp.data) { setCompName(comp.data.name); setCompStatus(comp.data.status) }
+      const roles: string[] = (myProfile.data as { roles?: string[] } | null)?.roles ?? []
+      setIsPrivileged(roles.some(r => r === 'admin' || r === 'personal'))
       if (wodList.data) setWods(wodList.data as WodInfo[])
       if (divList.data) setDivisions(divList.data as CompetitionDivision[])
     } finally {
@@ -600,6 +616,26 @@ export default function Leaderboard() {
         .map(d => ({ divLabel: divisionShortLabel(d), leader: rows.find(r => r.division_id === d.id) }))
         .filter((x): x is { divLabel: string; leader: LeaderboardRow } => x.leader != null)
     : []
+
+  if (!loading && compStatus && compStatus !== 'in_progress' && compStatus !== 'finished' && !isPrivileged) {
+    return (
+      <div className="bg-[#0A0A0A] flex flex-col items-center justify-center" style={{ position: 'fixed', inset: 0, zIndex: 50 }}>
+        <button
+          onClick={() => navigate(`/athlete/competitions/${id}`)}
+          style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top) + 12px)', left: 16, background: 'none', border: 'none', cursor: 'pointer', padding: '8px 4px', color: '#F5F5F0' }}
+        >
+          <BackIcon />
+        </button>
+        <span style={{ width: 28, height: 3, background: '#D4FF3A' }} />
+        <span className="font-mono font-black uppercase mt-3" style={{ fontSize: 11, letterSpacing: '0.16em', color: '#6B6B68' }}>
+          NOT AVAILABLE YET
+        </span>
+        <span className="font-mono mt-1" style={{ fontSize: 10, letterSpacing: '0.08em', color: '#3D3D3B' }}>
+          Leaderboard opens when the competition starts
+        </span>
+      </div>
+    )
+  }
 
   return (
     <div className="bg-[#0A0A0A] flex flex-col" style={{ position: 'fixed', inset: 0, zIndex: 50, overflow: 'hidden' }}>

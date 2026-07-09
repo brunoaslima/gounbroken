@@ -205,6 +205,7 @@ export interface CompetitionWod {
   score_order: ScoreOrder
   cap: string | null
   status: 'draft' | 'submitted' | 'published'
+  components: string[] | null
   created_at: string
 }
 

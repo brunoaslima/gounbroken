@@ -6,6 +6,31 @@ Version format: `## [version] — YYYY-MM-DD`
 
 ---
 
+## [1.5.3] — 2026-07-09
+
+### Competition → WOD: MAX LOAD multi-component scoring
+
+- Admin/head judge can define up to 8 named components on a MAX LOAD WOD (e.g., Strict Press, Back Squat, Deadlift)
+- "+ ADD COMPONENT" button appears in the WOD creation form when score type is MAX LOAD
+- JudgePanel shows one KG input per component when a multi-component WOD is selected
+- Each input auto-saves to localStorage (`draft_{comp}_{wod}_{team}`) — no data lost if the app is closed mid-entry
+- Running total is displayed live once all fields are filled
+- Submit button is disabled until every component has a value (zero is valid)
+- On submit: `score_numeric = sum of all components`; `raw_result = "Strict Press: 80 · Back Squat: 100 · Deadlift: 120 = 300kg"`
+- localStorage draft is cleared after successful submission
+- DB: `competition_wods.components TEXT[]` column; `create_competition_wod` RPC updated to accept optional `p_components`
+
+### Competition → Leaderboard: QR code sharing, gated visibility, zero-score handling
+
+- Competition detail page: "QR" button (visible once the competition is `in_progress`) opens a printable QR code linking to the public leaderboard, with an A4 print layout
+- Leaderboard now stays hidden (with a "Not available yet" screen) for non-privileged viewers until the competition is `in_progress` or `finished` — admins and personals can preview it earlier
+- Teams without a submitted score no longer show a rank/medal, points, or a tie-break highlight — those are reserved for teams with an actual result
+- Rank-change arrows no longer fire for teams that still have zero points
+- Head judges/admins can now open the Judge Panel and view the leaderboard from the competition detail page regardless of status
+- `PUBLISH RESULTS` button on the WOD results tab renamed to `PUBLISH WOD` (clearer — it publishes the whole WOD, not an individual result)
+
+---
+
 ## [1.5.2] — 2026-07-08
 
 ### PRs → Onboarding: alphabetical exercise list

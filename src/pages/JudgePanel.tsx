@@ -43,6 +43,7 @@ export default function JudgePanel() {
   // Score form
   const [scoringTeamId, setScoringTeamId] = useState<string | null>(null)
   const [scoreFields, setScoreFields] = useState<ScoreFields>({ type: 'time' })
+  const [componentDrafts, setComponentDrafts] = useState<Record<string, string>>({})
   const [scoreNotes, setScoreNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -94,7 +95,7 @@ export default function JudgePanel() {
         setResults([])
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao carregar dados')
+      setError(e instanceof Error ? e.message : 'Error loading data')
     } finally {
       setLoading(false)
     }
@@ -102,7 +103,7 @@ export default function JudgePanel() {
 
   useEffect(() => { load() }, [load])
 
-  if (loading) return <Screen><Mono color='#6B6B68'>CARREGANDO...</Mono></Screen>
+  if (loading) return <Screen><Mono color='#6B6B68'>LOADING...</Mono></Screen>
   if (error)   return <Screen><Mono color='#FF3B30'>{error}</Mono></Screen>
 
   const isJudge = myRole?.role === 'head_judge' || myRole?.role === 'judge'
@@ -132,33 +133,60 @@ export default function JudgePanel() {
     setScoreFields({ type: (activeWod?.score_type ?? 'time') as WodScoreType })
     setScoreNotes('')
     setSubmitError(null)
+    if (activeWod?.components?.length) {
+      const key = `draft_${id}_${activeWod.id}_${teamId}`
+      const saved = localStorage.getItem(key)
+      setComponentDrafts(saved ? (JSON.parse(saved) as Record<string, string>) : {})
+    } else {
+      setComponentDrafts({})
+    }
   }
 
   function closeScoreForm() {
     setScoringTeamId(null)
     setScoreFields({ type: 'time' })
+    setComponentDrafts({})
     setScoreNotes('')
     setSubmitError(null)
   }
 
   async function handleSubmit() {
     if (!activeWod || !scoringTeamId || submitting) return
-    const validationError = validateScoreFields(scoreFields, parseCapSeconds(activeWod.cap))
-    if (validationError) { setSubmitError(validationError); return }
-    const encoded = encodeScore(scoreFields)
-    if (!encoded) { setSubmitError('Invalid value'); return }
+
+    const isMultiComp = activeWod.score_type === 'weight' && (activeWod.components?.length ?? 0) > 0
+    let rawResult: string
+    let scoreNumeric: number
+
+    if (isMultiComp) {
+      const comps = activeWod.components!
+      const values = comps.map(c => parseFloat(componentDrafts[c] ?? '') || 0)
+      const total = values.reduce((sum, v) => sum + v, 0)
+      rawResult = comps.map((c, i) => `${c}: ${values[i]}`).join(' · ') + ` = ${total}kg`
+      scoreNumeric = total
+    } else {
+      const validationError = validateScoreFields(scoreFields, parseCapSeconds(activeWod.cap))
+      if (validationError) { setSubmitError(validationError); return }
+      const encoded = encodeScore(scoreFields)
+      if (!encoded) { setSubmitError('Invalid value'); return }
+      rawResult = encoded.raw_result
+      scoreNumeric = encoded.score_numeric
+    }
+
     setSubmitting(true)
     setSubmitError(null)
     try {
       const { error: rpcError } = await supabase.rpc('submit_competition_result', {
         p_wod_id:        activeWod.id,
         p_team_id:       scoringTeamId,
-        p_raw_result:    encoded.raw_result,
+        p_raw_result:    rawResult,
         p_score_type:    activeWod.score_type,
-        p_score_numeric: encoded.score_numeric,
+        p_score_numeric: scoreNumeric,
         p_notes:         scoreNotes.trim() || null,
       })
       if (rpcError) throw new Error(rpcError.message)
+      if (isMultiComp) {
+        localStorage.removeItem(`draft_${id}_${activeWod.id}_${scoringTeamId}`)
+      }
       // Notify leaderboard viewers instantly via broadcast (bypasses WAL + RLS latency)
       const ch = supabase.channel(`score:${id}`)
       ch.send({ type: 'broadcast', event: 'result', payload: {} }).finally(() => supabase.removeChannel(ch))
@@ -175,8 +203,12 @@ export default function JudgePanel() {
   if (scoringTeamId && activeWod) {
     const scoreType = activeWod.score_type as WodScoreType
     const capSecs = parseCapSeconds(activeWod.cap)
-    const validationError = validateScoreFields(scoreFields, capSecs)
-    const canSubmit = !validationError && !submitting
+    const isMultiComp = scoreType === 'weight' && (activeWod.components?.length ?? 0) > 0
+    const validationError = isMultiComp ? null : validateScoreFields(scoreFields, capSecs)
+    const allComponentsFilled = isMultiComp
+      ? (activeWod.components ?? []).every(c => (componentDrafts[c] ?? '') !== '')
+      : true
+    const canSubmit = !submitting && (isMultiComp ? allComponentsFilled : !validationError)
 
     return (
       <div style={pageStyle}>
@@ -184,7 +216,7 @@ export default function JudgePanel() {
         <div style={topbarStyle}>
           <BackBtn onClick={closeScoreForm} />
           <span style={titleStyle}>
-            SUBMETER · WOD {String(activeWodIdx + 1).padStart(2, '0')}
+            SUBMIT · WOD {String(activeWodIdx + 1).padStart(2, '0')}
           </span>
         </div>
 
@@ -197,7 +229,7 @@ export default function JudgePanel() {
         <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
           <div style={{ padding: 20, paddingBottom: 100, display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 560, margin: '0 auto' }}>
 
-            <ContextCard label='EQUIPE' value={scoringTeam?.name ?? '—'} />
+            <ContextCard label='TEAM' value={scoringTeam?.name ?? '—'} />
             <ContextCard
               label='WOD'
               value={`${String(activeWodIdx + 1).padStart(2, '0')} · ${activeWod.name} · ${SCORE_LABEL[scoreType]}${activeWod.cap ? ` · CAP ${activeWod.cap}` : ''}`}
@@ -222,7 +254,7 @@ export default function JudgePanel() {
                   </div>
                   <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 36, fontWeight: 800, color: '#D4FF3A', marginTop: 16 }}>:</span>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                    <span style={fieldLabel}>SEG</span>
+                    <span style={fieldLabel}>SEC</span>
                     <input type='number' min={0} max={59}
                       value={scoreFields.seconds ?? ''}
                       placeholder='00'
@@ -243,7 +275,37 @@ export default function JudgePanel() {
                   />
                 </div>
               )}
-              {scoreType === 'weight' && (
+              {scoreType === 'weight' && isMultiComp && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20, width: '100%', alignItems: 'center' }}>
+                  <span style={{ ...fieldLabel, textAlign: 'center' }}>ALL VALUES IN KG</span>
+                  {(activeWod.components ?? []).map((comp, i) => (
+                    <div key={comp} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                      <span style={{ ...fieldLabel, textAlign: 'center' }}>{comp.toUpperCase()}</span>
+                      <input
+                        autoFocus={i === 0}
+                        type='number' min={0} step={0.5}
+                        value={componentDrafts[comp] ?? ''}
+                        placeholder='0'
+                        onChange={e => {
+                          const v = e.target.value
+                          const next = { ...componentDrafts, [comp]: v }
+                          setComponentDrafts(next)
+                          setSubmitError(null)
+                          localStorage.setItem(`draft_${id}_${activeWod.id}_${scoringTeamId}`, JSON.stringify(next))
+                        }}
+                        className="judge-score-input"
+                        style={{ ...SCORE_INPUT, width: 100, textAlign: 'center' }}
+                      />
+                    </div>
+                  ))}
+                  {allComponentsFilled && (
+                    <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 700, color: '#D4FF3A', letterSpacing: '0.12em' }}>
+                      TOTAL: {(activeWod.components ?? []).reduce((sum, c) => sum + (parseFloat(componentDrafts[c] ?? '') || 0), 0)}KG
+                    </div>
+                  )}
+                </div>
+              )}
+              {scoreType === 'weight' && !isMultiComp && (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                   <span style={fieldLabel}>KG</span>
                   <input autoFocus type='number' min={0} step={0.5}
@@ -418,9 +480,9 @@ export default function JudgePanel() {
 
         {/* ── Stats ─────────────────────────────────────────────────────────── */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, background: '#2A2A2A', borderBottom: '1px solid #2A2A2A' }}>
-          <StatCell label='PENDENTES'   value={pendingTeams.length} color='#FFB800' />
-          <StatCell label='SUBMETIDOS'  value={doneTeams.length}    color='#D4FF3A' />
-          <StatCell label='WODS · SEUS' value={`${wods.length}`}    color='#F5F5F0'
+          <StatCell label='PENDING'    value={pendingTeams.length} color='#FFB800' />
+          <StatCell label='SUBMITTED'  value={doneTeams.length}    color='#D4FF3A' />
+          <StatCell label='YOUR WODS'  value={`${wods.length}`}    color='#F5F5F0'
             suffix={`/${totalWodsCount}`}
           />
         </div>
@@ -428,7 +490,7 @@ export default function JudgePanel() {
         {/* ── Team list ─────────────────────────────────────────────────────── */}
         {!activeWod ? (
           <div style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#3D3D3B', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-            SELECIONE UM WOD ACIMA
+            SELECT A WOD ABOVE
           </div>
         ) : (
           <>
@@ -450,7 +512,7 @@ export default function JudgePanel() {
             {/* Pending teams */}
             {pendingTeams.length === 0 && doneTeams.length === 0 && (
               <div style={{ padding: '32px 20px', textAlign: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#3D3D3B', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                NENHUMA EQUIPE APROVADA
+                NO APPROVED TEAMS
               </div>
             )}
 

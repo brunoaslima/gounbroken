@@ -60,3 +60,26 @@
     font-size: 16px !important;
   }
 }
+
+@media print {
+  /* Hide everything except the QR modal content */
+  body > * { display: none !important; }
+  /* Reveal and reset only the print target */
+  #qr-print-target {
+    display: flex !important;
+    position: static !important;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 100%;
+    border: none !important;
+    padding: 40px !important;
+    background: #fff !important;
+    color: #0A0A0A !important;
+  }
+  #qr-print-target span,
+  #qr-print-target div { color: #0A0A0A !important; }
+  .qr-hide-on-print { display: none !important; }
+  /* Ensure the QR canvas stays crisp */
+  #qr-print-target canvas { image-rendering: pixelated; }
+}

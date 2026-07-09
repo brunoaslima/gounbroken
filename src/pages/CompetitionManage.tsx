@@ -220,6 +220,7 @@ export default function CompetitionManage() {
   const [wodDesc, setWodDesc] = useState('')
   const [wodScoreType, setWodScoreType] = useState<'time' | 'reps' | 'weight' | 'rounds_plus_reps'>('time')
   const [wodCap, setWodCap] = useState('')
+  const [wodComponents, setWodComponents] = useState<string[]>([])
   const [wodSaving, setWodSaving] = useState(false)
 
   // ── WOD edit state ──
@@ -503,6 +504,7 @@ export default function CompetitionManage() {
     setWodSaving(true)
     setMutateError(null)
     const scoreOrder = wodScoreType === 'time' ? 'asc' : 'desc'
+    const trimmedComponents = wodComponents.map(c => c.trim()).filter(Boolean)
     const { error } = await supabase.rpc('create_competition_wod', {
       p_competition_id: id,
       p_name: wodName.trim(),
@@ -510,6 +512,7 @@ export default function CompetitionManage() {
       p_score_type: wodScoreType,
       p_score_order: scoreOrder,
       p_cap: wodCap.trim(),
+      p_components: trimmedComponents.length > 0 ? trimmedComponents : null,
     })
     if (error) {
       setMutateError(error.message)
@@ -519,6 +522,7 @@ export default function CompetitionManage() {
       setWodDesc('')
       setWodScoreType('time')
       setWodCap('')
+      setWodComponents([])
       await load()
     }
     setWodSaving(false)
@@ -1445,6 +1449,42 @@ export default function CompetitionManage() {
                     </div>
                   </div>
 
+                  {/* Components — only for MAX LOAD */}
+                  {wodScoreType === 'weight' && (
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#6B6B68', marginBottom: 6 }}>
+                        COMPONENTS <span style={{ color: '#3D3D3B', fontWeight: 400 }}>(OPTIONAL — leave empty for single KG input)</span>
+                      </div>
+                      {wodComponents.map((comp, i) => (
+                        <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                          <input
+                            value={comp}
+                            onChange={e => { const next = [...wodComponents]; next[i] = e.target.value; setWodComponents(next) }}
+                            placeholder={`Ex: Strict Press`}
+                            maxLength={40}
+                            style={{ flex: 1, background: '#0A0A0A', border: '1px solid #2A2A2A', color: '#F5F5F0', fontFamily: 'inherit', fontSize: 13, padding: '7px 10px', outline: 'none', boxSizing: 'border-box' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setWodComponents(c => c.filter((_, j) => j !== i))}
+                            style={{ background: 'none', border: '1px solid #2A2A2A', color: '#6B6B68', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 700, padding: '0 10px', cursor: 'pointer' }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      {wodComponents.length < 8 && (
+                        <button
+                          type="button"
+                          onClick={() => setWodComponents(c => [...c, ''])}
+                          style={{ background: 'none', border: '1px dashed #2A2A2A', color: '#6B6B68', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', padding: '6px 12px', cursor: 'pointer' }}
+                        >
+                          + ADD COMPONENT
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button
                       onClick={handleCreateWod}
@@ -1461,7 +1501,7 @@ export default function CompetitionManage() {
                       {wodSaving ? 'SAVING...' : 'CREATE WOD'}
                     </button>
                     <button
-                      onClick={() => { setShowWodForm(false); setWodName(''); setWodDesc(''); setWodCap('') }}
+                      onClick={() => { setShowWodForm(false); setWodName(''); setWodDesc(''); setWodCap(''); setWodComponents([]) }}
                       style={{ background: 'none', border: '1px solid #2A2A2A', padding: '10px 16px', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6B6B68', cursor: 'pointer' }}
                     >
                       CANCEL
@@ -1865,7 +1905,7 @@ export default function CompetitionManage() {
                   </span>
                   {selectedWod.status !== 'published' && (
                     <Btn color='#D4FF3A' disabled={mutating} onClick={() => publishWod(selectedWod.id)}>
-                      PUBLISH RESULTS
+                      PUBLISH WOD
                     </Btn>
                   )}
                 </div>
