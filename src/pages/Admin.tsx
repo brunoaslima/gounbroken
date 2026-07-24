@@ -22,8 +22,12 @@ interface AiUsageRow {
   athlete_id: string | null; athlete_name: string | null; model: string
   input_tokens: number; output_tokens: number; cost_usd: number; created_at: string
 }
+interface AiByUserFunctionRow {
+  user_id: string | null; user_name: string | null; function_name: string; calls: number; cost_usd: number
+}
 interface AiByUser {
   user_id: string | null; user_name: string | null; calls: number; cost_usd: number
+  by_function: { function_name: string; calls: number; cost_usd: number }[]
 }
 interface UserRow extends Profile {
   score_count?: number; last_training_date?: string | null; last_login_at?: string | null
@@ -349,9 +353,30 @@ export default function Admin() {
       supabase.rpc('admin_get_ai_usage_recent', { p_limit: 50 }),
       supabase.rpc('admin_get_ai_usage_by_user'),
     ])
+    if (statsRes.error) console.error('[admin/ai] admin_get_ai_usage_stats:', statsRes.error)
+    if (recentRes.error) console.error('[admin/ai] admin_get_ai_usage_recent:', recentRes.error)
+    if (byUserRes.error) console.error('[admin/ai] admin_get_ai_usage_by_user:', byUserRes.error)
     setAiStats(statsRes.data ?? null)
     setAiRecent(recentRes.data ?? [])
-    setAiByUser(byUserRes.data ?? [])
+    // RPC returns one row per user×function — group into one row per user with a breakdown
+    const flatRows: AiByUserFunctionRow[] = byUserRes.data ?? []
+    const grouped = new Map<string, AiByUser>()
+    for (const row of flatRows) {
+      const key = row.user_id ?? row.user_name ?? ''
+      const existing = grouped.get(key)
+      const fnEntry = { function_name: row.function_name, calls: row.calls, cost_usd: row.cost_usd }
+      if (existing) {
+        existing.calls += row.calls
+        existing.cost_usd += row.cost_usd
+        existing.by_function.push(fnEntry)
+      } else {
+        grouped.set(key, {
+          user_id: row.user_id, user_name: row.user_name,
+          calls: row.calls, cost_usd: row.cost_usd, by_function: [fnEntry],
+        })
+      }
+    }
+    setAiByUser(Array.from(grouped.values()).sort((a, b) => b.cost_usd - a.cost_usd))
     setAiLoading(false)
   }
 
@@ -1038,8 +1063,8 @@ export default function Admin() {
         const fmtUsd = (v: number) => v < 0.001 ? `${(v * 100).toFixed(4)}¢` : `$${v.toFixed(4)}`
         const fmtUsdBig = (v: number) => `$${Number(v).toFixed(4)}`
         const fmtNum = (v: number) => Number(v).toLocaleString('en-US')
-        const fnLabel = (fn: string) => fn === 'suggest-workout' ? 'Suggest' : 'Generate'
-        const fnColor = (fn: string) => fn === 'suggest-workout' ? '#D4FF3A' : '#4DA3FF'
+        const fnLabel = (fn: string) => fn === 'suggest-workout' ? 'Suggest' : fn === 'generate-workout' ? 'Generate' : fn
+        const fnColor = (fn: string) => fn === 'suggest-workout' ? '#D4FF3A' : fn === 'generate-workout' ? '#4DA3FF' : '#888888'
 
         const shortTs = (s: string) => {
           const d = new Date(s)
@@ -1125,15 +1150,29 @@ export default function Admin() {
                 </div>
                 <div>
                   {aiByUser.map((u, i) => (
-                    <div key={u.user_id ?? i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderBottom: '1px solid #1A1A1A' }}>
-                      <Lbl style={{ color: '#3D3D3B', fontSize: 9, width: 16, textAlign: 'right' as const, flexShrink: 0 }}>{i + 1}</Lbl>
-                      <span style={{ fontFamily: '"JetBrains Mono", monospace', fontWeight: 600, fontSize: 12, color: '#A8A8A4', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {u.user_name ?? '—'}
-                      </span>
-                      <Lbl style={{ fontSize: 9, color: '#6B6B68', flexShrink: 0 }}>{u.calls} call{u.calls !== 1 ? 's' : ''}</Lbl>
-                      <span style={{ fontFamily: '"JetBrains Mono", monospace', fontWeight: 700, fontSize: 13, color: '#D4FF3A', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
-                        {fmtUsdBig(u.cost_usd)}
-                      </span>
+                    <div key={u.user_id ?? i} style={{ padding: '10px 16px', borderBottom: '1px solid #1A1A1A' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <Lbl style={{ color: '#3D3D3B', fontSize: 9, width: 16, textAlign: 'right' as const, flexShrink: 0 }}>{i + 1}</Lbl>
+                        <span style={{ fontFamily: '"JetBrains Mono", monospace', fontWeight: 600, fontSize: 12, color: '#A8A8A4', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {u.user_name ?? '—'}
+                        </span>
+                        <Lbl style={{ fontSize: 9, color: '#6B6B68', flexShrink: 0 }}>{u.calls} call{u.calls !== 1 ? 's' : ''}</Lbl>
+                        <span style={{ fontFamily: '"JetBrains Mono", monospace', fontWeight: 700, fontSize: 13, color: '#D4FF3A', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+                          {fmtUsdBig(u.cost_usd)}
+                        </span>
+                      </div>
+                      {u.by_function.length > 1 && (
+                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 6, paddingLeft: 28 }}>
+                          {u.by_function.map(f => (
+                            <div key={f.function_name} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                              <span style={{ width: 5, height: 5, background: fnColor(f.function_name), flexShrink: 0 }} />
+                              <Lbl style={{ fontSize: 9, color: '#6B6B68' }}>
+                                {fnLabel(f.function_name)} · {f.calls} · {fmtUsdBig(f.cost_usd)}
+                              </Lbl>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
