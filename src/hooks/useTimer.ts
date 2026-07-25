@@ -50,6 +50,19 @@ export function useTimer() {
     }
   }, [])
 
+  // The Wake Lock API auto-releases whenever the tab is backgrounded (screen
+  // auto-dims, app-switch, etc.) and never re-acquires itself — re-request it
+  // whenever the page becomes visible again while the timer is still running
+  useEffect(() => {
+    function onVisibilityChange() {
+      if (document.visibilityState === 'visible' && statusRef.current === 'running') {
+        acquireWakeLock()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+  }, [])
+
   // ── Helpers ───────────────────────────────────────────────────────────────
   function syncConfig(cfg: TimerConfig) {
     configRef.current = cfg
