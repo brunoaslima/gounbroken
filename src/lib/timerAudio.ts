@@ -5,6 +5,17 @@ export function initAudio() {
   if (ctx.state === 'suspended') ctx.resume().catch(() => {})
 }
 
+// Mobile browsers auto-suspend the AudioContext when the app is backgrounded
+// (app switch, screen lock) and never resume it on their own — without this,
+// beeps silently stop firing until the user starts a brand new timer
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && ctx?.state === 'suspended') {
+      ctx.resume().catch(() => {})
+    }
+  })
+}
+
 // square wave carries more harmonics than sine, so it cuts through mixed
 // audio (music playing alongside) more reliably at the same perceived volume
 function beep(freq: number, durationMs: number, volume = 0.6, type: OscillatorType = 'square') {
