@@ -528,3 +528,36 @@ antes de implementar.
   aceite o insert sem sessão ativa.
 - Antes de qualquer campo novo no signup: perguntar "isso pode aparecer no JWT
   decodificado por um atacante com o access token?"
+
+---
+
+## 22. Função no arquivo de migration nunca chegou a ser aplicada no banco vivo
+
+**O padrão:** um arquivo de migration commitado no repo (`ai_usage_log.sql`)
+tinha a definição *correta* e completa de uma RPC (`admin_get_ai_usage_recent`,
+11 colunas incluindo `athlete_name`, `cost_usd`, `input_tokens`/`output_tokens`)
+— mas o banco vivo tinha uma versão **antiga e menor** da mesma função (5
+colunas, incluindo `tokens_used`, uma coluna que não existe mais na tabela
+desde que ela foi dividida em `input_tokens`/`output_tokens`). O arquivo no
+repo estava certo; só nunca foi de fato `db-push`'ado depois de alguma edição
+posterior no mesmo arquivo. Resultado: a RPC retornava HTTP 400
+(`column "al.tokens_used" does not exist`) toda vez que chamada — silenciosa,
+porque o frontend fazia `setAiRecent(recentRes.data ?? [])` sem checar
+`recentRes.error`, então a seção "Recent calls" só ficava vazia, sem nenhum
+erro visível na tela (reforça o item #8 desta lista).
+
+**Onde já mordeu:** `admin_get_ai_usage_recent` (achado ao implementar o
+breakdown por função do item "Top users by cost", 2026-07-09).
+
+**Como evitar:**
+- Arquivo de migration commitado ≠ estado real do banco. Depois de editar uma
+  migration já aplicada anteriormente (ou de assumir que uma função "já deve
+  estar lá" porque está no arquivo), **chamar a RPC de verdade** contra o banco
+  vivo (via `db-push.sh` com uma query de teste, ou pela própria tela no
+  navegador) antes de considerar concluído — nunca confiar que o conteúdo do
+  arquivo reflete o que foi de fato aplicado.
+- Todo `.then/.catch` ou destructuring de `{ data, error }` de uma chamada
+  Supabase que alimenta uma seção da UI deve pelo menos logar
+  `console.error(error)` quando `error` existe — `data ?? []` sozinho transforma
+  qualquer falha de RPC (schema desatualizado, permissão, etc.) em "seção vazia
+  sem explicação" em vez de um erro visível/debugável.

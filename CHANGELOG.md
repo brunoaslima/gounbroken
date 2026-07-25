@@ -6,6 +6,18 @@ Version format: `## [version] — YYYY-MM-DD`
 
 ---
 
+## [1.5.4] — 2026-07-17
+
+### Admin → Claude usage: per-feature cost breakdown by user
+
+- "Top users by cost" now shows a breakdown chip per AI feature under each user (e.g. `SCAN-WORKOUT-PHOTO · 2 · $0.0955  GENERATE · 4 · $0.0481`) instead of just a single total
+- `admin_get_ai_usage_by_user` RPC now returns one row per user×function; grouped client-side into per-user totals + breakdown
+- Fixed `admin_get_ai_usage_by_user`'s SQL: an `ORDER BY` window function referenced a pre-aggregation column, causing a 400 error — moved the aggregation into a CTE so the window function operates on already-grouped rows
+- Fixed a second, unrelated bug found while verifying this: `admin_get_ai_usage_recent` was live with a stale 5-column signature referencing `tokens_used`, a column removed when it was split into `input_tokens`/`output_tokens` — the correct definition was already committed in `ai_usage_log.sql` but had never actually been applied to the database, so "Recent calls" silently rendered empty
+- Admin AI usage load errors are now logged to console instead of being swallowed by `data ?? []`
+
+---
+
 ## [1.5.3] — 2026-07-09
 
 ### Competition → WOD: MAX LOAD multi-component scoring

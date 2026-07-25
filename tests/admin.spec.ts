@@ -31,6 +31,14 @@ test.describe('Admin panel', () => {
 
     await page.getByRole('button', { name: 'Analytics', exact: true }).click()
     await page.getByRole('button', { name: 'Claude', exact: true }).click()
+
+    // Regression guard: admin_get_ai_usage_recent/admin_get_ai_usage_by_user
+    // once drifted out of sync with the ai_usage_log schema and silently
+    // failed (HTTP 400), leaving these panels empty with no visible error.
+    await expect(page.getByText('By function')).toBeVisible()
+    await expect(page.getByText('Top users by cost')).toBeVisible()
+    await expect(page.getByText('Recent calls')).toBeVisible()
+
     await page.getByRole('button', { name: 'Overview', exact: true }).click()
   })
 
