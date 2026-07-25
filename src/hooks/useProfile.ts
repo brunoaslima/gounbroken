@@ -12,13 +12,18 @@ export function useProfile(userId: string | undefined) {
   const fetch = useCallback(async () => {
     if (!userId) return
     setLoading(true)
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle()
-    setProfile(data ?? null)
-    setLoading(false)
+    // A rejected/offline query must still clear loading, or the screen that
+    // gates on `loading` (RequireAuth etc.) is stuck on its spinner forever
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle()
+      setProfile(data ?? null)
+    } finally {
+      setLoading(false)
+    }
   }, [userId])
 
   useEffect(() => { fetch() }, [fetch])

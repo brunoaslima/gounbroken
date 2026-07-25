@@ -8,10 +8,17 @@ export function useAuth() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null)
-      setLoading(false)
-    })
+    // getSession() can hang or reject when offline (e.g. it needs to refresh
+    // a near-expired token) — without a catch/timeout, a failed network call
+    // leaves `loading` stuck true forever and the whole app never renders
+    // past its spinner. Race it against a timeout so the app always unblocks.
+    const timeout = new Promise<null>(resolve => setTimeout(() => resolve(null), 4000))
+    Promise.race([supabase.auth.getSession(), timeout])
+      .then(result => {
+        setUser(result?.data.session?.user ?? null)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       const u = session?.user ?? null
