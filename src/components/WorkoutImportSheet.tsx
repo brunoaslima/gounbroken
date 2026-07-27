@@ -32,6 +32,27 @@ function sectionToContent(s: WorkoutSectionData): string {
   return lines.join('\n')
 }
 
+// Converts saved/generated sections into the manual builder's draft shape —
+// shared by the "edit existing workout" prefill and the AI-photo-scan result,
+// so both land in the same reviewable/editable section list.
+function sectionsToDraftSections(sections: WorkoutSectionData[]): DraftSection[] {
+  return sections
+    .slice()
+    .sort((a, b) => a.position - b.position)
+    .map(s => {
+      const raw = sectionToContent(s)
+      const obsIdx = raw.search(/\nobs: /)
+      return {
+        tempId: crypto.randomUUID(),
+        type: s.section_type,
+        label: s.label,
+        content: obsIdx >= 0 ? raw.slice(0, obsIdx).trim() : raw,
+        sets: (s.format_config as { sets?: number } | null)?.sets ?? undefined,
+        sectionNotes: obsIdx >= 0 ? raw.slice(obsIdx + 6).trim() || undefined : undefined,
+      }
+    })
+}
+
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
 }
@@ -313,6 +334,36 @@ async function preprocessForOCR(file: File): Promise<Blob> {
   })
 }
 
+// Resizes the photo and re-encodes it as JPEG before sending to the AI scan
+// edge function — caps payload size (Edge Function body limit + Claude vision
+// cost) and, as a side effect of the canvas round-trip, strips EXIF metadata
+// (GPS location, device info) that a raw camera file would otherwise carry.
+async function prepareImageForAIScan(file: File): Promise<{ base64: string; mediaType: string }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas')
+        const maxDim = 1600
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height))
+        canvas.width = Math.round(img.width * scale)
+        canvas.height = Math.round(img.height * scale)
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
+        URL.revokeObjectURL(url)
+        resolve({ base64: dataUrl.split(',')[1], mediaType: 'image/jpeg' })
+      } catch (e) {
+        URL.revokeObjectURL(url)
+        reject(e)
+      }
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load image')) }
+    img.src = url
+  })
+}
+
 // ─── Text → sections parser ───────────────────────────────────────────────────
 
 function sectionLabel(raw: string): string {
@@ -393,6 +444,7 @@ export default function WorkoutImportSheet({
 }: Props) {
   const cameraRef = useRef<HTMLInputElement>(null)
   const galleryRef = useRef<HTMLInputElement>(null)
+  const aiScanRef = useRef<HTMLInputElement>(null)
   const sectionsEndRef = useRef<HTMLDivElement>(null)
 
   const [state, setState] = useState<SheetState>('menu')
@@ -427,23 +479,7 @@ export default function WorkoutImportSheet({
   useEffect(() => {
     if (!open || !editingWorkout) return
     setDate(editingWorkout.workout_date)
-    setExplicitSections(
-      editingWorkout.sections
-        .slice()
-        .sort((a, b) => a.position - b.position)
-        .map(s => {
-          const raw = sectionToContent(s)
-          const obsIdx = raw.search(/\nobs: /)
-          return {
-            tempId: crypto.randomUUID(),
-            type: s.section_type,
-            label: s.label,
-            content: obsIdx >= 0 ? raw.slice(0, obsIdx).trim() : raw,
-            sets: (s.format_config as { sets?: number } | null)?.sets ?? undefined,
-            sectionNotes: obsIdx >= 0 ? raw.slice(obsIdx + 6).trim() || undefined : undefined,
-          }
-        })
-    )
+    setExplicitSections(sectionsToDraftSections(editingWorkout.sections))
     setState('manual')
   }, [open, editingWorkout])
 
@@ -549,6 +585,63 @@ export default function WorkoutImportSheet({
       setState('review')
     } catch {
       setOcrError('Error processing image. Please try again.')
+      setState('menu')
+    }
+  }
+
+  async function handleAIScan(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setOcrError('Invalid file. Please select an image.')
+      return
+    }
+    e.target.value = ''
+    setOcrError(null)
+    setProgress(0)
+    setProgressLabel('Analisando com IA…')
+    setState('processing')
+
+    try {
+      const { base64, mediaType } = await prepareImageForAIScan(file)
+      const { data, error } = await supabase.functions.invoke('scan-workout-photo', {
+        body: { image_base64: base64, media_type: mediaType },
+      })
+      if (error) {
+        let notAWorkout = false
+        const context = (error as { context?: unknown }).context
+        if (context instanceof Response) {
+          try {
+            const body = await context.clone().json()
+            notAWorkout = body?.error === 'not_a_workout'
+          } catch { /* non-JSON error body */ }
+        }
+        setOcrError(notAWorkout
+          ? 'Não foi possível identificar um treino nesta foto. Tente o scan rápido ou digite manualmente.'
+          : 'Erro ao processar a foto com IA. Tente o scan rápido ou digite manualmente.')
+        setState('menu')
+        return
+      }
+
+      const sections = (data?.sections ?? []) as Array<Omit<WorkoutSectionData, 'id' | 'exercises'> & {
+        exercises: Array<Omit<WorkoutSectionData['exercises'][number], 'id'>>
+      }>
+      if (!sections.length) {
+        setOcrError('Não foi possível identificar um treino nesta foto. Tente o scan rápido ou digite manualmente.')
+        setState('menu')
+        return
+      }
+
+      const withIds: WorkoutSectionData[] = sections.map(s => ({
+        ...s,
+        id: crypto.randomUUID(),
+        exercises: s.exercises.map(ex => ({ ...ex, id: crypto.randomUUID() })),
+      }))
+      setDate(todayISO())
+      setExplicitSections(sectionsToDraftSections(withIds))
+      setState('manual')
+    } catch {
+      setOcrError('Erro ao processar a foto com IA. Tente o scan rápido ou digite manualmente.')
       setState('menu')
     }
   }
@@ -673,8 +766,8 @@ export default function WorkoutImportSheet({
                   </svg>
                 </div>
                 <div className="text-left">
-                  <span className="font-sans font-bold text-[15px] text-soft-white block">Take a photo</span>
-                  <span className="font-mono text-[11px] text-[#6B6B68]">Use camera — OCR extracts the text</span>
+                  <span className="font-sans font-bold text-[15px] text-soft-white block">Scan rápido (offline)</span>
+                  <span className="font-mono text-[11px] text-[#6B6B68]">Câmera — OCR extrai o texto</span>
                 </div>
               </button>
 
@@ -692,10 +785,30 @@ export default function WorkoutImportSheet({
                   </svg>
                 </div>
                 <div className="text-left">
-                  <span className="font-sans font-bold text-[15px] text-soft-white block">Escolher da galeria</span>
-                  <span className="font-mono text-[11px] text-[#6B6B68]">Screenshot ou foto salva — OCR extrai o texto</span>
+                  <span className="font-sans font-bold text-[15px] text-soft-white block">Scan rápido (offline)</span>
+                  <span className="font-mono text-[11px] text-[#6B6B68]">Galeria — OCR extrai o texto</span>
                 </div>
               </button>
+
+              {/* AI photo scan (role-gated) */}
+              {hasAIRole && (
+                <button
+                  onClick={() => aiScanRef.current?.click()}
+                  className="w-full flex items-center gap-4 px-5 py-4 active:bg-[#141414]"
+                  style={{ borderBottom: '1px solid #1A1A1A' }}
+                >
+                  <div className="flex items-center justify-center shrink-0" style={{ width: 40, height: 40, background: '#1A1A1A', border: '1px solid #2A2A2A' }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D4FF3A" strokeWidth="1.8">
+                      <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+                      <circle cx="12" cy="13" r="4" />
+                    </svg>
+                  </div>
+                  <div className="text-left">
+                    <span className="font-sans font-bold text-[15px] text-soft-white block">Scan IA (mais preciso)</span>
+                    <span className="font-mono text-[11px] text-[#6B6B68]">Foto processada por IA — a foto é enviada para análise</span>
+                  </div>
+                </button>
+              )}
 
               {/* AI generate (role-gated) */}
               {hasAIRole && !generatedThisWeek && onOpenGenerate && (
@@ -719,6 +832,7 @@ export default function WorkoutImportSheet({
               {/* Hidden file inputs */}
               <input ref={cameraRef}  type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageSelected} />
               <input ref={galleryRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelected} />
+              <input ref={aiScanRef}  type="file" accept="image/*" className="hidden" onChange={handleAIScan} />
             </div>
           )}
 

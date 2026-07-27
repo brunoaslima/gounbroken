@@ -561,3 +561,38 @@ breakdown por função do item "Top users by cost", 2026-07-09).
   `console.error(error)` quando `error` existe — `data ?? []` sozinho transforma
   qualquer falha de RPC (schema desatualizado, permissão, etc.) em "seção vazia
   sem explicação" em vez de um erro visível/debugável.
+
+---
+
+## 23. Assumir `content[0]` como o bloco de texto na resposta da API da Claude
+
+**O padrão:** código que chama a Messages API da Anthropic e lê o texto da
+resposta direto por `response.content[0].text`, assumindo que o primeiro
+bloco do array `content` é sempre o texto — mas o array pode ter outros tipos
+de bloco antes do texto (ex: bloco de `thinking`), e nesse caso
+`content[0].text` é `undefined`, e `.trim()` nele lança `TypeError` — a
+função inteira quebra com "Erro interno" para o usuário, sem nenhuma pista de
+qual foi o problema real além do stack trace nos logs da Edge Function.
+
+**Por que se repete:** com um prompt de teste "de mentira" (imagem em branco,
+1x1), a resposta pode ter uma forma diferente da resposta a uma imagem real —
+esse bug só apareceu no teste com foto de treino real, não no teste com
+placeholder. Reforça o padrão #2: testar com dado real, não só com o menor
+input que "passa por cima" do código sem exercitar o caminho de verdade.
+
+**Onde já mordeu:** `scan-workout-photo` (Edge Function de scan de treino via
+IA) — `claudeData.content[0].text` quebrava com `TypeError` em toda chamada
+com uma foto de treino real, mesmo com o modelo e a autenticação corretos.
+Só foi descoberto porque a revisão pré-deploy exigiu uma chamada real à API
+antes de considerar a feature pronta (não só o teste Playwright mockado).
+
+**Como evitar:**
+- Nunca indexar `content[0]` direto — sempre buscar o bloco pelo campo `type`:
+  `content.find(c => c.type === "text")`, e tratar a ausência desse bloco como
+  erro tratado (resposta de erro clara), não como exceção não capturada.
+- Toda Edge Function nova que chama a Messages API da Anthropic: testar com
+  **pelo menos uma chamada real** (não só mockada nos testes Playwright, que
+  intercept a network e nunca exercitam o parsing de verdade) antes de
+  considerar a feature pronta pra deploy — mockar a function inteira nos
+  testes de UI é correto para velocidade/determinismo do teste, mas não
+  substitui uma verificação manual do parsing contra a API real.

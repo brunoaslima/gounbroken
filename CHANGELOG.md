@@ -6,6 +6,19 @@ Version format: `## [version] — YYYY-MM-DD`
 
 ---
 
+## [1.5.5] — 2026-07-25
+
+### Training → Workout scan: scan via IA (Claude vision)
+
+- New "Scan IA (mais preciso)" option next to the existing camera/gallery scan (now labeled "Scan rápido (offline)") in the manual workout creation sheet
+- Sends the photo to a new Supabase Edge Function (`scan-workout-photo`), which uses Claude vision to read and structure the workout (movements, sets, reps, load, format type, rounds, time caps) in one call — instead of raw Tesseract OCR text
+- Result lands pre-filled in the existing section builder for review/edit before saving — same save path as manual/OCR entry, no new UI
+- Restricted to accounts with the `ai`/`admin` role (same gate as the weekly plan generator); rate-limited to 20 scans/day per user via `ai_usage_log`
+- Photo is resized and re-encoded client-side before upload, capping payload size and stripping EXIF metadata
+- Tesseract OCR pipeline is unchanged — still the offline/fast option
+
+---
+
 ## [1.5.4] — 2026-07-17
 
 ### Admin → Claude usage: per-feature cost breakdown by user

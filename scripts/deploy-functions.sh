@@ -11,6 +11,7 @@ if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
 fi
 
 npx supabase functions deploy generate-workout --project-ref htuttqstiiettedrmgnf
+npx supabase functions deploy scan-workout-photo --project-ref htuttqstiiettedrmgnf
 
 echo ""
 echo "✅ Done!"
