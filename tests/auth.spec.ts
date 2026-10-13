@@ -54,16 +54,6 @@ test.describe('Página de Login', () => {
     await expect(page).toHaveURL(/\/login/)
   })
 
-  test('aba Criar conta mostra campos de cadastro', async ({ page }) => {
-    await page.getByRole('button', { name: /^Criar conta$/i }).first().click()
-    // Aguarda o formulário de cadastro aparecer
-    await page.waitForSelector('[placeholder="username"]')
-    await expect(page.getByPlaceholder('Nome', { exact: true })).toBeVisible()
-    await expect(page.getByPlaceholder('Sobrenome', { exact: true })).toBeVisible()
-    await expect(page.getByPlaceholder('username', { exact: true })).toBeVisible()
-    await expect(page.getByPlaceholder('email@dominio.com', { exact: true })).toBeVisible()
-  })
-
   test('botão Mostrar/Ocultar alterna visibilidade da senha', async ({ page }) => {
     const input = page.getByPlaceholder('••••••••').first()
     await expect(input).toHaveAttribute('type', 'password')
@@ -76,7 +66,9 @@ test.describe('Página de Login', () => {
 
 // ── Signup form validation ─────────────────────────────────────────────
 
-test.describe('Validação do formulário de cadastro', () => {
+// Inscrições suspensas (VITE_SIGNUPS_OPEN != 'true'): o formulário não renderiza.
+// Reativar junto com a reabertura das inscrições; o comportamento novo está em signup-suspended.spec.ts
+test.describe.skip('Validação do formulário de cadastro', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/login')
     await page.getByRole('button', { name: /Criar conta/i }).click()

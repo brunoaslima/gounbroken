@@ -6,6 +6,18 @@ Version format: `## [version] — YYYY-MM-DD`
 
 ---
 
+## [1.5.6] — 2026-10-09
+
+### Auth → Sign-ups suspended during closed beta
+
+- Login screen: the "Create Account" tab (and `?tab=signup` / invite `?ref=` links) now shows a "Sign-ups suspended" notice instead of the form; Sign In is unchanged. The invite banner no longer says "Create your account to continue"
+- Gated by `VITE_SIGNUPS_OPEN` (default closed; only the exact value `true` reopens). The signup form code is kept intact
+- UI-only gate: the anon key is public, so `POST /auth/v1/signup` still works until **"Allow new users to sign up"** is turned OFF in Supabase (Auth > Sign In / Providers). This is a manual step and blocks calling the beta closed
+- To reopen: turn the Supabase toggle back ON, set `VITE_SIGNUPS_OPEN=true` on Vercel (Production and Preview), redeploy, and re-enable the skipped signup validation block in `tests/auth.spec.ts`
+- Tests: new `tests/signup-suspended.spec.ts`; the old signup-form tests in `tests/auth.spec.ts` are skipped (they were already out of sync with the English UI)
+
+---
+
 ## [1.5.5] — 2026-07-25
 
 ### Training → Workout scan: scan via IA (Claude vision)

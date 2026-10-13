@@ -11,6 +11,9 @@ type Tab = 'login' | 'signup'
 
 const USERNAME_RE = /^[a-z0-9_.]+$/
 
+// UI gate only — the real block is "Allow new users to sign up" in the Supabase dashboard
+const SIGNUPS_OPEN = import.meta.env.VITE_SIGNUPS_OPEN === 'true'
+
 const Ruler = () => (
   <div className="flex justify-between items-end" style={{ height: 12 }}>
     {Array.from({ length: 41 }).map((_, i) => (
@@ -61,6 +64,29 @@ function EmailConfirmSent({ email, onBack }: { email: string; onBack: () => void
         className="font-mono font-bold uppercase tracking-[0.12em] text-[11px] text-[#6B6B68] border border-[#2A2A2A] py-3 active:bg-[#141414] transition-colors"
       >
         ← Back
+      </button>
+    </div>
+  )
+}
+
+function SignupsSuspended({ onBack }: { onBack: () => void }) {
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="border border-[#2A2A2A] bg-[#141414] p-5">
+        <p className="font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-[#D4FF3A] mb-2">
+          Sign-ups suspended
+        </p>
+        <p className="font-sans text-[#A8A8A4] text-[14px] leading-relaxed">
+          New account creation is paused while we run the beta test.
+          We'll open to more users soon.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onBack}
+        className="font-mono font-bold uppercase tracking-[0.14em] text-[11px] text-[#6B6B68] border border-[#2A2A2A] py-3 active:bg-[#141414] transition-colors"
+      >
+        ← Back to Sign In
       </button>
     </div>
   )
@@ -280,7 +306,7 @@ export default function Login() {
                 Invite
               </span>
               <span className="font-mono text-[11px] text-[#A8A8A4] leading-snug block mt-0.5">
-                Create your account to continue
+                {SIGNUPS_OPEN ? 'Create your account to continue' : 'Sign-ups are suspended during the beta'}
               </span>
             </div>
           </div>
@@ -349,12 +375,16 @@ export default function Login() {
         )}
 
         {/* ── Signup: email confirmation sent ── */}
-        {tab === 'signup' && emailConfirmSent && (
+        {tab === 'signup' && !SIGNUPS_OPEN && (
+          <SignupsSuspended onBack={() => switchTab('login')} />
+        )}
+
+        {tab === 'signup' && SIGNUPS_OPEN && emailConfirmSent && (
           <EmailConfirmSent email={email} onBack={() => setEmailConfirmSent(false)} />
         )}
 
         {/* ── Signup: form ── */}
-        {tab === 'signup' && !emailConfirmSent && (
+        {tab === 'signup' && SIGNUPS_OPEN && !emailConfirmSent && (
           <form onSubmit={handleSignup} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
